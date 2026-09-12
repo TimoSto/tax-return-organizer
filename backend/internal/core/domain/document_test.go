@@ -1,21 +1,25 @@
-package domain
+package domain_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+)
 
 func TestNewDocument_RejectsEmptyFilename(t *testing.T) {
-	if _, err := NewDocument(1, "  ", "application/pdf", []byte("x")); err == nil {
+	if _, err := domain.NewDocument(1, "  ", "application/pdf", []byte("x")); err == nil {
 		t.Fatal("expected error for empty filename, got nil")
 	}
 }
 
 func TestNewDocument_RejectsEmptyContent(t *testing.T) {
-	if _, err := NewDocument(1, "payslip.pdf", "application/pdf", nil); err == nil {
+	if _, err := domain.NewDocument(1, "payslip.pdf", "application/pdf", nil); err == nil {
 		t.Fatal("expected error for empty content, got nil")
 	}
 }
 
 func TestNewDocument_SetsSizeFromContent(t *testing.T) {
-	doc, err := NewDocument(1, "payslip.pdf", "application/pdf", []byte("hello"))
+	doc, err := domain.NewDocument(1, "payslip.pdf", "application/pdf", []byte("hello"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -28,7 +32,7 @@ func TestNewDocument_SetsSizeFromContent(t *testing.T) {
 }
 
 func TestDocument_AssignCategoryThenUnclassify(t *testing.T) {
-	doc, err := NewDocument(1, "payslip.pdf", "application/pdf", []byte("hello"))
+	doc, err := domain.NewDocument(1, "payslip.pdf", "application/pdf", []byte("hello"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

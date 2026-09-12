@@ -1,21 +1,25 @@
-package domain
+package domain_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+)
 
 func TestNewChecklistTemplate_RejectsInvalidRecurrence(t *testing.T) {
-	if _, err := NewChecklistTemplate(1, "Payroll", "weekly"); err == nil {
+	if _, err := domain.NewChecklistTemplate(1, "Payroll", "weekly"); err == nil {
 		t.Fatal("expected error for invalid recurrence, got nil")
 	}
 }
 
 func TestNewChecklistTemplate_RejectsEmptyTitle(t *testing.T) {
-	if _, err := NewChecklistTemplate(1, "  ", RecurrenceOnce); err == nil {
+	if _, err := domain.NewChecklistTemplate(1, "  ", domain.RecurrenceOnce); err == nil {
 		t.Fatal("expected error for empty title, got nil")
 	}
 }
 
 func TestGenerateItems_Once(t *testing.T) {
-	tpl, err := NewChecklistTemplate(1, "Annual bank statement", RecurrenceOnce)
+	tpl, err := domain.NewChecklistTemplate(1, "Annual bank statement", domain.RecurrenceOnce)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -34,7 +38,7 @@ func TestGenerateItems_Once(t *testing.T) {
 }
 
 func TestGenerateItems_Monthly(t *testing.T) {
-	tpl, err := NewChecklistTemplate(1, "Payroll statement", RecurrenceMonthly)
+	tpl, err := domain.NewChecklistTemplate(1, "Payroll statement", domain.RecurrenceMonthly)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
