@@ -44,7 +44,7 @@ We use a Go backend and a SvelteKit BFF, backed by a PostgreSQL database. They a
 
 - NodeJS container with bff
 - Plain container with compiled backend binary
-- postgres container, with a named volume for PGDATA so the database persists across restarts
+- postgres container, with a named docker volume mounted at `/var/lib/postgresql/data` (Postgres' `PGDATA` dir), so the database (and thus the documents stored as blobs in it) persists across container restarts/recreation — without it, `docker compose down` would wipe all data
 - Only the Go backend container talks to postgres directly
 
 ### Data model (PostgreSQL)
