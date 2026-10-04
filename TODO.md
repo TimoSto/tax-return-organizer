@@ -13,23 +13,22 @@ Use-cases-before-adapters: application services depend only on `port` interfaces
     - `Collector`, `Client` (a `Client` belongs to exactly one `Collector`)
     - `ClientTaxYear` — scoped to a `Client`
     - `Document` - Scoped to a `ClientTaxYear` 
-    - `Category`, `ChecklistTemplate` — scoped to a `Collector`, reused across its clients; carries a recurrence of `once`/`monthly` but no deadline rule of its own
-    - `TemplateYearDeadline` — the collector-entered, fixed due date for a `ChecklistTemplate` in a given tax year (and, for `monthly`, a given month); the only source of a checklist item's due date
-    - `ChecklistItem` — one per `ClientTaxYear` per template item (generated from a template: one for `once`, twelve for `monthly`), satisfied either by a linked `Document` or by a structured value (e.g. a count/amount) entered directly
-- [ ] Go: use cases/application services for collector setup — manage categories and checklist templates (incl. deadline) for a collector, tested against ports with mocks/in-memory fakes — no adapter yet
+    - `Category`, `ChecklistTemplate` — scoped to a `Collector`, reused across its clients; carries a recurrence of `once`/`monthly`. No deadline tracking in the first MVP (deferred — see [README.md](README.md))
+    - `ChecklistItem` — one per `ClientTaxYear` per template item (generated from a template: one for `once`, twelve for `monthly`), satisfied by a typed `Value` (a linked `Document` or a text/number/year/bool entered directly), as declared by the template's `Requirement`
+- [ ] Go: use cases/application services for collector setup — manage categories and checklist templates for a collector, tested against ports with mocks/in-memory fakes — no adapter yet
 - [ ] Go: use cases/application services for client management — create/list clients under a collector, create/list tax years for a client
 - [ ] Go: use cases/application services for document operations scoped to a client (upload, list, get, delete; set metadata)
-- [ ] Go: checklist use cases — generate items from a template, satisfy an item via document or structured value, mark undone, list items with deadline status (upcoming/overdue) for in-app display
+- [ ] Go: checklist use cases — generate items from a template, satisfy an item via document or structured value, mark undone, list items with completion status (missing/done) for in-app display
 - [ ] Go: Postgres adapter — schema as migrations (collectors, clients, client_tax_years, categories, documents, checklist_templates, checklist_items) + repository ports implemented against it
 - [ ] Go: REST API — collector-side endpoints (categories, checklist templates, client management)
-- [ ] Go: REST API — client-side endpoints (tax years, documents, checklist items incl. deadline status)
+- [ ] Go: REST API — client-side endpoints (tax years, documents, checklist items incl. completion status)
 - [ ] docker compose: backend + postgres only, verify end-to-end via curl/Postman
 - [ ] Go: export use case (bundle a client's documents + structured data per category/year) + endpoint
 
 ## 2. Frontend
 - [ ] SvelteKit BFF: skeleton + proxy routes to the Go API
-- [ ] UI: collector page — manage categories/checklist templates and their deadlines, manage clients
-- [ ] UI: client page — bar (year select) + rail + overview/checklist view, with upcoming/overdue deadlines highlighted in-app
+- [ ] UI: collector page — manage categories/checklist templates, manage clients
+- [ ] UI: client page — bar (year select) + rail + overview/checklist view, with outstanding (not yet satisfied) items highlighted in-app
 - [ ] UI: document tree view, per-item upload, metadata edit pane, structured-value entry (in place of upload)
 - [ ] UI: hook up export
 

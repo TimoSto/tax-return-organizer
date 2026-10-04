@@ -3,7 +3,6 @@ package domain
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -21,21 +20,18 @@ func (r Recurrence) valid() bool {
 
 // ChecklistTemplate is defined by a Collector and reused across that
 // collector's clients: it describes one required piece of information
-// (e.g. "bank statement") within a Category and how often it's required.
-// It carries no deadline of its own — due dates are never derived from a
-// rule on the template, since even a 'monthly' requirement's due date can
-// shift year to year (e.g. around holidays). Instead the collector enters
-// an absolute TemplateYearDeadline for each tax year (and, for 'monthly',
-// each month of it) when opening that year.
+// (e.g. "bank statement") within a Category, what satisfies it (a document or
+// a typed value, see Requirement), and how often it's required.
 type ChecklistTemplate struct {
 	ID          int
 	CollectorID uuid.UUID
 	CategoryID  int
 	Title       string
 	Recurrence  Recurrence
+	Requirement Requirement
 }
 
-func NewChecklistTemplate(collectorID uuid.UUID, categoryID int, title string, recurrence Recurrence) (*ChecklistTemplate, error) {
+func NewChecklistTemplate(collectorID uuid.UUID, categoryID int, title string, recurrence Recurrence, requirement Requirement) (*ChecklistTemplate, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		return nil, ErrEmptyChecklistTitle
@@ -43,21 +39,23 @@ func NewChecklistTemplate(collectorID uuid.UUID, categoryID int, title string, r
 	if !recurrence.valid() {
 		return nil, fmt.Errorf("%w: %q", ErrInvalidRecurrence, recurrence)
 	}
+	if requirement == nil {
+		return nil, ErrMissingRequirement
+	}
 	return &ChecklistTemplate{
 		CollectorID: collectorID,
 		CategoryID:  categoryID,
 		Title:       title,
 		Recurrence:  recurrence,
+		Requirement: requirement,
 	}, nil
 }
 
 // GenerateItem builds one client's checklist item for this template and tax
-// year, using a due date and (for 'monthly' templates) a month already
-// resolved by the caller from this template's TemplateYearDeadline for that
-// (year[, month]). month must be nil for a 'once' template and 1-12 for a
-// 'monthly' one; a mismatch returns ErrRecurrenceMismatch or ErrInvalidMonth.
-// A zero dueDate returns ErrMissingDeadlineDate.
-func (t *ChecklistTemplate) GenerateItem(clientTaxYearID int, month *int, dueDate time.Time) (*ChecklistItem, error) {
+// year (and, for a 'monthly' template, a given month). month must be nil
+// for a 'once' template and 1-12 for a 'monthly' one; a mismatch returns
+// ErrRecurrenceMismatch or ErrInvalidMonth.
+func (t *ChecklistTemplate) GenerateItem(clientTaxYearID int, month *int) (*ChecklistItem, error) {
 	if t.Recurrence == RecurrenceOnce && month != nil {
 		return nil, ErrRecurrenceMismatch
 	}
@@ -69,65 +67,50 @@ func (t *ChecklistTemplate) GenerateItem(clientTaxYearID int, month *int, dueDat
 			return nil, ErrInvalidMonth
 		}
 	}
-	if dueDate.IsZero() {
-		return nil, ErrMissingDeadlineDate
-	}
 	return &ChecklistItem{
 		TemplateID:      t.ID,
 		ClientTaxYearID: clientTaxYearID,
 		Month:           month,
-		DueDate:         dueDate,
+		Requirement:     t.Requirement,
 	}, nil
 }
 
 // ChecklistItem is one client's instance of a template's requirement for a
-// given tax year (and, for a 'monthly' template, a given month). It's
-// satisfied either by a linked Document or by a structured value entered
-// directly — never both.
+// given tax year (and, for a 'monthly' template, a given month). Requirement
+// is copied from the template when the item is generated, so the item alone
+// says what it needs and later template edits don't invalidate it. Value is
+// nil while the item is outstanding.
 type ChecklistItem struct {
 	ID              int
 	TemplateID      int
 	ClientTaxYearID int
 	Month           *int // nil for items generated from a 'once' template
-	DueDate         time.Time
 
-	DocumentID      *uuid.UUID
-	StructuredValue *string
-
-	Done bool
+	Requirement Requirement
+	Value       Value
 }
 
-// SatisfyWithDocument links the item to a document that fulfills it.
-// It errors if the item is already satisfied with a structured value.
-func (i *ChecklistItem) SatisfyWithDocument(documentID uuid.UUID) error {
-	if i.StructuredValue != nil {
-		return ErrChecklistItemAlreadySatisfiedWithValue
-	}
-	i.DocumentID = &documentID
-	i.Done = true
-	return nil
+// Done reports whether the item has been satisfied.
+func (i *ChecklistItem) Done() bool {
+	return i.Value != nil
 }
 
-// SatisfyWithValue records a structured value (e.g. a count or amount) that
-// fulfills the item directly, in place of uploading a file. It errors if the
-// item is already satisfied with a document.
-func (i *ChecklistItem) SatisfyWithValue(value string) error {
-	if i.DocumentID != nil {
-		return ErrChecklistItemAlreadySatisfiedWithDocument
+// Satisfy records v as what fulfills the item. It errors with
+// ErrMissingRequirement for an item without a requirement, and otherwise with
+// whatever the requirement's Accepts returns (ErrWrongFulfillmentKind,
+// ErrInvalidValue); a rejected value leaves the item untouched.
+func (i *ChecklistItem) Satisfy(v Value) error {
+	if i.Requirement == nil {
+		return ErrMissingRequirement
 	}
-	i.StructuredValue = &value
-	i.Done = true
+	if err := i.Requirement.Accepts(v); err != nil {
+		return err
+	}
+	i.Value = v
 	return nil
 }
 
 // Reset clears whatever satisfied the item, marking it not done again.
 func (i *ChecklistItem) Reset() {
-	i.DocumentID = nil
-	i.StructuredValue = nil
-	i.Done = false
-}
-
-// IsOverdue reports whether the item is still unsatisfied past its due date.
-func (i *ChecklistItem) IsOverdue(now time.Time) bool {
-	return !i.Done && now.After(i.DueDate)
+	i.Value = nil
 }
