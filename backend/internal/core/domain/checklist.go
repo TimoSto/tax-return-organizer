@@ -21,18 +21,21 @@ func (r Recurrence) valid() bool {
 
 // ChecklistTemplate is defined by a Collector and reused across that
 // collector's clients: it describes one required piece of information
-// (e.g. "bank statement") within a Category, how often it's required, and
-// when it's due.
+// (e.g. "bank statement") within a Category and how often it's required.
+// It carries no deadline of its own — due dates are never derived from a
+// rule on the template, since even a 'monthly' requirement's due date can
+// shift year to year (e.g. around holidays). Instead the collector enters
+// an absolute TemplateYearDeadline for each tax year (and, for 'monthly',
+// each month of it) when opening that year.
 type ChecklistTemplate struct {
 	ID          int
 	CollectorID uuid.UUID
 	CategoryID  int
 	Title       string
 	Recurrence  Recurrence
-	Deadline    Deadline
 }
 
-func NewChecklistTemplate(collectorID uuid.UUID, categoryID int, title string, recurrence Recurrence, deadline Deadline) (*ChecklistTemplate, error) {
+func NewChecklistTemplate(collectorID uuid.UUID, categoryID int, title string, recurrence Recurrence) (*ChecklistTemplate, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
 		return nil, ErrEmptyChecklistTitle
@@ -45,33 +48,36 @@ func NewChecklistTemplate(collectorID uuid.UUID, categoryID int, title string, r
 		CategoryID:  categoryID,
 		Title:       title,
 		Recurrence:  recurrence,
-		Deadline:    deadline,
 	}, nil
 }
 
-// GenerateItems expands a template into one client's checklist items for a
-// given tax year: a single item for a 'once' template, or one item per
-// month for a 'monthly' one. Each item's due date is derived from the
-// template's Deadline rule.
-func (t *ChecklistTemplate) GenerateItems(clientTaxYearID, year int) []*ChecklistItem {
-	if t.Recurrence == RecurrenceMonthly {
-		items := make([]*ChecklistItem, 0, 12)
-		for month := 1; month <= 12; month++ {
-			m := month
-			items = append(items, &ChecklistItem{
-				TemplateID:      t.ID,
-				ClientTaxYearID: clientTaxYearID,
-				Month:           &m,
-				DueDate:         t.Deadline.DueDate(year, month),
-			})
-		}
-		return items
+// GenerateItem builds one client's checklist item for this template and tax
+// year, using a due date and (for 'monthly' templates) a month already
+// resolved by the caller from this template's TemplateYearDeadline for that
+// (year[, month]). month must be nil for a 'once' template and 1-12 for a
+// 'monthly' one; a mismatch returns ErrRecurrenceMismatch or ErrInvalidMonth.
+// A zero dueDate returns ErrMissingDeadlineDate.
+func (t *ChecklistTemplate) GenerateItem(clientTaxYearID int, month *int, dueDate time.Time) (*ChecklistItem, error) {
+	if t.Recurrence == RecurrenceOnce && month != nil {
+		return nil, ErrRecurrenceMismatch
 	}
-	return []*ChecklistItem{{
+	if t.Recurrence == RecurrenceMonthly {
+		if month == nil {
+			return nil, ErrRecurrenceMismatch
+		}
+		if *month < 1 || *month > 12 {
+			return nil, ErrInvalidMonth
+		}
+	}
+	if dueDate.IsZero() {
+		return nil, ErrMissingDeadlineDate
+	}
+	return &ChecklistItem{
 		TemplateID:      t.ID,
 		ClientTaxYearID: clientTaxYearID,
-		DueDate:         t.Deadline.DueDate(year, 0),
-	}}
+		Month:           month,
+		DueDate:         dueDate,
+	}, nil
 }
 
 // ChecklistItem is one client's instance of a template's requirement for a

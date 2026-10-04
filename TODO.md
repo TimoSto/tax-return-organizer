@@ -13,7 +13,8 @@ Use-cases-before-adapters: application services depend only on `port` interfaces
     - `Collector`, `Client` (a `Client` belongs to exactly one `Collector`)
     - `ClientTaxYear` — scoped to a `Client`
     - `Document` - Scoped to a `ClientTaxYear` 
-    - `Category`, `ChecklistTemplate` — scoped to a `Collector`, reused across its clients; `ChecklistTemplate` carries a deadline and a recurrence of `once`/`monthly`
+    - `Category`, `ChecklistTemplate` — scoped to a `Collector`, reused across its clients; carries a recurrence of `once`/`monthly` but no deadline rule of its own
+    - `TemplateYearDeadline` — the collector-entered, fixed due date for a `ChecklistTemplate` in a given tax year (and, for `monthly`, a given month); the only source of a checklist item's due date
     - `ChecklistItem` — one per `ClientTaxYear` per template item (generated from a template: one for `once`, twelve for `monthly`), satisfied either by a linked `Document` or by a structured value (e.g. a count/amount) entered directly
 - [ ] Go: use cases/application services for collector setup — manage categories and checklist templates (incl. deadline) for a collector, tested against ports with mocks/in-memory fakes — no adapter yet
 - [ ] Go: use cases/application services for client management — create/list clients under a collector, create/list tax years for a client

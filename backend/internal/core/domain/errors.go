@@ -10,6 +10,10 @@ var (
 	ErrEmptyChecklistTitle = errors.New("checklist template title must not be empty")
 	ErrInvalidRecurrence   = errors.New("invalid recurrence")
 
+	ErrRecurrenceMismatch  = errors.New("checklist template recurrence does not match the requested item generation")
+	ErrMissingDeadlineDate = errors.New("deadline date must not be zero")
+	ErrInvalidMonth        = errors.New("month must be between 1 and 12")
+
 	ErrChecklistItemAlreadySatisfiedWithValue    = errors.New("checklist item already satisfied with a structured value")
 	ErrChecklistItemAlreadySatisfiedWithDocument = errors.New("checklist item already satisfied with a document")
 

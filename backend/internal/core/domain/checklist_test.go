@@ -13,8 +13,18 @@ import (
 func TestNewChecklistTemplate(t *testing.T) {
 	collectorID := uuid.New()
 
-	t.Run("valid", func(t *testing.T) {
-		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Bank statement", domain.RecurrenceMonthly, domain.Deadline{DaysAfterPeriodEnd: 5})
+	t.Run("valid monthly", func(t *testing.T) {
+		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Bank statement", domain.RecurrenceMonthly)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if tmpl.CategoryID != 1 {
+			t.Errorf("CategoryID = %d, want 1", tmpl.CategoryID)
+		}
+	})
+
+	t.Run("valid once", func(t *testing.T) {
+		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Insurance premium notice", domain.RecurrenceOnce)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -24,84 +34,103 @@ func TestNewChecklistTemplate(t *testing.T) {
 	})
 
 	t.Run("empty title", func(t *testing.T) {
-		if _, err := domain.NewChecklistTemplate(collectorID, 1, "  ", domain.RecurrenceOnce, domain.Deadline{}); !errors.Is(err, domain.ErrEmptyChecklistTitle) {
+		if _, err := domain.NewChecklistTemplate(collectorID, 1, "  ", domain.RecurrenceOnce); !errors.Is(err, domain.ErrEmptyChecklistTitle) {
 			t.Errorf("err = %v, want %v", err, domain.ErrEmptyChecklistTitle)
 		}
 	})
 
 	t.Run("invalid recurrence", func(t *testing.T) {
-		if _, err := domain.NewChecklistTemplate(collectorID, 1, "Bank statement", domain.Recurrence("yearly"), domain.Deadline{}); !errors.Is(err, domain.ErrInvalidRecurrence) {
+		if _, err := domain.NewChecklistTemplate(collectorID, 1, "Bank statement", domain.Recurrence("yearly")); !errors.Is(err, domain.ErrInvalidRecurrence) {
 			t.Errorf("err = %v, want %v", err, domain.ErrInvalidRecurrence)
 		}
 	})
 }
 
-func TestChecklistTemplate_GenerateItems(t *testing.T) {
+func TestChecklistTemplate_GenerateItem(t *testing.T) {
 	collectorID := uuid.New()
+	wantDue := time.Date(2025, time.March, 31, 0, 0, 0, 0, time.UTC)
 
-	t.Run("once", func(t *testing.T) {
-		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Insurance premium notice", domain.RecurrenceOnce, domain.Deadline{DaysAfterPeriodEnd: 90})
+	t.Run("once happy path", func(t *testing.T) {
+		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Insurance premium notice", domain.RecurrenceOnce)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		tmpl.ID = 42
 
-		items := tmpl.GenerateItems(7, 2024)
-		if len(items) != 1 {
-			t.Fatalf("len(items) = %d, want 1", len(items))
+		item, err := tmpl.GenerateItem(7, nil, wantDue)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		item := items[0]
 		if item.TemplateID != 42 || item.ClientTaxYearID != 7 {
 			t.Errorf("item = %+v, want TemplateID=42 ClientTaxYearID=7", item)
 		}
 		if item.Month != nil {
 			t.Errorf("Month = %v, want nil for a 'once' item", item.Month)
 		}
-		wantDue := time.Date(2025, time.March, 31, 0, 0, 0, 0, time.UTC)
 		if !item.DueDate.Equal(wantDue) {
 			t.Errorf("DueDate = %v, want %v", item.DueDate, wantDue)
 		}
 	})
 
-	t.Run("monthly", func(t *testing.T) {
-		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Payroll statement", domain.RecurrenceMonthly, domain.Deadline{DaysAfterPeriodEnd: 5})
+	t.Run("monthly happy path", func(t *testing.T) {
+		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Payroll statement", domain.RecurrenceMonthly)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		tmpl.ID = 42
+		month := 1
 
-		items := tmpl.GenerateItems(7, 2024)
-		if len(items) != 12 {
-			t.Fatalf("len(items) = %d, want 12", len(items))
+		item, err := tmpl.GenerateItem(7, &month, wantDue)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-
-		jan := items[0]
-		if jan.Month == nil || *jan.Month != 1 {
-			t.Fatalf("items[0].Month = %v, want 1", jan.Month)
+		if item.Month == nil || *item.Month != 1 {
+			t.Errorf("Month = %v, want 1", item.Month)
 		}
-		wantDue := time.Date(2024, time.February, 5, 0, 0, 0, 0, time.UTC)
-		if !jan.DueDate.Equal(wantDue) {
-			t.Errorf("items[0].DueDate = %v, want %v", jan.DueDate, wantDue)
-		}
-	})
-}
-
-func TestDeadline_DueDate(t *testing.T) {
-	t.Run("once (month 0) uses end of tax year", func(t *testing.T) {
-		d := domain.Deadline{DaysAfterPeriodEnd: 0}
-		got := d.DueDate(2024, 0)
-		want := time.Date(2024, time.December, 31, 0, 0, 0, 0, time.UTC)
-		if !got.Equal(want) {
-			t.Errorf("DueDate = %v, want %v", got, want)
+		if !item.DueDate.Equal(wantDue) {
+			t.Errorf("DueDate = %v, want %v", item.DueDate, wantDue)
 		}
 	})
 
-	t.Run("monthly uses end of covered month", func(t *testing.T) {
-		d := domain.Deadline{DaysAfterPeriodEnd: 5}
-		got := d.DueDate(2024, 2) // February 2024 is a leap year, ends the 29th
-		want := time.Date(2024, time.March, 5, 0, 0, 0, 0, time.UTC)
-		if !got.Equal(want) {
-			t.Errorf("DueDate = %v, want %v", got, want)
+	t.Run("once with a month errors", func(t *testing.T) {
+		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Insurance premium notice", domain.RecurrenceOnce)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		month := 1
+		if _, err := tmpl.GenerateItem(7, &month, wantDue); !errors.Is(err, domain.ErrRecurrenceMismatch) {
+			t.Errorf("err = %v, want %v", err, domain.ErrRecurrenceMismatch)
+		}
+	})
+
+	t.Run("monthly without a month errors", func(t *testing.T) {
+		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Payroll statement", domain.RecurrenceMonthly)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := tmpl.GenerateItem(7, nil, wantDue); !errors.Is(err, domain.ErrRecurrenceMismatch) {
+			t.Errorf("err = %v, want %v", err, domain.ErrRecurrenceMismatch)
+		}
+	})
+
+	t.Run("monthly with an out-of-range month errors", func(t *testing.T) {
+		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Payroll statement", domain.RecurrenceMonthly)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		month := 13
+		if _, err := tmpl.GenerateItem(7, &month, wantDue); !errors.Is(err, domain.ErrInvalidMonth) {
+			t.Errorf("err = %v, want %v", err, domain.ErrInvalidMonth)
+		}
+	})
+
+	t.Run("zero due date errors", func(t *testing.T) {
+		tmpl, err := domain.NewChecklistTemplate(collectorID, 1, "Insurance premium notice", domain.RecurrenceOnce)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := tmpl.GenerateItem(7, nil, time.Time{}); !errors.Is(err, domain.ErrMissingDeadlineDate) {
+			t.Errorf("err = %v, want %v", err, domain.ErrMissingDeadlineDate)
 		}
 	})
 }

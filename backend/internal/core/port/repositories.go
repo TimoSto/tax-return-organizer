@@ -39,6 +39,26 @@ type ChecklistTemplateRepository interface {
 	Delete(ctx context.Context, id int) error
 }
 
+// TemplateYearDeadlineRepository manages the collector-entered, fixed due
+// dates for ChecklistTemplates — every template's deadline(s), for every
+// tax year, live here rather than on the template itself.
+type TemplateYearDeadlineRepository interface {
+	// Save upserts the deadline for its (TemplateID, Year, Month) key.
+	// Month is nil for a 'once' template's single yearly deadline, or 1-12
+	// for one of a 'monthly' template's per-month deadlines.
+	Save(ctx context.Context, deadline *domain.TemplateYearDeadline) error
+	// Find returns ErrNotFound if the collector hasn't entered this
+	// particular (template, year, month) deadline yet.
+	Find(ctx context.Context, templateID, year int, month *int) (*domain.TemplateYearDeadline, error)
+	// ListByTemplateAndYear returns every deadline entered so far for one
+	// template's year — a single entry for 'once', up to 12 for 'monthly'.
+	ListByTemplateAndYear(ctx context.Context, templateID, year int) ([]*domain.TemplateYearDeadline, error)
+	// ListByCollectorAndYear returns every deadline a collector has already
+	// entered for the given year, across all its templates — e.g. to drive
+	// a "configure deadlines for the new year" view.
+	ListByCollectorAndYear(ctx context.Context, collectorID uuid.UUID, year int) ([]*domain.TemplateYearDeadline, error)
+}
+
 type ChecklistItemRepository interface {
 	Save(ctx context.Context, item *domain.ChecklistItem) error
 	ListByTemplate(ctx context.Context, templateID int) ([]*domain.ChecklistItem, error)
