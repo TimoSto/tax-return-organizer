@@ -1,16 +1,18 @@
 package domain
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+// Document is a file a client uploaded (blob + metadata), belonging to one
+// of that client's tax years, optionally classified under a
+// collector-defined category.
 type Document struct {
 	ID               uuid.UUID
-	TaxYearID        int
+	ClientTaxYearID  int
 	CategoryID       *int // nil = unclassified
 	OriginalFilename string
 	MimeType         string
@@ -21,23 +23,23 @@ type Document struct {
 	UpdatedAt        time.Time
 }
 
-func NewDocument(taxYearID int, originalFilename, mimeType string, content []byte) (*Document, error) {
+func NewDocument(clientTaxYearID int, originalFilename, mimeType string, content []byte) (*Document, error) {
 	originalFilename = strings.TrimSpace(originalFilename)
 	if originalFilename == "" {
-		return nil, fmt.Errorf("document filename must not be empty")
+		return nil, ErrEmptyDocumentFilename
 	}
 	mimeType = strings.TrimSpace(mimeType)
 	if mimeType == "" {
-		return nil, fmt.Errorf("document mime type must not be empty")
+		return nil, ErrEmptyDocumentMimeType
 	}
 	if len(content) == 0 {
-		return nil, fmt.Errorf("document content must not be empty")
+		return nil, ErrEmptyDocumentContent
 	}
 
 	now := time.Now()
 	return &Document{
 		ID:               uuid.New(),
-		TaxYearID:        taxYearID,
+		ClientTaxYearID:  clientTaxYearID,
 		OriginalFilename: originalFilename,
 		MimeType:         mimeType,
 		SizeBytes:        int64(len(content)),
