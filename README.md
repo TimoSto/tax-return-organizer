@@ -32,11 +32,11 @@ This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. d
 - Generate List of documents and data the Client needs to provide
     - For documents metadata can be specified, which the client needs to fill out
     - For data units (EUR or DAYS) and validation rules (e.g. *>0*) can be specified
-- If Persona changes, add possibility to update this list, but not necessity
+- If Persona changes, add possibility to update this list, but not necessity (not possible on a closed tax year)
 
 ### Usecase *"Close Client Tax Year"*:
 
-- When Client has provided all necessary documents and data, the Collector can close the tax year.
+- The Collector can only close the tax year once every item is satisfied; while items are outstanding, closing is rejected
 - After this the client cannot alter the files/data anymore
 
 ## Usage by Client
@@ -158,12 +158,17 @@ classDiagram
         +Kind Kind
         +DocumentSpec* DocumentSpec
         +DataSpec* DataSpec
-        +int64* Amount
         +Done() bool
         +EnterAmount(int64) error
         +AddDocument(Document) error
         +RemoveDocument(UUID) error
         +SetMetadata(UUID, map) error
+    }
+
+    class DataEntry {
+        +UUID ID
+        +UUID RequiredItemID
+        +int64 Amount
     }
 
     class Document {
@@ -192,13 +197,14 @@ classDiagram
     ClientTaxYear "1" --> "*" RequiredItem : lists
     ItemDefinition "0..1" <.. "*" RequiredItem : generated from (snapshot)
     RequiredItem "1" --> "*" Document : holds
+    RequiredItem "1" --> "0..1" DataEntry : holds
 ```
 
 Notes:
 - **Persona assignment is a live reference, generated items are snapshots.** A `ClientTaxYear` only references its `Persona`s, so renaming a persona or adding a definition shows up on the client immediately. `Generate()` expands each `ItemDefinition` of each assigned persona into `RequiredItem`s (12 for `monthly`, 4 `quarterly`, 2 `semiannually`, 1 `annually`, distinguished by `PeriodIndex`) and copies title, kind and spec into the item. Later edits to a persona therefore never silently change an existing list; `SyncItems()` is the explicit, optional way to pull in new definitions (it only adds items and leaves existing ones untouched).
 - **The client never sees personas.** A `RequiredItem` carries everything needed to render it (title, kind, spec, state), so the client view works on items alone. `DefinitionID` is only a back-reference used by `SyncItems()`.
-- **Two kinds of items.** `document` items are satisfied by uploaded `Document`s, `data` items by a numeric `Amount` in the `DataSpec.Unit` (EUR is stored in cents). `Done()` is derived, there is no separate flag: documents → at least one `Document`; data → `Amount != nil`.
-- **Validation.** `EnterAmount` checks the value against `DataSpec.Rules` (e.g. `> 0`) and returns `ErrInvalidValue`; the UI applies the same rules, the backend is authoritative. `SetMetadata` checks the map against `DocumentSpec.MetadataFields` (known fields, types, required fields). Metadata lives on the `Document`, so it can only be set after the upload.
+- **Two kinds of items.** `document` items are satisfied by uploaded `Document`s, `data` items by a single `DataEntry` whose numeric `Amount` is in the `DataSpec.Unit` (EUR is stored in cents). `Done()` is derived, there is no separate flag: documents → at least one `Document`; data → a `DataEntry` exists.
+- **Validation.** `EnterAmount` creates or replaces the item's `DataEntry` (at most one per item) after checking the value against `DataSpec.Rules` (e.g. `> 0`); a violation returns `ErrInvalidValue`. The UI applies the same rules, the backend is authoritative. `SetMetadata` checks the map against `DocumentSpec.MetadataFields` (known fields, types, required fields). Metadata lives on the `Document`, so it can only be set after the upload.
 - **Multiple files per item.** An item can hold any number of documents; documents can be deleted and downloaded individually.
 - **Closing.** `Close()` is a collector action and is blocked while any `RequiredItem` is not `Done()`: it fails with `ErrItemsOutstanding`. Once `Status` is `closed`, `SyncItems`, `EnterAmount`, `AddDocument`, `RemoveDocument` and `SetMetadata` fail with `ErrTaxYearClosed`.
 - **One tax year per client and year** (unique `ClientID` + `Year`).
@@ -207,7 +213,7 @@ Notes:
 
 ## Architecture
 
-We use a Go backend and a SvelteKit BFF, backed by a PostgreSQL database. They are shipped as three docker containers orchestrated in docker compose. Documents and their metadata as well as standalone data objects are stored in PostgreSQL, not on the filesystem.
+We use a Go backend and a SvelteKit BFF, backed by a PostgreSQL database. They are shipped as three docker containers orchestrated in docker compose. Documents and their metadata as well as data entries are stored in PostgreSQL, not on the filesystem.
 
 ### Go backend
 
@@ -215,7 +221,7 @@ We use a Go backend and a SvelteKit BFF, backed by a PostgreSQL database. They a
 - storing the collectors models
 - Storing clients data and documents (as blobs) and their metadata in PostgreSQL, via a Postgres outbound adapter (kept swappable per hexagonal arch, in case storage moves elsewhere later)
 - Exposing REST API for the BFF to call
-- Auth is intentionally left out for now — deferred until upload/classify/store/export work end-to-end
+- Auth is intentionally left out for now — deferred until upload/store/export work end-to-end
 
 ### SvelteKit BFF
 
