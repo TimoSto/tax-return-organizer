@@ -9,25 +9,56 @@ This repository hold services to help you organize documents for your tax return
 
 ### Personas & tenancy
 
-This is a multi-tenant (SaaS-style) system: there can be many collectors (e.g. different tax advisories), each managing their own set of clients. A client belongs to exactly one collector. Categories and checklist templates are defined by a collector and reused across that collector's own clients; tax years, documents, and checklist item completions each belong to one specific client.
+This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. different tax advisories), each managing their own set of Clients. 
 
-## Usage by collector
+## Usage by Collector
 
-- Setup checklist categories and templates describing the necessary data and files (including metadata)
-    - Private finances: bank statements, ETFs, savings accounts, ...
-    - Work: salary statements, number of homeoffice days, ...
-    - Insurance: premium notices, ...
-    - Real Estate: bank statements, loan amounts, ...
-- Define if a checklist item is required once per tax year or recurring monthly
+### Usecase *"Create Client Personas"*:
 
-## Usage by client
+- Client Personas represent the documents and information a client has to provide, if they do things, that are tax relevant
+- Examples would be *Employed*, *Letting*, *Self-employed* or *ETF investing*
+- The collector defines which documents and data (in form of defined structural data) the Personas need to provide and if the data needs to be provided monthly, quarterly, semi-annualy or annualy
 
-- See the files/information necesary to provide for each year
-- Upload files and set necessary metadata
-- Enter structured data directly on a checklist item (e.g. a count or amount), satisfying that item in place of uploading a file
-- See at a glance which checklist items are still outstanding (not yet satisfied)
-- package/export files and data to send to tax office
-    - include files metadata into the export (how needs to be evaluated)
+### Usecase *"Create a Client"*:
+
+- Create a client object with a title and an email address
+
+### Usecase *"Create Client Tax Year"*:
+
+- Select a Client
+- Enter a year (e.g. 2021)
+- Assign Personas to this Client
+    - The Personas are only referenced, so a change in a Persona object immediately reflecs on the Client
+- Generate List of documents and data the Client needs to provide
+    - For documents metadata can be specified, which the client needs to fill out
+    - For data units (EUR or DAYS) and validation rules (e.g. *>0*) can be specified
+- If Persona changes, add possibility to update this list, but not necessity
+
+### Usecase *"Close Client Tax Year"*:
+
+- When Client has provided all necessary documents and data, the Collector can close the tax year.
+- After this the client cannot alter the files/data anymore
+
+## Usage by Client
+
+### Usecase *"View tax year"*:
+
+- The Client needs to see all files and data they need to provide for a tax year
+- They should not see the *Persona* layer, only the documents and data
+- They need to see which items are still open and which are satisfied
+
+### Usecase *"Upload files"*:
+
+- For each item in the list a Client must be able to upload one or multiple files
+- After upload the files must be rendered in the UI so the Client can check them
+- Clients must be able to delete files
+- Clients must be able to download files
+- Only after uplaod Clients must be able to set and edit documents metadata
+
+### Usecase *"Enter data"*:
+
+- For standalone data required by the Persona, the Client must be able to enter it
+- If there are validation rules, they are applied in the UI and on save
 
 **Not in the first MVP:** deadline tracking and upcoming/overdue notifications. The first MVP only tracks whether an item is satisfied or not; due dates and notifications are deferred to a later iteration.
 
@@ -46,127 +77,133 @@ classDiagram
     class Client {
         +UUID ID
         +UUID CollectorID
-        +string Name
+        +string Title
+        +string Email
     }
 
-    class ClientTaxYear {
-        +int ID
-        +UUID ClientID
-        +int Year
-    }
-
-    class Category {
-        +int ID
+    class Persona {
+        +UUID ID
         +UUID CollectorID
         +string Name
         +string Description
     }
 
-    class ChecklistTemplate {
-        +int ID
-        +UUID CollectorID
-        +int CategoryID
+    class ItemDefinition {
+        +UUID ID
+        +UUID PersonaID
         +string Title
+        +Kind Kind
         +Recurrence Recurrence
-        +Requirement Requirement
+        +DocumentSpec* DocumentSpec
+        +DataSpec* DataSpec
+    }
+
+    class Kind {
+        <<enumeration>>
+        document
+        data
     }
 
     class Recurrence {
         <<enumeration>>
-        once
         monthly
+        quarterly
+        semiannually
+        annually
     }
 
-    class Requirement {
-        <<interface>>
-        +Kind() ValueKind
-        +Accepts(Value) error
+    class DocumentSpec {
+        +MetadataField[] MetadataFields
     }
 
-    class Value {
-        <<interface>>
-        +Kind() ValueKind
+    class MetadataField {
+        +string Name
+        +FieldType Type
+        +bool Required
     }
 
-    class DocumentRequirement
-    class TextRequirement
-    class NumberRequirement {
-        +string Unit
+    class DataSpec {
+        +Unit Unit
+        +Rule[] Rules
     }
-    class YearRequirement
-    class BoolRequirement
 
-    class DocumentValue {
-        +UUID DocumentID
+    class Unit {
+        <<enumeration>>
+        EUR
+        DAYS
     }
-    class TextValue {
-        +string Text
+
+    class Rule {
+        +Operator Operator
+        +int64 Operand
     }
-    class NumberValue {
-        +int64 Number
-    }
-    class YearValue {
+
+    class ClientTaxYear {
+        +UUID ID
+        +UUID ClientID
         +int Year
-    }
-    class BoolValue {
-        +bool Bool
+        +Status Status
+        +time* ClosedAt
+        +Generate()
+        +SyncItems()
+        +Close()
     }
 
-    class ChecklistItem {
-        +int ID
-        +int TemplateID
-        +int ClientTaxYearID
-        +int* Month
-        +Requirement Requirement
-        +Value* Value
+    class RequiredItem {
+        +UUID ID
+        +UUID ClientTaxYearID
+        +UUID* DefinitionID
+        +int* PeriodIndex
+        +string Title
+        +Kind Kind
+        +DocumentSpec* DocumentSpec
+        +DataSpec* DataSpec
+        +int64* Amount
         +Done() bool
+        +EnterAmount(int64) error
+        +AddDocument(Document) error
+        +RemoveDocument(UUID) error
+        +SetMetadata(UUID, map) error
     }
 
     class Document {
         +UUID ID
-        +int ClientTaxYearID
-        +int* CategoryID
-        +string OriginalFilename
+        +UUID RequiredItemID
+        +string Filename
         +string MimeType
         +int64 SizeBytes
-        +map Properties
+        +bytes Content
+        +map Metadata
     }
 
     Collector "1" --> "*" Client : owns
-    Collector "1" --> "*" Category : defines
-    Collector "1" --> "*" ChecklistTemplate : defines
-    Category "1" --> "*" ChecklistTemplate : groups
-    Category "0..1" --> "*" Document : classifies
+    Collector "1" --> "*" Persona : defines
+    Persona "1" --> "*" ItemDefinition : asks for
+    ItemDefinition ..> Kind
+    ItemDefinition ..> Recurrence
+    ItemDefinition --> "0..1" DocumentSpec
+    ItemDefinition --> "0..1" DataSpec
+    DocumentSpec "1" --> "*" MetadataField
+    DataSpec ..> Unit
+    DataSpec "1" --> "*" Rule
+
     Client "1" --> "*" ClientTaxYear : has
-    ClientTaxYear "1" --> "*" Document : contains
-    ClientTaxYear "1" --> "*" ChecklistItem : has
-    ChecklistTemplate "1" --> "*" ChecklistItem : generates
-    DocumentValue "0..1" --> "1" Document : references
-    ChecklistTemplate ..> Recurrence : uses
-    ChecklistTemplate --> Requirement : declares
-    ChecklistItem --> Requirement : copied from template
-    ChecklistItem --> Value : satisfied by
-
-    Requirement <|.. DocumentRequirement
-    Requirement <|.. TextRequirement
-    Requirement <|.. NumberRequirement
-    Requirement <|.. YearRequirement
-    Requirement <|.. BoolRequirement
-    Value <|.. DocumentValue
-    Value <|.. TextValue
-    Value <|.. NumberValue
-    Value <|.. YearValue
-    Value <|.. BoolValue
-
-    note for ChecklistItem "Value is nil while outstanding.\nSatisfy(v) only succeeds if Requirement.Accepts(v)."
+    ClientTaxYear "*" --> "*" Persona : references
+    ClientTaxYear "1" --> "*" RequiredItem : lists
+    ItemDefinition "0..1" <.. "*" RequiredItem : generated from (snapshot)
+    RequiredItem "1" --> "*" Document : holds
 ```
 
 Notes:
-- For the first MVP, `ChecklistItem` has no due date — it's only tracked as satisfied (`Done`) or not. The UI simply highlights outstanding items; deadline tracking is deferred (see "Not in the first MVP" above).
-- The collector declares on each `ChecklistTemplate` what satisfies it via a `Requirement`: `DocumentRequirement` (an uploaded file), or a typed value requirement — `TextRequirement`, `NumberRequirement` (with an optional display `Unit`, e.g. "days", "EUR"), `YearRequirement`, `BoolRequirement`. `Requirement` and `Value` are sealed interfaces (only the domain package implements them), so a type switch over the concrete types is exhaustive.
-- Generated items copy the template's `Requirement`, so an item alone says what it needs and later template edits don't affect items already filled in. `ChecklistItem.Value` is `nil` while the item is outstanding; `Done()` is derived from it, so there's no separate flag to drift out of sync.
-- `item.Satisfy(v)` succeeds only if `Requirement.Accepts(v)`: a value of the wrong kind is rejected (`ErrWrongFulfillmentKind`), a right-kind value that breaks a rule (e.g. a year out of range) too (`ErrInvalidValue`). Only value types are accepted (a pointer such as `&TextValue{}` is rejected as the wrong kind). An item satisfied through `Satisfy` therefore always holds a value matching its requirement, and never both a document and a value. `Value` is an exported field so persistence adapters can rehydrate items, which bypasses `Accepts`; application code must go through `Satisfy`.
-- Values are typed, not strings. Turning raw input (form fields, JSON) into a `Value` is the inbound adapter's job. `NumberValue` is a plain `int64`. Adapters persist `Kind()` as the discriminator column next to the value.
+- **Persona assignment is a live reference, generated items are snapshots.** A `ClientTaxYear` only references its `Persona`s, so renaming a persona or adding a definition shows up on the client immediately. `Generate()` expands each `ItemDefinition` of each assigned persona into `RequiredItem`s (12 for `monthly`, 4 `quarterly`, 2 `semiannually`, 1 `annually`, distinguished by `PeriodIndex`) and copies title, kind and spec into the item. Later edits to a persona therefore never silently change an existing list; `SyncItems()` is the explicit, optional way to pull in new definitions (it only adds items and leaves existing ones untouched).
+- **The client never sees personas.** A `RequiredItem` carries everything needed to render it (title, kind, spec, state), so the client view works on items alone. `DefinitionID` is only a back-reference used by `SyncItems()`.
+- **Two kinds of items.** `document` items are satisfied by uploaded `Document`s, `data` items by a numeric `Amount` in the `DataSpec.Unit` (EUR is stored in cents). `Done()` is derived, there is no separate flag: documents → at least one `Document`; data → `Amount != nil`.
+- **Validation.** `EnterAmount` checks the value against `DataSpec.Rules` (e.g. `> 0`) and returns `ErrInvalidValue`; the UI applies the same rules, the backend is authoritative. `SetMetadata` checks the map against `DocumentSpec.MetadataFields` (known fields, types, required fields). Metadata lives on the `Document`, so it can only be set after the upload.
+- **Multiple files per item.** An item can hold any number of documents; documents can be deleted and downloaded individually.
+- **Closing.** `Close()` is a collector action and is blocked while any `RequiredItem` is not `Done()`: it fails with `ErrItemsOutstanding`. Once `Status` is `closed`, `SyncItems`, `EnterAmount`, `AddDocument`, `RemoveDocument` and `SetMetadata` fail with `ErrTaxYearClosed`.
+- **One tax year per client and year** (unique `ClientID` + `Year`).
+- For the first MVP there are no due dates: items are only tracked as done or not, and the UI highlights outstanding ones (see "Not in the first MVP" above).
+- Persistence: `Kind` is stored as discriminator, `DocumentSpec`/`DataSpec` and `Metadata` as JSONB; document content as a blob (see Architecture).
 
 ## Architecture
 
