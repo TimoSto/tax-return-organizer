@@ -1,6 +1,6 @@
 # tax-return-organizer
 
->>This repo is still WIP
+>This repo is still WIP
 
 This repository hold services to help you organize documents for your tax return. It is used by two personas:
 
