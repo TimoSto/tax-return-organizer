@@ -13,11 +13,17 @@ This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. d
 
 ## Usage by Collector
 
+### Usecase *"Setup a Collector account"*:
+
+- Give a name
+- Give email address
+
 ### Usecase *"Create Client Personas"*:
 
 - Client Personas represent the documents and information a client has to provide, if they do things, that are tax relevant
 - Examples would be *Employed*, *Letting*, *Self-employed* or *ETF investing*
 - The collector defines which documents and data (in form of defined structural data) the Personas need to provide and if the data needs to be provided monthly, quarterly, semi-annualy or annualy
+- Some Client Personas should come preconfigured as templates
 
 ### Usecase *"Create a Client"*:
 
@@ -60,7 +66,10 @@ This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. d
 - For standalone data required by the Persona, the Client must be able to enter it
 - If there are validation rules, they are applied in the UI and on save
 
-**Not in the first MVP:** deadline tracking and upcoming/overdue notifications. The first MVP only tracks whether an item is satisfied or not; due dates and notifications are deferred to a later iteration.
+**Not in the first MVP:** 
+
+- deadline tracking and upcoming/overdue notifications. The first MVP only tracks whether an item is satisfied or not; due dates and notifications are deferred to a later iteration.
+- Authentication
 
 
 ## Domain model
@@ -72,6 +81,7 @@ classDiagram
     class Collector {
         +UUID ID
         +string Name
+        +string EMailAdress
     }
 
     class Client {
