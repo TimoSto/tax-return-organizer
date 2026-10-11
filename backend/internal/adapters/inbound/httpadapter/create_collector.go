@@ -1,4 +1,3 @@
-// Package httpadapter exposes the inbound ports over HTTP.
 package httpadapter
 
 import (
@@ -9,8 +8,6 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-const maxBodyBytes = 1 << 20
-
 type createCollectorRequest struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
@@ -18,11 +15,6 @@ type createCollectorRequest struct {
 
 type createCollectorResponse struct {
 	ID string `json:"id"`
-}
-
-// RegisterCollectorRoutes registers the collector routes on mux.
-func RegisterCollectorRoutes(mux *http.ServeMux, log *slog.Logger, createCollector ports.CreateCollector) {
-	mux.HandleFunc("POST /collectors", createCollectorHandler(log, createCollector))
 }
 
 func createCollectorHandler(log *slog.Logger, create ports.CreateCollector) http.HandlerFunc {
