@@ -51,7 +51,14 @@ jobs:
           cache-dependency-path: backend/go.sum
 
       - name: Build
-        run: go build -o /tmp/backend ./cmd/backend
+        run: go build -o bin/docker ./cmd/docker
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docker
+          path: backend/bin/docker
+          if-no-files-found: error
+          retention-days: 7
 
   build-e2e:
     runs-on: ubuntu-latest
