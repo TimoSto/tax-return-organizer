@@ -9,7 +9,7 @@ import (
 	"net/url"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5" // registers the pgx5 database driver
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
@@ -33,7 +33,7 @@ func Migrate(ctx context.Context, dsn string) error {
 	if err != nil {
 		return fmt.Errorf("create migrator: %w", err)
 	}
-	defer m.Close()
+	defer func() { _, _ = m.Close() }()
 
 	done := make(chan error, 1)
 	go func() { done <- m.Up() }()
@@ -45,7 +45,7 @@ func Migrate(ctx context.Context, dsn string) error {
 
 		<-done
 
-		return ctx.Err()
+		return fmt.Errorf("migrate: %w", ctx.Err())
 	}
 
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
