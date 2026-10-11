@@ -3,9 +3,6 @@ name: BFF
 on:
   push:
     branches: [main]
-    paths:
-      - "bff/**"
-      - ".github/workflows/bff.yml"
   pull_request:
     paths:
       - "bff/**"
@@ -30,7 +27,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 25
           cache: npm
           cache-dependency-path: bff/package-lock.json
 
@@ -46,7 +43,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 25
           cache: npm
           cache-dependency-path: bff/package-lock.json
 
@@ -62,7 +59,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 25
           cache: npm
           cache-dependency-path: bff/package-lock.json
 
@@ -71,6 +68,34 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Builds the adapter-node output and uploads everything a Docker image needs:
+  # the build output plus package files to install production dependencies.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 25
+          cache: npm
+          cache-dependency-path: bff/package-lock.json
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload BFF build
+        uses: actions/upload-artifact@v7
+        with:
+          name: bff-build
+          path: |
+            bff/build
+            bff/package.json
+            bff/package-lock.json
+          if-no-files-found: error
+
   unit:
     runs-on: ubuntu-latest
     steps:
@@ -78,7 +103,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 25
           cache: npm
           cache-dependency-path: bff/package-lock.json
 
@@ -98,7 +123,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: 25
           cache: npm
           cache-dependency-path: bff/package-lock.json
 
