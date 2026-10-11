@@ -6,11 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/testcontainers/testcontainers-go"
-	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/pgtest"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // testPool is nil if Docker is unavailable; tests must call requirePool.
@@ -24,28 +22,17 @@ func TestMain(m *testing.M) {
 func run(m *testing.M) int {
 	ctx := context.Background()
 
-	if !dockerAvailable(ctx) {
+	if !pgtest.DockerAvailable(ctx) {
 		fmt.Fprintln(os.Stderr, "docker unavailable, postgres tests will be skipped")
 		return m.Run()
 	}
 
-	container, err := tcpostgres.Run(ctx, "postgres:17-alpine",
-		tcpostgres.WithDatabase("test"),
-		tcpostgres.WithUsername("test"),
-		tcpostgres.WithPassword("test"),
-		tcpostgres.BasicWaitStrategies(),
-	)
+	dsn, terminate, err := pgtest.Start(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "start postgres container: %v\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	defer func() { _ = container.Terminate(ctx) }()
-
-	dsn, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "connection string: %v\n", err)
-		return 1
-	}
+	defer terminate()
 
 	if err := postgres.Migrate(ctx, dsn); err != nil {
 		fmt.Fprintf(os.Stderr, "migrate: %v\n", err)
@@ -60,16 +47,6 @@ func run(m *testing.M) int {
 	defer testPool.Close()
 
 	return m.Run()
-}
-
-func dockerAvailable(ctx context.Context) bool {
-	provider, err := testcontainers.NewDockerProvider()
-	if err != nil {
-		return false
-	}
-	defer provider.Close()
-
-	return provider.Health(ctx) == nil
 }
 
 // requirePool skips the test if no database is available and otherwise returns the pool.

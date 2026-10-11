@@ -1,6 +1,7 @@
 package httpadapter
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -43,7 +44,7 @@ func recoverPanic(log *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if v := recover(); v != nil {
-				if v == http.ErrAbortHandler {
+				if errors.Is(asError(v), http.ErrAbortHandler) {
 					panic(v)
 				}
 
@@ -67,3 +68,10 @@ func (w *statusWriter) WriteHeader(status int) {
 }
 
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// asError returns v as an error, or nil if it is not one.
+func asError(v any) error {
+	err, _ := v.(error)
+
+	return err
+}

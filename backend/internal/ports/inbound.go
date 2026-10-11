@@ -1,3 +1,4 @@
+// Package ports defines the interfaces between the core and its adapters.
 package ports
 
 import (

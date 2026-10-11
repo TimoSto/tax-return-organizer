@@ -1,3 +1,4 @@
+// Package domain contains the business entities and their rules. It depends on no other package of this module.
 package domain
 
 import (
@@ -8,10 +9,13 @@ import (
 )
 
 var (
+	// ErrCollectorNotFound is returned when a collector does not exist.
 	ErrCollectorNotFound = errors.New("collector not found")
-	ErrNameRequired      = errors.New("collector name is required")
+	// ErrNameRequired is returned for a blank collector name.
+	ErrNameRequired = errors.New("collector name is required")
 )
 
+// Collector is a person who collects documents for a tax return.
 type Collector struct {
 	ID    uuid.UUID
 	Name  string

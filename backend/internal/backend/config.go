@@ -2,8 +2,10 @@ package backend
 
 import "errors"
 
+// DefaultHTTPAddr is used when HTTP_ADDR is not set.
 const DefaultHTTPAddr = ":8080"
 
+// Config is the runtime configuration of the backend.
 type Config struct {
 	// DatabaseURL must be a postgres:// URL.
 	DatabaseURL string

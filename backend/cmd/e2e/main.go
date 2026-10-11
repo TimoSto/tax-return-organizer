@@ -1,5 +1,8 @@
+//go:build e2e
+
 // Command e2e runs the backend against a throwaway Postgres testcontainer.
 // The database is wiped on every run; it needs a running Docker daemon.
+// It is excluded from normal builds: use -tags e2e.
 package main
 
 import (
@@ -17,17 +20,20 @@ import (
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	if err := run(ctx, os.Getenv); err != nil {
+	if err := run(); err != nil {
 		slog.Error("e2e stopped", "error", err)
-		stop()
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, getenv func(string) string) error {
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	return runWithContext(ctx, os.Getenv)
+}
+
+func runWithContext(ctx context.Context, getenv func(string) string) error {
 	container, err := tcpostgres.Run(ctx, "postgres:17-alpine",
 		tcpostgres.WithDatabase("e2e"),
 		tcpostgres.WithUsername("e2e"),

@@ -13,15 +13,18 @@ import (
 
 var _ ports.CollectorRepository = (*CollectorRepository)(nil)
 
+// CollectorRepository is an in-memory ports.CollectorRepository.
 type CollectorRepository struct {
 	mu         sync.RWMutex
 	collectors map[uuid.UUID]domain.Collector
 }
 
+// NewCollectorRepository returns an empty repository.
 func NewCollectorRepository() *CollectorRepository {
 	return &CollectorRepository{collectors: make(map[uuid.UUID]domain.Collector)}
 }
 
+// GetCollector implements ports.CollectorRepository.
 func (r *CollectorRepository) GetCollector(_ context.Context, id uuid.UUID) (*domain.Collector, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -34,6 +37,7 @@ func (r *CollectorRepository) GetCollector(_ context.Context, id uuid.UUID) (*do
 	return &c, nil
 }
 
+// SaveCollector implements ports.CollectorRepository.
 func (r *CollectorRepository) SaveCollector(_ context.Context, collector *domain.Collector) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

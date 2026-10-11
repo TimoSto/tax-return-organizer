@@ -8,6 +8,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
+// CollectorRepository persists collectors.
 type CollectorRepository interface {
 	// GetCollector returns domain.ErrCollectorNotFound if no collector with the given id exists.
 	GetCollector(ctx context.Context, id uuid.UUID) (*domain.Collector, error)

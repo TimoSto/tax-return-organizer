@@ -13,10 +13,12 @@ import (
 
 var _ ports.CreateCollector = (*Usecase)(nil)
 
+// Usecase implements ports.CreateCollector.
 type Usecase struct {
 	repo ports.CollectorRepository
 }
 
+// New returns a use case that stores collectors in repo.
 func New(repo ports.CollectorRepository) *Usecase {
 	return &Usecase{repo: repo}
 }
