@@ -21,11 +21,9 @@ const shutdownTimeout = 10 * time.Second
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
 func wire(log *slog.Logger, collectors ports.CollectorRepository) http.Handler {
-	mux := http.NewServeMux()
-	httpadapter.RegisterHealthRoutes(mux, log)
-	httpadapter.RegisterCollectorRoutes(mux, log, createcollector.New(collectors))
-
-	return httpadapter.Middleware(log, mux)
+	return httpadapter.NewHandler(log, httpadapter.Deps{
+		CreateCollector: createcollector.New(collectors),
+	})
 }
 
 // Run migrates the database and serves HTTP until ctx is cancelled.
