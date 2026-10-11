@@ -13,6 +13,7 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
+	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
@@ -42,7 +43,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer pool.Close()
 
-	return serve(ctx, newServer(cfg.HTTPAddr, wire(slog.Default(), postgres.NewCollectorRepository(pool))))
+	return serve(ctx, newServer(cfg.HTTPAddr, wire(slog.Default(), pgcollector.NewRepository(pool))))
 }
 
 func newServer(addr string, handler http.Handler) *http.Server {

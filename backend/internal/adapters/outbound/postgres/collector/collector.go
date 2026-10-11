@@ -1,4 +1,5 @@
-package postgres
+// Package collector contains the PostgreSQL implementation of the collector repository.
+package collector
 
 import (
 	"context"
@@ -13,20 +14,20 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-var _ ports.CollectorRepository = (*CollectorRepository)(nil)
+var _ ports.CollectorRepository = (*Repository)(nil)
 
-// CollectorRepository is the Postgres implementation of ports.CollectorRepository.
-type CollectorRepository struct {
+// Repository is the Postgres implementation of ports.CollectorRepository.
+type Repository struct {
 	pool *pgxpool.Pool
 }
 
-// NewCollectorRepository returns a repository backed by pool.
-func NewCollectorRepository(pool *pgxpool.Pool) *CollectorRepository {
-	return &CollectorRepository{pool: pool}
+// NewRepository returns a repository backed by pool.
+func NewRepository(pool *pgxpool.Pool) *Repository {
+	return &Repository{pool: pool}
 }
 
 // GetCollector implements ports.CollectorRepository.
-func (r *CollectorRepository) GetCollector(ctx context.Context, id uuid.UUID) (*domain.Collector, error) {
+func (r *Repository) GetCollector(ctx context.Context, id uuid.UUID) (*domain.Collector, error) {
 	var row collectorRow
 
 	err := r.pool.QueryRow(ctx, `SELECT id, name, email FROM collectors WHERE id = $1`, id).
@@ -42,7 +43,7 @@ func (r *CollectorRepository) GetCollector(ctx context.Context, id uuid.UUID) (*
 }
 
 // SaveCollector implements ports.CollectorRepository.
-func (r *CollectorRepository) SaveCollector(ctx context.Context, collector *domain.Collector) error {
+func (r *Repository) SaveCollector(ctx context.Context, collector *domain.Collector) error {
 	row := newCollectorRow(collector)
 
 	_, err := r.pool.Exec(ctx, `
