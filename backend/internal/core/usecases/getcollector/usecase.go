@@ -1,3 +1,4 @@
+// Package getcollector implements the use case to retrieve a collector by its id.
 package getcollector
 
 import (
@@ -30,4 +31,3 @@ func (u *Usecase) Execute(ctx context.Context, id uuid.UUID) (*domain.Collector,
 	}
 	return c, nil
 }
-
