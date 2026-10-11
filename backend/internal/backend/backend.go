@@ -19,25 +19,22 @@ import (
 
 const shutdownTimeout = 10 * time.Second
 
-// newMux registers the routes of all inbound handlers.
-func newMux(createCollector ports.CreateCollectorPort) *http.ServeMux {
+// wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
+func wire(log *slog.Logger, collectors ports.CollectorRepository) http.Handler {
 	mux := http.NewServeMux()
-	httpadapter.RegisterCollectorRoutes(mux, createCollector)
+	httpadapter.RegisterHealthRoutes(mux, log)
+	httpadapter.RegisterCollectorRoutes(mux, log, createcollector.New(collectors))
 
-	return mux
+	return httpadapter.Middleware(log, mux)
 }
 
 // Run migrates the database and serves HTTP until ctx is cancelled.
 func Run(ctx context.Context, cfg Config) error {
-	if cfg.DatabaseURL == "" {
-		return errors.New("DATABASE_URL is required")
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("config: %w", err)
 	}
 
-	if cfg.HTTPAddr == "" {
-		cfg.HTTPAddr = DefaultHTTPAddr
-	}
-
-	if err := postgres.Migrate(cfg.DatabaseURL); err != nil {
+	if err := postgres.Migrate(ctx, cfg.DatabaseURL); err != nil {
 		return fmt.Errorf("migrate: %w", err)
 	}
 
@@ -47,21 +44,25 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer pool.Close()
 
-	collectors := postgres.NewCollectorRepository(pool)
-	createCollector := createcollector.New(collectors)
+	return serve(ctx, newServer(cfg.HTTPAddr, wire(slog.Default(), postgres.NewCollectorRepository(pool))))
+}
 
-	srv := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           newMux(createCollector.Execute),
+func newServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
+}
 
+// serve runs srv until it fails or ctx is cancelled, then shuts it down gracefully.
+func serve(ctx context.Context, srv *http.Server) error {
 	serveErr := make(chan error, 1)
 	go func() {
-		slog.Info("listening", "addr", cfg.HTTPAddr)
+		slog.Info("listening", "addr", srv.Addr)
 		serveErr <- srv.ListenAndServe()
 	}()
 

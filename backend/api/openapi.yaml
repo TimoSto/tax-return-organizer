@@ -1,0 +1,100 @@
+openapi: 3.0.3
+info:
+  title: Tax Return Organizer API
+  version: 0.1.0
+  description: REST API consumed by the SvelteKit BFF. Authentication is not implemented yet.
+paths:
+  /healthz:
+    get:
+      operationId: getHealth
+      summary: Liveness probe
+      description: Does not check dependencies such as the database.
+      responses:
+        "200":
+          description: The service is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+  /collectors:
+    post:
+      operationId: createCollector
+      summary: Create a collector
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCollectorRequest"
+      responses:
+        "201":
+          description: The collector was created.
+          headers:
+            Location:
+              description: Path of the new collector.
+              schema:
+                type: string
+                example: /collectors/6f1c3a52-0d1e-4c53-9c0a-2f5c2b7c8a11
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCollectorResponse"
+        "400":
+          description: Malformed body, unknown field, empty name or invalid email address.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Unexpected error. Details are only logged, quote the request id.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  headers:
+    RequestID:
+      description: Identifies the request in the server logs.
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    CreateCollectorRequest:
+      type: object
+      additionalProperties: false
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          description: Must not be blank after trimming.
+          example: Jane Doe
+        email:
+          type: string
+          description: Plain address. Display names such as "Jane <jane@example.com>" are rejected.
+          example: jane@example.com
+    CreateCollectorResponse:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

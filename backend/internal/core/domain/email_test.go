@@ -7,7 +7,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
-func TestValidateEMail(t *testing.T) {
+func TestValidateEmail(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		email  string
@@ -29,9 +29,14 @@ func TestValidateEMail(t *testing.T) {
 			expErr: nil,
 		},
 		{
-			name:   "Valid email with display name",
+			name:   "Display name",
 			email:  "John <john@example.com>",
-			expErr: nil,
+			expErr: domain.ErrInvalidEmail,
+		},
+		{
+			name:   "Angle brackets without display name",
+			email:  "<john@example.com>",
+			expErr: domain.ErrInvalidEmail,
 		},
 		{
 			name:   "Empty string",
@@ -65,10 +70,10 @@ func TestValidateEMail(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := domain.ValidateEMail(tc.email)
+			err := domain.ValidateEmail(tc.email)
 
 			if !errors.Is(err, tc.expErr) {
-				t.Errorf("ValidateEMail(%q) error = %v, wantErr %v", tc.email, err, tc.expErr)
+				t.Errorf("ValidateEmail(%q) error = %v, wantErr %v", tc.email, err, tc.expErr)
 			}
 		})
 	}

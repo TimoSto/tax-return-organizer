@@ -81,7 +81,7 @@ classDiagram
     class Collector {
         +UUID ID
         +string Name
-        +string EMailAdress
+        +string Email
     }
 
     class Client {

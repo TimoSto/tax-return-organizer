@@ -47,7 +47,7 @@ func run(m *testing.M) int {
 		return 1
 	}
 
-	if err := postgres.Migrate(dsn); err != nil {
+	if err := postgres.Migrate(ctx, dsn); err != nil {
 		fmt.Fprintf(os.Stderr, "migrate: %v\n", err)
 		return 1
 	}

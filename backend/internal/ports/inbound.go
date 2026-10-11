@@ -1,6 +1,18 @@
 package ports
 
-import "context"
+import (
+	"context"
 
-// returns the collector id if successful
-type CreateCollectorPort func(ctx context.Context, name string, email string) (string, error)
+	"github.com/google/uuid"
+)
+
+// CreateCollectorCmd is the input of the CreateCollector use case.
+type CreateCollectorCmd struct {
+	Name  string
+	Email string
+}
+
+// CreateCollector creates a collector and returns its id.
+type CreateCollector interface {
+	Execute(ctx context.Context, cmd CreateCollectorCmd) (uuid.UUID, error)
+}
