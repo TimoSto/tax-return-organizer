@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-)
 
-const requestIDHeader = "X-Request-ID"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
+)
 
 // Middleware wraps h with request-ID assignment, request logging and panic recovery.
 func Middleware(log *slog.Logger, h http.Handler) http.Handler {
@@ -17,7 +17,7 @@ func Middleware(log *slog.Logger, h http.Handler) http.Handler {
 
 func requestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set(requestIDHeader, uuid.NewString())
+		w.Header().Set(httpx.RequestIDHeader, uuid.NewString())
 		next.ServeHTTP(w, r)
 	})
 }
@@ -30,7 +30,7 @@ func requestLog(log *slog.Logger, next http.Handler) http.Handler {
 		next.ServeHTTP(sw, r)
 
 		log.InfoContext(r.Context(), "request",
-			"request_id", w.Header().Get(requestIDHeader),
+			"request_id", w.Header().Get(httpx.RequestIDHeader),
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", sw.status,
@@ -47,8 +47,8 @@ func recoverPanic(log *slog.Logger, next http.Handler) http.Handler {
 					panic(v)
 				}
 
-				log.ErrorContext(r.Context(), "panic", "value", v, "request_id", w.Header().Get(requestIDHeader))
-				writeJSON(log, w, http.StatusInternalServerError, errorResponse{Error: "internal error"})
+				log.ErrorContext(r.Context(), "panic", "value", v, "request_id", w.Header().Get(httpx.RequestIDHeader))
+				httpx.WriteJSON(log, w, http.StatusInternalServerError, httpx.ErrorResponse{Error: "internal error"})
 			}
 		}()
 
