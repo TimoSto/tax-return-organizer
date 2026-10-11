@@ -1,4 +1,4 @@
-package httpadapter_test
+package collector_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
@@ -30,7 +30,8 @@ func do(t *testing.T, create ports.CreateCollector, method, body string) *httpte
 	req := httptest.NewRequest(method, "/collectors", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
-	httpadapter.RegisterCollectorRoutes(mux, slog.New(slog.DiscardHandler), create)
+	route := collector.Create(slog.New(slog.DiscardHandler), create)
+	mux.Handle(route.Pattern, route.Handler)
 	mux.ServeHTTP(rec, req)
 
 	return rec
