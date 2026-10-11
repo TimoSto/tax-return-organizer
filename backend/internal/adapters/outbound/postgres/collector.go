@@ -24,10 +24,10 @@ func NewCollectorRepository(pool *pgxpool.Pool) *CollectorRepository {
 }
 
 func (r *CollectorRepository) GetCollector(ctx context.Context, id uuid.UUID) (*domain.Collector, error) {
-	var c domain.Collector
+	var row collectorRow
 
 	err := r.pool.QueryRow(ctx, `SELECT id, name, email FROM collectors WHERE id = $1`, id).
-		Scan(&c.ID, &c.Name, &c.Email)
+		Scan(&row.ID, &row.Name, &row.Email)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrCollectorNotFound
 	}
@@ -35,17 +35,34 @@ func (r *CollectorRepository) GetCollector(ctx context.Context, id uuid.UUID) (*
 		return nil, fmt.Errorf("get collector: %w", err)
 	}
 
-	return &c, nil
+	return row.toDomain(), nil
 }
 
 func (r *CollectorRepository) SaveCollector(ctx context.Context, collector *domain.Collector) error {
+	row := newCollectorRow(collector)
+
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO collectors (id, name, email) VALUES ($1, $2, $3)
 		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email`,
-		collector.ID, collector.Name, collector.Email)
+		row.ID, row.Name, row.Email)
 	if err != nil {
 		return fmt.Errorf("save collector: %w", err)
 	}
 
 	return nil
+}
+
+// collectorRow mirrors the collectors table and keeps SQL concerns out of the domain type.
+type collectorRow struct {
+	ID    uuid.UUID
+	Name  string
+	Email string
+}
+
+func newCollectorRow(c *domain.Collector) collectorRow {
+	return collectorRow{ID: c.ID, Name: c.Name, Email: c.Email}
+}
+
+func (r collectorRow) toDomain() *domain.Collector {
+	return &domain.Collector{ID: r.ID, Name: r.Name, Email: r.Email}
 }

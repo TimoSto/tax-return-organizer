@@ -7,9 +7,16 @@ import (
 
 var ErrInvalidEmail = errors.New("invalid email address")
 
-func ValidateEMail(email string) error {
-	if _, err := mail.ParseAddress(email); err != nil {
+// ValidateEmail accepts only a plain address such as "john@example.com".
+// Display names ("John <john@example.com>") and angle brackets are rejected.
+func ValidateEmail(email string) error {
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
 		return errors.Join(ErrInvalidEmail, err)
+	}
+
+	if addr.Address != email {
+		return errors.Join(ErrInvalidEmail, errors.New("must be a plain address without display name"))
 	}
 
 	return nil

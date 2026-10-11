@@ -1,0 +1,30 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gocritic
+    - misspell
+    - nilerr
+    - noctx
+    - revive
+    - unconvert
+    - wrapcheck
+  settings:
+    wrapcheck:
+      # Errors from within the module are already wrapped or are sentinels.
+      ignore-package-globs:
+        - github.com/TimoSto/tax-return-organizer/backend/*
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - wrapcheck
+          - gocritic
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
