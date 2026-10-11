@@ -15,15 +15,17 @@ import (
 
 var _ ports.CollectorRepository = (*Repository)(nil)
 
-// Repository stores collectors in PostgreSQL.
+// Repository is the Postgres implementation of ports.CollectorRepository.
 type Repository struct {
 	pool *pgxpool.Pool
 }
 
+// NewRepository returns a repository backed by pool.
 func NewRepository(pool *pgxpool.Pool) *Repository {
 	return &Repository{pool: pool}
 }
 
+// GetCollector implements ports.CollectorRepository.
 func (r *Repository) GetCollector(ctx context.Context, id uuid.UUID) (*domain.Collector, error) {
 	var row collectorRow
 
@@ -39,6 +41,7 @@ func (r *Repository) GetCollector(ctx context.Context, id uuid.UUID) (*domain.Co
 	return row.toDomain(), nil
 }
 
+// SaveCollector implements ports.CollectorRepository.
 func (r *Repository) SaveCollector(ctx context.Context, collector *domain.Collector) error {
 	row := newCollectorRow(collector)
 
