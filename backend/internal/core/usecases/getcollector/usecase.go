@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
@@ -24,7 +22,7 @@ func New(repo ports.CollectorRepository) *Usecase {
 }
 
 // Execute retrieves a collector by its id.
-func (u *Usecase) Execute(ctx context.Context, id uuid.UUID) (*domain.Collector, error) {
+func (u *Usecase) Execute(ctx context.Context, id domain.CollectorID) (*domain.Collector, error) {
 	c, err := u.repo.GetCollector(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get collector: %w", err)

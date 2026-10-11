@@ -3,15 +3,17 @@ package createcollector
 
 import (
 	"context"
+	"errors"
 	"fmt"
-
-	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 var _ ports.CreateCollectorPort = (*Usecase)(nil).Execute
+
+// maxIDAttempts bounds the retries when a randomly drawn collector id is already taken.
+const maxIDAttempts = 5
 
 // Usecase implements ports.CreateCollector.
 type Usecase struct {
@@ -24,15 +26,29 @@ func New(repo ports.CollectorRepository) *Usecase {
 }
 
 // Execute creates and persists a collector and returns its id.
-func (u *Usecase) Execute(ctx context.Context, cmd ports.CreateCollectorCmd) (uuid.UUID, error) {
-	c, err := domain.NewCollector(uuid.New(), cmd.Name, cmd.Email)
-	if err != nil {
-		return uuid.Nil, err
+func (u *Usecase) Execute(ctx context.Context, cmd ports.CreateCollectorCmd) (domain.CollectorID, error) {
+	for range maxIDAttempts {
+		id, err := domain.NewCollectorID()
+		if err != nil {
+			return "", err
+		}
+
+		c, err := domain.NewCollector(id, cmd.Name, cmd.Email)
+		if err != nil {
+			return "", err
+		}
+
+		err = u.repo.SaveCollector(ctx, c)
+		if errors.Is(err, domain.ErrCollectorIDTaken) {
+			continue
+		}
+
+		if err != nil {
+			return "", fmt.Errorf("save collector: %w", err)
+		}
+
+		return c.ID, nil
 	}
 
-	if err := u.repo.SaveCollector(ctx, c); err != nil {
-		return uuid.Nil, fmt.Errorf("save collector: %w", err)
-	}
-
-	return c.ID, nil
+	return "", fmt.Errorf("save collector: no free id after %d attempts", maxIDAttempts)
 }

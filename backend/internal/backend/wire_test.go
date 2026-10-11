@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
-
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 )
 
@@ -65,7 +63,7 @@ func TestWire_GetCollector_NotFound(t *testing.T) {
 	h := wire(slog.New(slog.DiscardHandler), fakecollector.NewRepository())
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/"+uuid.NewString(), nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/"+"k7m2", nil))
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)

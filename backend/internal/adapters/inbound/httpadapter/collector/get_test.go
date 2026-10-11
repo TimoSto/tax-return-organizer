@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
@@ -30,9 +28,9 @@ func doGet(t *testing.T, get ports.GetCollectorPort, method, id string) *httptes
 }
 
 func TestGetCollector_OK(t *testing.T) {
-	var gotID uuid.UUID
+	var gotID domain.CollectorID
 
-	rec := doGet(t, func(_ context.Context, id uuid.UUID) (*domain.Collector, error) {
+	rec := doGet(t, func(_ context.Context, id domain.CollectorID) (*domain.Collector, error) {
 		gotID = id
 
 		return &domain.Collector{ID: testID, Name: "Jane", Email: "jane@example.com"}, nil
@@ -59,14 +57,14 @@ func TestGetCollector_Errors(t *testing.T) {
 		portErr error
 		want    int
 	}{
-		{"invalid id", "not-a-uuid", nil, http.StatusBadRequest},
+		{"invalid id", "not-an-id", nil, http.StatusBadRequest},
 		{"not found", testID.String(), domain.ErrCollectorNotFound, http.StatusNotFound},
 		{"internal", testID.String(), errors.New("db down"), http.StatusInternalServerError},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := doGet(t, func(context.Context, uuid.UUID) (*domain.Collector, error) {
+			rec := doGet(t, func(context.Context, domain.CollectorID) (*domain.Collector, error) {
 				return nil, tt.portErr
 			}, http.MethodGet, tt.id)
 

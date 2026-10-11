@@ -4,26 +4,26 @@ package domain
 import (
 	"errors"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 var (
 	// ErrCollectorNotFound is returned when a collector does not exist.
 	ErrCollectorNotFound = errors.New("collector not found")
+	// ErrCollectorIDTaken is returned when saving a collector whose id is already in use.
+	ErrCollectorIDTaken = errors.New("collector id already taken")
 	// ErrNameRequired is returned for a blank collector name.
 	ErrNameRequired = errors.New("collector name is required")
 )
 
 // Collector is a person who collects documents for a tax return.
 type Collector struct {
-	ID    uuid.UUID
+	ID    CollectorID
 	Name  string
 	Email string
 }
 
 // NewCollector validates the input and returns a collector with the given id.
-func NewCollector(id uuid.UUID, name, email string) (*Collector, error) {
+func NewCollector(id CollectorID, name, email string) (*Collector, error) {
 	name, email = strings.TrimSpace(name), strings.TrimSpace(email)
 
 	if name == "" {

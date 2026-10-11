@@ -39,7 +39,7 @@ paths:
               description: Path of the new collector.
               schema:
                 type: string
-                example: /collectors/6f1c3a52-0d1e-4c53-9c0a-2f5c2b7c8a11
+                example: /collectors/k7m2
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
@@ -91,7 +91,8 @@ components:
       properties:
         id:
           type: string
-          format: uuid
+          pattern: "^[2-9a-hj-km-np-z]{4}$"
+          example: k7m2
     Error:
       type: object
       required: [error]

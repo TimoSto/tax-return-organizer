@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
@@ -22,16 +21,17 @@ func TestCollectorRepository(t *testing.T, newRepo CollectorRepositoryFactory) {
 
 	ctx := context.Background()
 
-	alice := domain.Collector{ID: uuid.New(), Name: "Alice", Email: "alice@example.com"}
-	bob := domain.Collector{ID: uuid.New(), Name: "Bob", Email: "bob@example.com"}
-	aliceUpdated := domain.Collector{ID: alice.ID, Name: "Alice Updated", Email: "alice.new@example.com"}
+	alice := domain.Collector{ID: "aaaa", Name: "Alice", Email: "alice@example.com"}
+	bob := domain.Collector{ID: "bbbb", Name: "Bob", Email: "bob@example.com"}
+	aliceClone := domain.Collector{ID: alice.ID, Name: "Alice Clone", Email: "clone@example.com"}
 
 	for _, tc := range []struct {
-		name   string
-		saves  []domain.Collector
-		getID  uuid.UUID
-		exp    *domain.Collector
-		expErr error
+		name    string
+		saves   []domain.Collector
+		getID   domain.CollectorID
+		exp     *domain.Collector
+		saveErr error
+		expErr  error
 	}{
 		{
 			name:  "Get saved collector",
@@ -42,7 +42,7 @@ func TestCollectorRepository(t *testing.T, newRepo CollectorRepositoryFactory) {
 		{
 			name:   "Get unknown collector",
 			saves:  []domain.Collector{alice},
-			getID:  uuid.New(),
+			getID:  "cccc",
 			expErr: domain.ErrCollectorNotFound,
 		},
 		{
@@ -51,10 +51,11 @@ func TestCollectorRepository(t *testing.T, newRepo CollectorRepositoryFactory) {
 			expErr: domain.ErrCollectorNotFound,
 		},
 		{
-			name:  "Save again overwrites existing collector",
-			saves: []domain.Collector{alice, aliceUpdated},
-			getID: alice.ID,
-			exp:   &aliceUpdated,
+			name:    "Save with taken id is rejected and keeps the original",
+			saves:   []domain.Collector{alice, aliceClone},
+			saveErr: domain.ErrCollectorIDTaken,
+			getID:   alice.ID,
+			exp:     &alice,
 		},
 		{
 			name:  "Other collectors are left untouched",
@@ -67,8 +68,8 @@ func TestCollectorRepository(t *testing.T, newRepo CollectorRepositoryFactory) {
 			repo := newRepo(t)
 
 			for _, c := range tc.saves {
-				if err := repo.SaveCollector(ctx, &c); err != nil {
-					t.Fatalf("SaveCollector() unexpected error: %v", err)
+				if err := repo.SaveCollector(ctx, &c); err != nil && !errors.Is(err, tc.saveErr) {
+					t.Fatalf("SaveCollector() error = %v, want nil or %v", err, tc.saveErr)
 				}
 			}
 
