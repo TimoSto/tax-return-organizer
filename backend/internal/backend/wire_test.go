@@ -63,7 +63,7 @@ func TestWire_GetCollector_NotFound(t *testing.T) {
 	h := wire(slog.New(slog.DiscardHandler), fakecollector.NewRepository())
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/"+"k7m2", nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/k7m2", nil))
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
