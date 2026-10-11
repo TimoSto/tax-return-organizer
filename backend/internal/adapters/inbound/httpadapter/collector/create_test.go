@@ -16,15 +16,9 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-type createFunc func(context.Context, ports.CreateCollectorCmd) (uuid.UUID, error)
-
-func (f createFunc) Execute(ctx context.Context, cmd ports.CreateCollectorCmd) (uuid.UUID, error) {
-	return f(ctx, cmd)
-}
-
 var testID = uuid.MustParse("00000000-0000-0000-0000-00000000000a")
 
-func do(t *testing.T, create ports.CreateCollector, method, body string) *httptest.ResponseRecorder {
+func do(t *testing.T, create ports.CreateCollectorPort, method, body string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors", strings.NewReader(body))
@@ -40,11 +34,11 @@ func do(t *testing.T, create ports.CreateCollector, method, body string) *httpte
 func TestCreateCollector_Created(t *testing.T) {
 	var got ports.CreateCollectorCmd
 
-	rec := do(t, createFunc(func(_ context.Context, cmd ports.CreateCollectorCmd) (uuid.UUID, error) {
+	rec := do(t, func(_ context.Context, cmd ports.CreateCollectorCmd) (uuid.UUID, error) {
 		got = cmd
 
 		return testID, nil
-	}), http.MethodPost, `{"name":"Jane","email":"jane@example.com"}`)
+	}, http.MethodPost, `{"name":"Jane","email":"jane@example.com"}`)
 
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want 201", rec.Code)
@@ -79,9 +73,9 @@ func TestCreateCollector_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := do(t, createFunc(func(context.Context, ports.CreateCollectorCmd) (uuid.UUID, error) {
+			rec := do(t, func(context.Context, ports.CreateCollectorCmd) (uuid.UUID, error) {
 				return uuid.Nil, tt.portErr
-			}), http.MethodPost, tt.body)
+			}, http.MethodPost, tt.body)
 
 			if rec.Code != tt.want {
 				t.Errorf("status = %d, want %d", rec.Code, tt.want)

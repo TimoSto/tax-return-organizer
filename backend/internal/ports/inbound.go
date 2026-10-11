@@ -4,6 +4,7 @@ package ports
 import (
 	"context"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/google/uuid"
 )
 
@@ -14,6 +15,7 @@ type CreateCollectorCmd struct {
 }
 
 // CreateCollector creates a collector and returns its id.
-type CreateCollector interface {
-	Execute(ctx context.Context, cmd CreateCollectorCmd) (uuid.UUID, error)
-}
+type CreateCollectorPort func(ctx context.Context, cmd CreateCollectorCmd) (uuid.UUID, error)
+
+// GetCollector retrieves a collector by its id.
+type GetCollectorPort func(ctx context.Context, id uuid.UUID) (*domain.Collector, error)
