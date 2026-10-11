@@ -5,6 +5,7 @@ import (
 	"net/mail"
 )
 
+// ErrInvalidEmail is returned for anything but a plain email address.
 var ErrInvalidEmail = errors.New("invalid email address")
 
 // ValidateEmail accepts only a plain address such as "john@example.com".

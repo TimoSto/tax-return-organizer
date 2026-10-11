@@ -8,36 +8,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/testcontainers/testcontainers-go"
-	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/pgtest"
 )
 
 func TestRun(t *testing.T) {
 	ctx := context.Background()
 
-	provider, err := testcontainers.NewDockerProvider()
-	if err != nil || provider.Health(ctx) != nil {
+	if !pgtest.DockerAvailable(ctx) {
 		t.Skip("docker unavailable")
 	}
-	defer provider.Close()
 
-	container, err := tcpostgres.Run(ctx, "postgres:17-alpine",
-		tcpostgres.WithDatabase("test"),
-		tcpostgres.WithUsername("test"),
-		tcpostgres.WithPassword("test"),
-		tcpostgres.BasicWaitStrategies(),
-	)
+	dsn, terminate, err := pgtest.Start(ctx)
 	if err != nil {
-		t.Fatalf("start postgres container: %v", err)
+		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = container.Terminate(ctx) })
-
-	dsn, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatalf("connection string: %v", err)
-	}
+	t.Cleanup(terminate)
 
 	addr := freeAddr(t)
 
@@ -48,12 +34,19 @@ func TestRun(t *testing.T) {
 
 	waitForServer(t, addr)
 
-	resp, err := http.Post("http://"+addr+"/collectors", "application/json",
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://"+addr+"/collectors",
 		strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("post: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusCreated)
@@ -78,11 +71,11 @@ func TestRun(t *testing.T) {
 func freeAddr(t *testing.T) string {
 	t.Helper()
 
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	l, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	return l.Addr().String()
 }
@@ -92,7 +85,7 @@ func waitForServer(t *testing.T, addr string) {
 
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", addr, 100*time.Millisecond)
+		conn, err := (&net.Dialer{Timeout: 100 * time.Millisecond}).DialContext(context.Background(), "tcp", addr)
 		if err == nil {
 			_ = conn.Close()
 			return

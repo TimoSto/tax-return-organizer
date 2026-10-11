@@ -9,7 +9,7 @@ import (
 )
 
 func TestCollectorRepository(t *testing.T) {
-	porttest.TestCollectorRepository(t, func(t *testing.T) ports.CollectorRepository {
+	porttest.TestCollectorRepository(t, func(*testing.T) ports.CollectorRepository {
 		return collector.NewRepository()
 	})
 }

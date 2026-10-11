@@ -11,8 +11,10 @@ import (
 )
 
 const (
+	// RequestIDHeader carries the id that ties a response to its log lines.
 	RequestIDHeader = "X-Request-ID"
-	MaxBodyBytes    = 1 << 20
+	// MaxBodyBytes limits the size of request bodies handlers read.
+	MaxBodyBytes = 1 << 20
 )
 
 // Route is an endpoint: a ServeMux pattern ("POST /collectors") and its handler.
@@ -21,10 +23,12 @@ type Route struct {
 	Handler http.Handler
 }
 
+// ErrorResponse is the JSON body of every error answer.
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+// WriteJSON writes body as JSON with the given status.
 func WriteJSON(log *slog.Logger, w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

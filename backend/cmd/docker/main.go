@@ -1,3 +1,4 @@
+// Command docker runs the backend as configured by environment variables.
 package main
 
 import (
@@ -11,12 +12,15 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		slog.Error("backend stopped", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := backend.Run(ctx, backend.ConfigFromEnv(os.Getenv)); err != nil {
-		slog.Error("backend stopped", "error", err)
-		stop()
-		os.Exit(1)
-	}
+	return backend.Run(ctx, backend.ConfigFromEnv(os.Getenv))
 }

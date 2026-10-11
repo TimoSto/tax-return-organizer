@@ -32,6 +32,11 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Lint
+        run: |
+          go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0 run ./...
+          go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0 run --build-tags e2e ./cmd/...
+
       # The postgres adapter tests start their own postgres container via
       # testcontainers; Docker is preinstalled on GitHub-hosted runners.
       - name: Test
@@ -74,4 +79,4 @@ jobs:
           cache-dependency-path: backend/go.sum
 
       - name: Build e2e
-        run: go build -o /tmp/e2e ./cmd/e2e
+        run: go build -tags e2e -o /tmp/e2e ./cmd/e2e
