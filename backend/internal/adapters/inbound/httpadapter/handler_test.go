@@ -18,7 +18,9 @@ func do(t *testing.T, create func(context.Context, string, string) (string, erro
 
 	req := httptest.NewRequest(method, "/collectors", strings.NewReader(body))
 	rec := httptest.NewRecorder()
-	httpadapter.NewHandler(create).ServeHTTP(rec, req)
+	mux := http.NewServeMux()
+	httpadapter.RegisterCollectorRoutes(mux, create)
+	mux.ServeHTTP(rec, req)
 
 	return rec
 }

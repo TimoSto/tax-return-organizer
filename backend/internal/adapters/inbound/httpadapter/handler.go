@@ -27,12 +27,9 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
-// NewHandler returns the HTTP routes backed by the given inbound ports.
-func NewHandler(createCollector ports.CreateCollectorPort) http.Handler {
-	mux := http.NewServeMux()
+// RegisterCollectorRoutes registers the collector routes on mux.
+func RegisterCollectorRoutes(mux *http.ServeMux, createCollector ports.CreateCollectorPort) {
 	mux.HandleFunc("POST /collectors", createCollectorHandler(createCollector))
-
-	return mux
 }
 
 func createCollectorHandler(create ports.CreateCollectorPort) http.HandlerFunc {
