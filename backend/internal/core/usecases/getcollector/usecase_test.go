@@ -5,8 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/google/uuid"
-
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
@@ -18,13 +16,13 @@ type failingRepo struct {
 	err error
 }
 
-func (r failingRepo) GetCollector(context.Context, uuid.UUID) (*domain.Collector, error) {
+func (r failingRepo) GetCollector(context.Context, domain.CollectorID) (*domain.Collector, error) {
 	return nil, r.err
 }
 
 func TestExecute_Success(t *testing.T) {
 	repo := fakecollector.NewRepository()
-	want := &domain.Collector{ID: uuid.New(), Name: "Jane", Email: "jane@example.com"}
+	want := &domain.Collector{ID: "k7m2", Name: "Jane", Email: "jane@example.com"}
 
 	if err := repo.SaveCollector(context.Background(), want); err != nil {
 		t.Fatalf("seed collector: %v", err)
@@ -41,7 +39,7 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_NotFound(t *testing.T) {
-	got, err := getcollector.New(fakecollector.NewRepository()).Execute(context.Background(), uuid.New())
+	got, err := getcollector.New(fakecollector.NewRepository()).Execute(context.Background(), "k7m2")
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
@@ -54,7 +52,7 @@ func TestExecute_NotFound(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := getcollector.New(failingRepo{err: boom}).Execute(context.Background(), uuid.New())
+	_, err := getcollector.New(failingRepo{err: boom}).Execute(context.Background(), "k7m2")
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want it to wrap %v", err, boom)
 	}

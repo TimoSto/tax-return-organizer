@@ -5,8 +5,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/google/uuid"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
@@ -16,16 +14,16 @@ var _ ports.CollectorRepository = (*Repository)(nil)
 // Repository is an in-memory ports.CollectorRepository.
 type Repository struct {
 	mu         sync.RWMutex
-	collectors map[uuid.UUID]domain.Collector
+	collectors map[domain.CollectorID]domain.Collector
 }
 
 // NewRepository returns an empty repository.
 func NewRepository() *Repository {
-	return &Repository{collectors: make(map[uuid.UUID]domain.Collector)}
+	return &Repository{collectors: make(map[domain.CollectorID]domain.Collector)}
 }
 
 // GetCollector implements ports.CollectorRepository.
-func (r *Repository) GetCollector(_ context.Context, id uuid.UUID) (*domain.Collector, error) {
+func (r *Repository) GetCollector(_ context.Context, id domain.CollectorID) (*domain.Collector, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -41,6 +39,10 @@ func (r *Repository) GetCollector(_ context.Context, id uuid.UUID) (*domain.Coll
 func (r *Repository) SaveCollector(_ context.Context, collector *domain.Collector) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	if _, taken := r.collectors[collector.ID]; taken {
+		return domain.ErrCollectorIDTaken
+	}
 
 	r.collectors[collector.ID] = *collector
 

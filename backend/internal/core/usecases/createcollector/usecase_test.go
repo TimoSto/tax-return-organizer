@@ -5,8 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/google/uuid"
-
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
@@ -57,8 +55,8 @@ func TestExecute_Validation(t *testing.T) {
 				t.Errorf("err = %v, want %v", err, tt.wantErr)
 			}
 
-			if id != uuid.Nil {
-				t.Errorf("id = %v, want nil uuid", id)
+			if id != "" {
+				t.Errorf("id = %q, want empty", id)
 			}
 		})
 	}
@@ -70,5 +68,50 @@ func TestExecute_RepositoryError(t *testing.T) {
 	_, err := createcollector.New(failingRepo{err: boom}).Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com"})
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want it to wrap %v", err, boom)
+	}
+}
+
+type collidingRepo struct {
+	ports.CollectorRepository
+	collisions int
+	calls      int
+}
+
+func (r *collidingRepo) SaveCollector(ctx context.Context, c *domain.Collector) error {
+	r.calls++
+	if r.calls <= r.collisions {
+		return domain.ErrCollectorIDTaken
+	}
+
+	return r.CollectorRepository.SaveCollector(ctx, c)
+}
+
+func TestExecute_RetriesOnIDCollision(t *testing.T) {
+	repo := &collidingRepo{CollectorRepository: fakecollector.NewRepository(), collisions: 2}
+
+	id, err := createcollector.New(repo).Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if repo.calls != 3 {
+		t.Errorf("calls = %d, want 3", repo.calls)
+	}
+
+	if _, err := repo.GetCollector(context.Background(), id); err != nil {
+		t.Errorf("collector not saved: %v", err)
+	}
+}
+
+func TestExecute_GivesUpAfterTooManyCollisions(t *testing.T) {
+	repo := &collidingRepo{CollectorRepository: fakecollector.NewRepository(), collisions: 100}
+
+	id, err := createcollector.New(repo).Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com"})
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+
+	if id != "" || repo.calls != 5 {
+		t.Errorf("id = %q, calls = %d, want empty id and 5 calls", id, repo.calls)
 	}
 }

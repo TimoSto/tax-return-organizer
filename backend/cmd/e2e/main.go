@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
@@ -25,7 +24,7 @@ import (
 )
 
 // defaultCollectorID is the id of the collector seeded on every run, so e2e tests can reference it.
-var defaultCollectorID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+var defaultCollectorID = domain.CollectorID("aaaa")
 
 func main() {
 	if err := run(); err != nil {

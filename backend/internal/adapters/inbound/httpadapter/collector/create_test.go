@@ -9,14 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/uuid"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-var testID = uuid.MustParse("00000000-0000-0000-0000-00000000000a")
+const testID domain.CollectorID = "k7m2"
 
 func do(t *testing.T, create ports.CreateCollectorPort, method, body string) *httptest.ResponseRecorder {
 	t.Helper()
@@ -34,7 +32,7 @@ func do(t *testing.T, create ports.CreateCollectorPort, method, body string) *ht
 func TestCreateCollector_Created(t *testing.T) {
 	var got ports.CreateCollectorCmd
 
-	rec := do(t, func(_ context.Context, cmd ports.CreateCollectorCmd) (uuid.UUID, error) {
+	rec := do(t, func(_ context.Context, cmd ports.CreateCollectorCmd) (domain.CollectorID, error) {
 		got = cmd
 
 		return testID, nil
@@ -73,8 +71,8 @@ func TestCreateCollector_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := do(t, func(context.Context, ports.CreateCollectorCmd) (uuid.UUID, error) {
-				return uuid.Nil, tt.portErr
+			rec := do(t, func(context.Context, ports.CreateCollectorCmd) (domain.CollectorID, error) {
+				return "", tt.portErr
 			}, http.MethodPost, tt.body)
 
 			if rec.Code != tt.want {
