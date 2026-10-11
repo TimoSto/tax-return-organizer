@@ -1,3 +1,4 @@
+// Package collector contains the PostgreSQL implementation of the collector repository.
 package collector
 
 import (
