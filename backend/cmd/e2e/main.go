@@ -14,10 +14,18 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
+	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
+
+// defaultCollectorID is the id of the collector seeded on every run, so e2e tests can reference it.
+var defaultCollectorID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 func main() {
 	if err := run(); err != nil {
@@ -57,8 +65,37 @@ func runWithContext(ctx context.Context, getenv func(string) string) error {
 		return fmt.Errorf("connection string: %w", err)
 	}
 
+	if err := seed(ctx, dsn); err != nil {
+		return fmt.Errorf("seed: %w", err)
+	}
+
 	cfg := backend.ConfigFromEnv(getenv)
 	cfg.DatabaseURL = dsn
 
 	return backend.Run(ctx, cfg)
+}
+
+// seed migrates the database and inserts the default collector.
+// backend.Run migrates again afterwards, which is a no-op.
+func seed(ctx context.Context, dsn string) error {
+	if err := postgres.Migrate(ctx, dsn); err != nil {
+		return fmt.Errorf("migrate: %w", err)
+	}
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		return fmt.Errorf("connect to database: %w", err)
+	}
+	defer pool.Close()
+
+	c, err := domain.NewCollector(defaultCollectorID, "E2E Collector", "e2e@example.com")
+	if err != nil {
+		return fmt.Errorf("new collector: %w", err)
+	}
+
+	if err := pgcollector.NewRepository(pool).SaveCollector(ctx, c); err != nil {
+		return fmt.Errorf("save collector: %w", err)
+	}
+
+	return nil
 }
