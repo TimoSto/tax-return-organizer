@@ -1,4 +1,5 @@
-package postgres_test
+// Package postgrestest provides a shared PostgreSQL test container for repository tests.
+package postgrestest
 
 import (
 	"context"
@@ -13,15 +14,12 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
 )
 
-// testPool is nil if Docker is unavailable; tests must call requirePool.
+// testPool is nil if Docker is unavailable; tests must call RequirePool.
 var testPool *pgxpool.Pool
 
-// One container is shared by all repository tests in this package.
-func TestMain(m *testing.M) {
-	os.Exit(run(m))
-}
-
-func run(m *testing.M) int {
+// Run starts a migrated PostgreSQL container, runs the tests and returns the exit code.
+// Call it from TestMain: os.Exit(postgrestest.Run(m)).
+func Run(m *testing.M) int {
 	ctx := context.Background()
 
 	if !dockerAvailable(ctx) {
@@ -72,8 +70,8 @@ func dockerAvailable(ctx context.Context) bool {
 	return provider.Health(ctx) == nil
 }
 
-// requirePool skips the test if no database is available and otherwise returns the pool.
-func requirePool(t *testing.T) *pgxpool.Pool {
+// RequirePool skips the test if no database is available and otherwise returns the pool.
+func RequirePool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
 	if testPool == nil {

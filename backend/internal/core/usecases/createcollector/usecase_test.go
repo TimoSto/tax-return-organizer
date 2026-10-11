@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake"
+	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
@@ -21,7 +21,7 @@ type failingRepo struct {
 func (r failingRepo) SaveCollector(context.Context, *domain.Collector) error { return r.err }
 
 func TestExecute_Success(t *testing.T) {
-	repo := fake.NewCollectorRepository()
+	repo := fakecollector.NewRepository()
 
 	id, err := createcollector.New(repo).Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
@@ -52,7 +52,7 @@ func TestExecute_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, err := createcollector.New(fake.NewCollectorRepository()).Execute(context.Background(), ports.CreateCollectorCmd{Name: tt.cName, Email: tt.email})
+			id, err := createcollector.New(fakecollector.NewRepository()).Execute(context.Background(), ports.CreateCollectorCmd{Name: tt.cName, Email: tt.email})
 			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("err = %v, want %v", err, tt.wantErr)
 			}

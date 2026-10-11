@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake"
+	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 )
 
 func TestWire_CreateCollector(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), fake.NewCollectorRepository())
+	h := wire(slog.New(slog.DiscardHandler), fakecollector.NewRepository())
 
 	req := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
 	rec := httptest.NewRecorder()
@@ -23,7 +23,7 @@ func TestWire_CreateCollector(t *testing.T) {
 }
 
 func TestWire_Healthz(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), fake.NewCollectorRepository())
+	h := wire(slog.New(slog.DiscardHandler), fakecollector.NewRepository())
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))

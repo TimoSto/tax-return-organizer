@@ -1,4 +1,5 @@
-// Package postgres contains the PostgreSQL implementations of the outbound ports.
+// Package postgres owns the shared PostgreSQL schema migrations.
+// Repositories live in subpackages, one per resource.
 package postgres
 
 import (

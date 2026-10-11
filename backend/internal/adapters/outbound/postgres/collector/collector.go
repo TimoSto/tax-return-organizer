@@ -1,4 +1,4 @@
-package postgres
+package collector
 
 import (
 	"context"
@@ -13,17 +13,18 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-var _ ports.CollectorRepository = (*CollectorRepository)(nil)
+var _ ports.CollectorRepository = (*Repository)(nil)
 
-type CollectorRepository struct {
+// Repository stores collectors in PostgreSQL.
+type Repository struct {
 	pool *pgxpool.Pool
 }
 
-func NewCollectorRepository(pool *pgxpool.Pool) *CollectorRepository {
-	return &CollectorRepository{pool: pool}
+func NewRepository(pool *pgxpool.Pool) *Repository {
+	return &Repository{pool: pool}
 }
 
-func (r *CollectorRepository) GetCollector(ctx context.Context, id uuid.UUID) (*domain.Collector, error) {
+func (r *Repository) GetCollector(ctx context.Context, id uuid.UUID) (*domain.Collector, error) {
 	var row collectorRow
 
 	err := r.pool.QueryRow(ctx, `SELECT id, name, email FROM collectors WHERE id = $1`, id).
@@ -38,7 +39,7 @@ func (r *CollectorRepository) GetCollector(ctx context.Context, id uuid.UUID) (*
 	return row.toDomain(), nil
 }
 
-func (r *CollectorRepository) SaveCollector(ctx context.Context, collector *domain.Collector) error {
+func (r *Repository) SaveCollector(ctx context.Context, collector *domain.Collector) error {
 	row := newCollectorRow(collector)
 
 	_, err := r.pool.Exec(ctx, `
