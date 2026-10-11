@@ -15,6 +15,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
@@ -23,7 +24,8 @@ const shutdownTimeout = 10 * time.Second
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
 func wire(log *slog.Logger, collectors ports.CollectorRepository) http.Handler {
 	return httpadapter.NewHandler(log, httpadapter.Deps{
-		CreateCollector: createcollector.New(collectors),
+		CreateCollector: createcollector.New(collectors).Execute,
+		GetCollector:    getcollector.New(collectors).Execute,
 	})
 }
 

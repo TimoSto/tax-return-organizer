@@ -13,7 +13,8 @@ import (
 
 // Deps are the inbound ports the endpoints call.
 type Deps struct {
-	CreateCollector ports.CreateCollector
+	CreateCollector ports.CreateCollectorPort
+	GetCollector    ports.GetCollectorPort
 }
 
 // NewHandler registers all endpoints and wraps them in the middleware.
@@ -23,6 +24,7 @@ func NewHandler(log *slog.Logger, d Deps) http.Handler {
 	for _, r := range []httpx.Route{
 		health.Liveness(log),
 		collector.Create(log, d.CreateCollector),
+		collector.Get(log, d.GetCollector),
 	} {
 		mux.Handle(r.Pattern, r.Handler)
 	}

@@ -20,7 +20,7 @@ type createResponse struct {
 }
 
 // Create is POST /collectors.
-func Create(log *slog.Logger, create ports.CreateCollector) httpx.Route {
+func Create(log *slog.Logger, create ports.CreateCollectorPort) httpx.Route {
 	return httpx.Route{
 		Pattern: "POST /collectors",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +35,7 @@ func Create(log *slog.Logger, create ports.CreateCollector) httpx.Route {
 				return
 			}
 
-			id, err := create.Execute(r.Context(), ports.CreateCollectorCmd{Name: req.Name, Email: req.Email})
+			id, err := create(r.Context(), ports.CreateCollectorCmd{Name: req.Name, Email: req.Email})
 			if err != nil {
 				httpx.WriteError(log, w, r, err)
 

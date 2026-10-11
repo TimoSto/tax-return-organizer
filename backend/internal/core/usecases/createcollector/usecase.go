@@ -11,7 +11,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-var _ ports.CreateCollector = (*Usecase)(nil)
+var _ ports.CreateCollectorPort = (*Usecase)(nil).Execute
 
 // Usecase implements ports.CreateCollector.
 type Usecase struct {
