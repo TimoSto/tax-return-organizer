@@ -1,10 +1,10 @@
 The product is **desktop only**: the supported minimum width is **1024px**. Layout adapts to window width using the three Material Design 3 desktop window size classes. Compact and medium classes (phones, tablets) are out of scope; do not build bottom navigation bars or single-pane back stacks.
 
-| Class | Width | Navigation | Advisor panes | Client panes |
-|---|---|---|---|---|
-| Expanded | 840–1199 | Rail | List + detail; supporting pane as side sheet | Detail; supporting pane below the content |
-| Large | 1200–1599 | Rail | List + detail + supporting | Detail + supporting |
-| Extra-large | 1600+ | Rail or drawer | Same; detail grows | Same; content max 1040px |
+| Class       | Width     | Navigation     | Advisor panes                                | Client panes                              |
+| ----------- | --------- | -------------- | -------------------------------------------- | ----------------------------------------- |
+| Expanded    | 840–1199  | Rail           | List + detail; supporting pane as side sheet | Detail; supporting pane below the content |
+| Large       | 1200–1599 | Rail           | List + detail + supporting                   | Detail + supporting                       |
+| Extra-large | 1600+     | Rail or drawer | Same; detail grows                           | Same; content max 1040px                  |
 
 - Use the `window-*` tokens in `@media (min-width: …)` queries. Fixed panes (`pane-list-width`, `pane-supporting-width`) keep their size; only the detail pane flexes.
 - Margin and gutter are `pane-margin` / `pane-gutter` (24px) in every class.

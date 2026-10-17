@@ -1,34 +1,124 @@
 <!-- @dsCard height=320 -->
-<!doctype html><html lang="de"><head><meta charset="utf-8"><style>
-html,body{margin:0}
-.cv{position:relative;width:960px;height:320px;background:var(--surface);overflow:hidden}
-.cv svg{position:absolute;left:0;top:0}
-.k-primary{fill:var(--primary)}.k-tertiary{fill:var(--tertiary)}.k-inverse{fill:var(--inverse-surface)}.k-pc{fill:var(--primary-container)}.k-secondary{fill:var(--secondary)}.k-tc{fill:var(--tertiary-container)}.k-sc{fill:var(--secondary-container)}
-.cv h1{position:absolute;left:40px;bottom:72px;margin:0;width:440px;font:500 64px/.95 var(--font-display);color:var(--on-surface);letter-spacing:-.5px}
-.cv p{position:absolute;left:40px;bottom:32px;margin:0;width:400px;font:400 14px/20px var(--font-sans);color:var(--on-surface-variant)}
-[data-theme="high-contrast"] .cv rect,[data-theme="high-contrast"] .cv circle{stroke:var(--outline);stroke-width:2}
-</style></head><body>
-<div class="cv">
-<svg width="960" height="320" viewBox="0 0 960 320" aria-hidden="true">
-<!--
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="utf-8" />
+		<style>
+			html,
+			body {
+				margin: 0;
+			}
+			.cv {
+				position: relative;
+				width: 960px;
+				height: 320px;
+				background: var(--surface);
+				overflow: hidden;
+			}
+			.cv svg {
+				position: absolute;
+				left: 0;
+				top: 0;
+			}
+			.k-primary {
+				fill: var(--primary);
+			}
+			.k-tertiary {
+				fill: var(--tertiary);
+			}
+			.k-inverse {
+				fill: var(--inverse-surface);
+			}
+			.k-pc {
+				fill: var(--primary-container);
+			}
+			.k-secondary {
+				fill: var(--secondary);
+			}
+			.k-tc {
+				fill: var(--tertiary-container);
+			}
+			.k-sc {
+				fill: var(--secondary-container);
+			}
+			.cv h1 {
+				position: absolute;
+				left: 40px;
+				bottom: 72px;
+				margin: 0;
+				width: 440px;
+				font: 500 64px/0.95 var(--font-display);
+				color: var(--on-surface);
+				letter-spacing: -0.5px;
+			}
+			.cv p {
+				position: absolute;
+				left: 40px;
+				bottom: 32px;
+				margin: 0;
+				width: 400px;
+				font: 400 14px/20px var(--font-sans);
+				color: var(--on-surface-variant);
+			}
+			[data-theme='high-contrast'] .cv rect,
+			[data-theme='high-contrast'] .cv circle {
+				stroke: var(--outline);
+				stroke-width: 2;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="cv">
+			<svg width="960" height="320" viewBox="0 0 960 320" aria-hidden="true">
+				<!--
 Blocks: primary 2x3 (160x240), tertiary 2x1, inverse-surface 2x2, primary-container 2x2, secondary 1x1, tertiary-container disc; cell 80 (space-8 + 16), inset 4 (space-1).
 Arrangement: flush modular grid in a 6x4 box right of x=480, tall primary slab left, staggered smaller fields to the right.
 Pattern: a bottom row of alternating discs and squares in secondary-container: tiles cut by shape-full and shape-large, the way buttons and cards are cut. Chosen because the system is a dense, modular M3 UI built from pills and rounded tiles.
 Steps and radii: 80px cell, shape-large (16px) on rectangles, shape-full on discs.
 -->
-<rect class="k-primary" x="484" y="4" width="152" height="232" style="rx:var(--shape-large)"/>
-<rect class="k-tertiary" x="644" y="4" width="152" height="72" style="rx:var(--shape-large)"/>
-<rect class="k-inverse" x="644" y="84" width="152" height="152" style="rx:var(--shape-large)"/>
-<rect class="k-pc" x="804" y="4" width="152" height="152" style="rx:var(--shape-large)"/>
-<rect class="k-secondary" x="804" y="164" width="72" height="72" style="rx:var(--shape-large)"/>
-<circle class="k-tc" cx="920" cy="200" r="36"/>
-<circle class="k-sc" cx="520" cy="280" r="36"/>
-<rect class="k-sc" x="564" y="244" width="72" height="72" style="rx:var(--shape-large)"/>
-<circle class="k-sc" cx="680" cy="280" r="36"/>
-<rect class="k-sc" x="724" y="244" width="72" height="72" style="rx:var(--shape-large)"/>
-<circle class="k-sc" cx="840" cy="280" r="36"/>
-<rect class="k-sc" x="884" y="244" width="72" height="72" style="rx:var(--shape-large)"/>
-</svg>
-<h1>Tax Advisory</h1>
-<p>Ruhige, präzise Oberflächen für Steuerberater und ihre Mandanten.</p>
-</div></body></html>
+				<rect
+					class="k-primary"
+					x="484"
+					y="4"
+					width="152"
+					height="232"
+					style="rx: var(--shape-large)"
+				/>
+				<rect
+					class="k-tertiary"
+					x="644"
+					y="4"
+					width="152"
+					height="72"
+					style="rx: var(--shape-large)"
+				/>
+				<rect
+					class="k-inverse"
+					x="644"
+					y="84"
+					width="152"
+					height="152"
+					style="rx: var(--shape-large)"
+				/>
+				<rect class="k-pc" x="804" y="4" width="152" height="152" style="rx: var(--shape-large)" />
+				<rect
+					class="k-secondary"
+					x="804"
+					y="164"
+					width="72"
+					height="72"
+					style="rx: var(--shape-large)"
+				/>
+				<circle class="k-tc" cx="920" cy="200" r="36" />
+				<circle class="k-sc" cx="520" cy="280" r="36" />
+				<rect class="k-sc" x="564" y="244" width="72" height="72" style="rx: var(--shape-large)" />
+				<circle class="k-sc" cx="680" cy="280" r="36" />
+				<rect class="k-sc" x="724" y="244" width="72" height="72" style="rx: var(--shape-large)" />
+				<circle class="k-sc" cx="840" cy="280" r="36" />
+				<rect class="k-sc" x="884" y="244" width="72" height="72" style="rx: var(--shape-large)" />
+			</svg>
+			<h1>Tax Advisory</h1>
+			<p>Ruhige, präzise Oberflächen für Steuerberater und ihre Mandanten.</p>
+		</div>
+	</body>
+</html>

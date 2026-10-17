@@ -1,4 +1,4 @@
-The advisor home (**Übersicht**) answers one question: *what needs my attention today?* It is a **detail pane plus supporting pane**; there is no list pane because nothing is selected yet.
+The advisor home (**Übersicht**) answers one question: _what needs my attention today?_ It is a **detail pane plus supporting pane**; there is no list pane because nothing is selected yet.
 
 **Structure:** navigation rail (Übersicht active) | **main pane** (greeting with a one-line summary, four KPI cards, a table of clients that need action) | **supporting pane** (next deadlines, latest messages).
 

@@ -1,4 +1,5 @@
 ## Design system
+
 The design system lives in `docs/design-system/`. Read `docs/design-system/README.md` first, then the matching `components/<Name>/README.md` before building a component.
 
 - Use tokens only (`tokens.css`); never hard-code colors, radii, spacing or fonts.

@@ -1,4 +1,4 @@
-Tax Advisory is a Material Design 3 (M3) system for a **desktop web product for German tax advisors and their clients**. Advisors define *personas* (types of client, such as Angestellt, Vermietung, Selbstständig) with the documents and information each persona must provide, assign personas to clients, and follow progress. Clients see exactly what they have to provide, upload documents and fill in text fields. Tokens use M3 role names (`primary`, `on-primary-container`, `surface-container-high`, `shape-large`, `label-large`), so any M3 guidance applies unless this book says otherwise.
+Tax Advisory is a Material Design 3 (M3) system for a **desktop web product for German tax advisors and their clients**. Advisors define _personas_ (types of client, such as Angestellt, Vermietung, Selbstständig) with the documents and information each persona must provide, assign personas to clients, and follow progress. Clients see exactly what they have to provide, upload documents and fill in text fields. Tokens use M3 role names (`primary`, `on-primary-container`, `surface-container-high`, `shape-large`, `label-large`), so any M3 guidance applies unless this book says otherwise.
 
 ## Using it with Material Web and Svelte
 
@@ -19,8 +19,8 @@ Tax Advisory is a Material Design 3 (M3) system for a **desktop web product for 
 
 1. **Persona builder** (`PersonaBuilder`): an advisor creates a persona and lists its required **Unterlagen** (documents; name, hint for the client, Pflicht on/off) and required **Angaben** (fields; name, type Zahl/Text/Datum/Ja-Nein/Auswahl, Pflicht on/off). A preview shows the client's wording.
 2. **Client setup** (`ClientSetup`): the advisor enters client data and selects any number of personas. The union of their requirements becomes the client's checklist; duplicates merge, and an item that is Pflicht in any persona is Pflicht for the client.
-0. **Advisor home** (`AdvisorHome`): the landing page; shows what needs attention today (KPI cards, clients needing action, next deadlines, latest messages).
-3. **Client portal** (`ClientPortal`): the client sees one list of requirements, uploads files with `FileUpload`, enters values in text fields and watches progress. Done items collapse; open items show their upload zone or field in place.
+3. **Advisor home** (`AdvisorHome`): the landing page; shows what needs attention today (KPI cards, clients needing action, next deadlines, latest messages).
+4. **Client portal** (`ClientPortal`): the client sees one list of requirements, uploads files with `FileUpload`, enters values in text fields and watches progress. Done items collapse; open items show their upload zone or field in place.
 
 Statuses use `StatusChip`: Entwurf, In Prüfung, Wartet auf Mandant, Freigegeben, Eingereicht, Überfällig; document-level Offen, Hochgeladen, Geprüft, Rückfrage, Abgelehnt.
 
