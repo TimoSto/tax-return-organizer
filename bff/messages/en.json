@@ -1,4 +1,18 @@
 {
 	"$schema": "https://inlang.com/schema/inlang-message-format",
-	"hello_world": "Hello, {name} from en!"
+	"hello_world": "Hello, {name} from en!",
+	"nav_main": "Main navigation",
+	"nav_overview": "Overview",
+	"nav_clients": "Clients",
+	"nav_personas": "Personas",
+	"nav_deadlines": "Deadlines",
+	"nav_messages": "Messages",
+	"nav_settings": "Settings",
+	"nav_start": "Start",
+	"nav_tasks": "Tasks",
+	"nav_documents": "Documents",
+	"nav_group_firm": "Firm",
+	"nav_group_collaboration": "Collaboration",
+	"nav_unread": "{label}, {count} unread",
+	"nav_pending": "{label}, {count} pending"
 }
