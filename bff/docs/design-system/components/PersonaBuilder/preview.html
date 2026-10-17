@@ -1,0 +1,346 @@
+<!-- @dsCard group="Layouts" height=860 width=1440 subtitle="Personas definieren" -->
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="utf-8" />
+	</head>
+	<body>
+		<div class="md-app" style="width: 1440px; height: 860px">
+			<nav class="md-rail" aria-label="Hauptnavigation" style="padding-top: 28px">
+				<button class="md-fab md-state" aria-label="Neue Persona">
+					<span class="md-icon" aria-hidden="true">add</span>
+				</button>
+				<div class="md-rail__group" style="margin-top: 8px">
+					<a class="md-nav-item md-state"
+						><span class="md-nav-item__ind"
+							><span class="md-icon" aria-hidden="true">dashboard</span></span
+						>Übersicht</a
+					><a class="md-nav-item md-state"
+						><span class="md-nav-item__ind"
+							><span class="md-icon" aria-hidden="true">group</span></span
+						>Mandanten</a
+					><a class="md-nav-item md-state is-active" aria-current="page"
+						><span class="md-nav-item__ind"
+							><span class="md-icon" aria-hidden="true">badge</span></span
+						>Personas</a
+					><a class="md-nav-item md-state"
+						><span class="md-nav-item__ind"
+							><span class="md-icon" aria-hidden="true">event</span></span
+						>Fristen</a
+					><a class="md-nav-item md-state"
+						><span class="md-nav-item__ind"
+							><span class="md-icon" aria-hidden="true">chat_bubble</span
+							><span class="md-badge" aria-label="4 ungelesen">4</span></span
+						>Nachrichten</a
+					>
+				</div>
+				<div class="md-rail__spacer"></div>
+				<a class="md-nav-item md-state"
+					><span class="md-nav-item__ind"
+						><span class="md-icon" aria-hidden="true">settings</span></span
+					>Einstellungen</a
+				>
+			</nav>
+			<div class="md-panes">
+				<section class="md-pane md-pane--list" aria-label="Personas">
+					<div class="md-pane__head">
+						<h2 class="title-large" style="margin: 0; flex: 1">Personas</h2>
+						<span class="body-medium muted">6</span>
+					</div>
+					<div style="padding: 0 16px 12px">
+						<div class="md-search">
+							<span class="md-icon" aria-hidden="true">search</span
+							><span>Personas durchsuchen</span>
+						</div>
+					</div>
+					<div class="md-pane__scroll" style="padding: 0 8px">
+						<ul class="md-list">
+							<li class="md-list__item md-list__item--two md-state">
+								<span class="md-avatar"><span class="md-icon" aria-hidden="true">work</span></span>
+								<div class="md-list__body">
+									<div class="md-list__head">Angestellt</div>
+									<div class="md-list__support">6 Unterlagen · 3 Angaben</div>
+								</div>
+								<span class="md-list__trail">62<br />Mandanten</span>
+							</li>
+							<li class="md-list__item md-list__item--two md-state is-selected">
+								<span class="md-avatar"
+									><span class="md-icon" aria-hidden="true">home_work</span></span
+								>
+								<div class="md-list__body">
+									<div class="md-list__head">Vermietung</div>
+									<div class="md-list__support">9 Unterlagen · 6 Angaben</div>
+								</div>
+								<span class="md-list__trail">34<br />Mandanten</span>
+							</li>
+							<li class="md-list__item md-list__item--two md-state">
+								<span class="md-avatar"
+									><span class="md-icon" aria-hidden="true">storefront</span></span
+								>
+								<div class="md-list__body">
+									<div class="md-list__head">Selbstständig</div>
+									<div class="md-list__support">12 Unterlagen · 9 Angaben</div>
+								</div>
+								<span class="md-list__trail">21<br />Mandanten</span>
+							</li>
+							<li class="md-list__item md-list__item--two md-state">
+								<span class="md-avatar"
+									><span class="md-icon" aria-hidden="true">elderly</span></span
+								>
+								<div class="md-list__body">
+									<div class="md-list__head">Rente &amp; Pension</div>
+									<div class="md-list__support">5 Unterlagen · 2 Angaben</div>
+								</div>
+								<span class="md-list__trail">18<br />Mandanten</span>
+							</li>
+							<li class="md-list__item md-list__item--two md-state">
+								<span class="md-avatar"
+									><span class="md-icon" aria-hidden="true">trending_up</span></span
+								>
+								<div class="md-list__body">
+									<div class="md-list__head">Kapitalerträge</div>
+									<div class="md-list__support">4 Unterlagen · 2 Angaben</div>
+								</div>
+								<span class="md-list__trail">27<br />Mandanten</span>
+							</li>
+							<li class="md-list__item md-list__item--two md-state">
+								<span class="md-avatar"
+									><span class="md-icon" aria-hidden="true">family_restroom</span></span
+								>
+								<div class="md-list__body">
+									<div class="md-list__head">Familie mit Kindern</div>
+									<div class="md-list__support">7 Unterlagen · 4 Angaben</div>
+								</div>
+								<span class="md-list__trail">40<br />Mandanten</span>
+							</li>
+						</ul>
+					</div>
+				</section>
+				<main class="md-pane md-pane--detail" aria-label="Persona bearbeiten">
+					<div
+						class="md-pane__head"
+						style="align-items: center; gap: 16px; flex-wrap: wrap; padding-bottom: 16px"
+					>
+						<span class="md-avatar md-avatar--lg"
+							><span class="md-icon" aria-hidden="true">home_work</span></span
+						>
+						<div style="flex: 1; min-width: 240px">
+							<h1 class="headline-medium" style="margin: 0">Vermietung</h1>
+							<div class="body-medium muted">
+								Für Mandanten mit Einkünften aus Vermietung · zuletzt geändert 02.06.2025
+							</div>
+						</div>
+						<button class="md-btn md-btn--tonal has-icon md-state">
+							<span class="md-icon" aria-hidden="true">content_copy</span>Duplizieren</button
+						><button class="md-btn md-btn--filled md-state">Speichern</button>
+					</div>
+					<div class="md-tabs" style="padding: 0 24px">
+						<button class="md-tab is-active" style="flex: 0 0 auto">
+							<span>Unterlagen <span class="md-badge">9</span></span></button
+						><button class="md-tab" style="flex: 0 0 auto">
+							<span>Angaben <span class="md-badge">6</span></span></button
+						><button class="md-tab" style="flex: 0 0 auto"><span>Mandanten</span></button
+						><button class="md-tab" style="flex: 0 0 auto"><span>Einstellungen</span></button>
+					</div>
+					<div class="md-pane__scroll stack" style="gap: 16px">
+						<div class="md-field" style="width: 100%; --field-bg: var(--surface-container-lowest)">
+							<input
+								placeholder=" "
+								value="Mieteinnahmen aus Wohnungen oder Häusern, die Sie vermieten."
+								id="pd"
+							/><label for="pd">Beschreibung für den Mandanten</label>
+						</div>
+						<div class="row" style="justify-content: space-between">
+							<h3 class="title-medium" style="margin: 0">Erforderliche Unterlagen</h3>
+							<button class="md-btn md-btn--outlined has-icon md-state">
+								<span class="md-icon" aria-hidden="true">add</span>Unterlage hinzufügen
+							</button>
+						</div>
+						<ul
+							class="md-list"
+							style="
+								border: 1px solid var(--outline-variant);
+								border-radius: var(--shape-medium);
+								padding: 4px 0;
+							"
+						>
+							<li class="md-list__item md-list__item--two md-state">
+								<span class="md-icon" style="color: var(--on-surface-variant)">drag_indicator</span>
+								<div class="md-list__body">
+									<div class="md-list__head">Mietvertrag</div>
+									<div class="md-list__support">Alle Verträge des Jahres 2025</div>
+								</div>
+								<label class="row" style="gap: 12px"
+									><span class="label-medium muted">Pflicht</span
+									><button
+										class="md-switch"
+										role="switch"
+										aria-checked="true"
+										aria-label="Pflicht: Mietvertrag"
+									></button></label
+								><button class="md-icon-btn md-state" aria-label="Entfernen">
+									<span class="md-icon" aria-hidden="true">delete</span>
+								</button>
+							</li>
+							<li class="md-list__item md-list__item--two md-state">
+								<span class="md-icon" style="color: var(--on-surface-variant)">drag_indicator</span>
+								<div class="md-list__body">
+									<div class="md-list__head">Nebenkostenabrechnung</div>
+									<div class="md-list__support">Vom Vermieter oder der Hausverwaltung</div>
+								</div>
+								<label class="row" style="gap: 12px"
+									><span class="label-medium muted">Pflicht</span
+									><button
+										class="md-switch"
+										role="switch"
+										aria-checked="true"
+										aria-label="Pflicht: Nebenkostenabrechnung"
+									></button></label
+								><button class="md-icon-btn md-state" aria-label="Entfernen">
+									<span class="md-icon" aria-hidden="true">delete</span>
+								</button>
+							</li>
+							<li class="md-list__item md-list__item--two md-state">
+								<span class="md-icon" style="color: var(--on-surface-variant)">drag_indicator</span>
+								<div class="md-list__body">
+									<div class="md-list__head">Grundsteuerbescheid</div>
+									<div class="md-list__support">Nur bei Eigentum</div>
+								</div>
+								<label class="row" style="gap: 12px"
+									><span class="label-medium muted">Pflicht</span
+									><button
+										class="md-switch"
+										role="switch"
+										aria-checked="false"
+										aria-label="Pflicht: Grundsteuerbescheid"
+									></button></label
+								><button class="md-icon-btn md-state" aria-label="Entfernen">
+									<span class="md-icon" aria-hidden="true">delete</span>
+								</button>
+							</li>
+						</ul>
+						<div class="md-chips">
+							<span class="md-chip has-icon"
+								><span class="md-icon" aria-hidden="true">add</span>Wohngeld-Bescheid</span
+							><span class="md-chip has-icon"
+								><span class="md-icon" aria-hidden="true">add</span>Handwerkerrechnungen</span
+							><span class="md-chip has-icon"
+								><span class="md-icon" aria-hidden="true">add</span>Versicherungen</span
+							>
+						</div>
+						<h3 class="title-medium" style="margin: 8px 0 0">Erforderliche Angaben</h3>
+						<ul
+							class="md-list"
+							style="
+								border: 1px solid var(--outline-variant);
+								border-radius: var(--shape-medium);
+								padding: 4px 0;
+							"
+						>
+							<li class="md-list__item md-state">
+								<span class="md-icon" style="color: var(--on-surface-variant)">drag_indicator</span>
+								<div class="md-list__body"><div class="md-list__head">Mieteinnahmen 2025</div></div>
+								<span class="md-chip" style="height: 28px">Zahl · €</span
+								><label class="row" style="gap: 12px"
+									><span class="label-medium muted">Pflicht</span
+									><button
+										class="md-switch"
+										role="switch"
+										aria-checked="true"
+										aria-label="Pflicht: Mieteinnahmen 2025"
+									></button></label
+								><button class="md-icon-btn md-state" aria-label="Entfernen">
+									<span class="md-icon" aria-hidden="true">delete</span>
+								</button>
+							</li>
+							<li class="md-list__item md-state">
+								<span class="md-icon" style="color: var(--on-surface-variant)">drag_indicator</span>
+								<div class="md-list__body">
+									<div class="md-list__head">Anzahl vermieteter Objekte</div>
+								</div>
+								<span class="md-chip" style="height: 28px">Zahl</span
+								><label class="row" style="gap: 12px"
+									><span class="label-medium muted">Pflicht</span
+									><button
+										class="md-switch"
+										role="switch"
+										aria-checked="true"
+										aria-label="Pflicht: Anzahl vermieteter Objekte"
+									></button></label
+								><button class="md-icon-btn md-state" aria-label="Entfernen">
+									<span class="md-icon" aria-hidden="true">delete</span>
+								</button>
+							</li>
+						</ul>
+					</div>
+				</main>
+				<aside class="md-pane md-pane--support" aria-label="Vorschau und Verwendung">
+					<div class="md-pane__head">
+						<h2 class="title-large" style="margin: 0; flex: 1">Vorschau</h2>
+						<span class="md-status md-status--info">Mandantensicht</span>
+					</div>
+					<div class="md-pane__scroll stack" style="gap: 16px">
+						<div class="md-req">
+							<div class="md-req__head">
+								<span class="md-req__icon"
+									><span class="md-icon" aria-hidden="true">upload_file</span></span
+								>
+								<div>
+									<div class="md-req__title">Mietvertrag</div>
+									<div class="md-req__hint">Alle Verträge des Jahres 2025</div>
+								</div>
+							</div>
+							<button class="md-btn md-btn--outlined md-state" style="align-self: flex-start">
+								Datei hochladen
+							</button>
+						</div>
+						<div class="md-req">
+							<div class="md-req__head">
+								<span class="md-req__icon"
+									><span class="md-icon" aria-hidden="true">edit_note</span></span
+								>
+								<div>
+									<div class="md-req__title">Mieteinnahmen 2025 (€)</div>
+									<div class="md-req__hint">Gesamt, ohne Nebenkosten</div>
+								</div>
+							</div>
+						</div>
+						<div class="md-card md-card--tertiary stack" style="gap: 4px">
+							<span class="title-small">34 Mandanten nutzen diese Persona</span
+							><span class="body-medium"
+								>Neue Pflichtunterlagen erscheinen bei ihnen sofort als offene Aufgabe.</span
+							>
+						</div>
+						<div class="row" style="gap: -8px">
+							<span
+								class="md-avatar"
+								style="width: 32px; height: 32px; font-size: 12px; line-height: 16px"
+								>LF</span
+							><span
+								class="md-avatar"
+								style="
+									width: 32px;
+									height: 32px;
+									font-size: 12px;
+									line-height: 16px;
+									margin-left: -6px;
+								"
+								>MO</span
+							><span
+								class="md-avatar"
+								style="
+									width: 32px;
+									height: 32px;
+									font-size: 12px;
+									line-height: 16px;
+									margin-left: -6px;
+								"
+								>BS</span
+							><span class="body-medium muted" style="margin-left: 12px">und 31 weitere</span>
+						</div>
+					</div>
+				</aside>
+			</div>
+		</div>
+	</body>
+</html>
