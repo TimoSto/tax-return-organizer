@@ -1,114 +1,241 @@
 <!doctype html>
 <html lang="en" data-theme="light">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tax Advisory design system</title>
-    <link rel="stylesheet" href="tokens.css" />
-    <link rel="stylesheet" href="components/bundle.css" />
-    <style>
-      body { display: flex; height: 100vh; overflow: hidden; }
-      nav.side { width: 260px; flex: none; overflow: auto; padding: 16px 12px; background: var(--surface-container-low); border-right: 1px solid var(--outline-variant); }
-      nav.side h1 { margin: 4px 12px 12px; }
-      nav.side h2 { margin: 16px 12px 4px; color: var(--on-surface-variant); }
-      nav.side a { display: block; padding: 8px 12px; border-radius: var(--shape-full); color: var(--on-surface); text-decoration: none; }
-      nav.side a:hover { background: var(--surface-container-high); }
-      nav.side a[aria-current='page'] { background: var(--secondary-container); color: var(--on-secondary-container); font-weight: 500; }
-      nav.side a:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
-      main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-      header { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--outline-variant); }
-      header .grow { flex: 1; }
-      .seg { display: inline-flex; border: 1px solid var(--outline); border-radius: var(--shape-full); overflow: hidden; }
-      .seg button { padding: 8px 16px; border: 0; background: transparent; color: var(--on-surface); font: inherit; cursor: pointer; }
-      .seg button[aria-pressed='true'] { background: var(--secondary-container); color: var(--on-secondary-container); font-weight: 500; }
-      .seg button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
-      #stage { flex: 1; overflow: auto; padding: 24px; background: var(--surface-container); }
-      #frame-wrap { transform-origin: top left; }
-      iframe { border: 1px solid var(--outline-variant); border-radius: var(--shape-medium); background: var(--surface); display: block; }
-      .hint { margin: 0 24px 8px; }
-    </style>
-  </head>
-  <body>
-    <nav class="side" aria-label="Components" id="nav"><h1 class="title-large">Tax Advisory</h1></nav>
-    <main>
-      <header>
-        <div class="grow"><div class="title-medium" id="title"></div><div class="body-small muted" id="sub"></div></div>
-        <div class="seg" role="group" aria-label="Theme" id="themes"></div>
-        <button class="md-btn md-btn--outlined md-state" id="fit" aria-pressed="true">Fit to width</button>
-      </header>
-      <div id="stage"><div id="frame-wrap"><iframe id="frame" title="Preview"></iframe></div></div>
-    </main>
-    <script>
-      const GROUPS = {
-        'Custom components': ['DataTable', 'StatusChip', 'FileUpload', 'ProgressIndicator'],
-        Guidelines: ['window-size-classes'],
-        Brand: ['cover']
-      };
-      // Entries that are full pages rather than component previews
-      const PAGES = { 'window-size-classes': ['guidelines/window-size-classes.html', 1100, 330], cover: ['brand/cover.html', 960, 320] };
-      const THEMES = [['light', 'Light'], ['dark', 'Dark'], ['high-contrast', 'High contrast']];
-      const q = new URLSearchParams(location.search);
-      let current = q.get('c') || 'DataTable';
-      let theme = q.get('t') || 'light';
-      let fit = true;
-      let html = '', w = 1100, h = 400;
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Tax Advisory design system</title>
+		<link rel="stylesheet" href="tokens.css" />
+		<link rel="stylesheet" href="components/bundle.css" />
+		<style>
+			body {
+				display: flex;
+				height: 100vh;
+				overflow: hidden;
+			}
+			nav.side {
+				width: 260px;
+				flex: none;
+				overflow: auto;
+				padding: 16px 12px;
+				background: var(--surface-container-low);
+				border-right: 1px solid var(--outline-variant);
+			}
+			nav.side h1 {
+				margin: 4px 12px 12px;
+			}
+			nav.side h2 {
+				margin: 16px 12px 4px;
+				color: var(--on-surface-variant);
+			}
+			nav.side a {
+				display: block;
+				padding: 8px 12px;
+				border-radius: var(--shape-full);
+				color: var(--on-surface);
+				text-decoration: none;
+			}
+			nav.side a:hover {
+				background: var(--surface-container-high);
+			}
+			nav.side a[aria-current='page'] {
+				background: var(--secondary-container);
+				color: var(--on-secondary-container);
+				font-weight: 500;
+			}
+			nav.side a:focus-visible {
+				outline: 3px solid var(--focus-ring);
+				outline-offset: 2px;
+			}
+			main {
+				flex: 1;
+				min-width: 0;
+				display: flex;
+				flex-direction: column;
+			}
+			header {
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				padding: 12px 24px;
+				border-bottom: 1px solid var(--outline-variant);
+			}
+			header .grow {
+				flex: 1;
+			}
+			.seg {
+				display: inline-flex;
+				border: 1px solid var(--outline);
+				border-radius: var(--shape-full);
+				overflow: hidden;
+			}
+			.seg button {
+				padding: 8px 16px;
+				border: 0;
+				background: transparent;
+				color: var(--on-surface);
+				font: inherit;
+				cursor: pointer;
+			}
+			.seg button[aria-pressed='true'] {
+				background: var(--secondary-container);
+				color: var(--on-secondary-container);
+				font-weight: 500;
+			}
+			.seg button:focus-visible {
+				outline: 3px solid var(--focus-ring);
+				outline-offset: -3px;
+			}
+			#stage {
+				flex: 1;
+				overflow: auto;
+				padding: 24px;
+				background: var(--surface-container);
+			}
+			#frame-wrap {
+				transform-origin: top left;
+			}
+			iframe {
+				border: 1px solid var(--outline-variant);
+				border-radius: var(--shape-medium);
+				background: var(--surface);
+				display: block;
+			}
+			.hint {
+				margin: 0 24px 8px;
+			}
+		</style>
+	</head>
+	<body>
+		<nav class="side" aria-label="Components" id="nav">
+			<h1 class="title-large">Tax Advisory</h1>
+		</nav>
+		<main>
+			<header>
+				<div class="grow">
+					<div class="title-medium" id="title"></div>
+					<div class="body-small muted" id="sub"></div>
+				</div>
+				<div class="seg" role="group" aria-label="Theme" id="themes"></div>
+				<button class="md-btn md-btn--outlined md-state" id="fit" aria-pressed="true">
+					Fit to width
+				</button>
+			</header>
+			<div id="stage">
+				<div id="frame-wrap"><iframe id="frame" title="Preview"></iframe></div>
+			</div>
+		</main>
+		<script>
+			const GROUPS = {
+				'Custom components': ['DataTable', 'StatusChip', 'FileUpload', 'ProgressIndicator'],
+				Guidelines: ['window-size-classes'],
+				Brand: ['cover']
+			};
+			// Entries that are full pages rather than component previews
+			const PAGES = {
+				'window-size-classes': ['guidelines/window-size-classes.html', 1100, 330],
+				cover: ['brand/cover.html', 960, 320]
+			};
+			const THEMES = [
+				['light', 'Light'],
+				['dark', 'Dark'],
+				['high-contrast', 'High contrast']
+			];
+			const q = new URLSearchParams(location.search);
+			let current = q.get('c') || 'DataTable';
+			let theme = q.get('t') || 'light';
+			let fit = true;
+			let html = '',
+				w = 1100,
+				h = 400;
 
-      const nav = document.getElementById('nav');
-      for (const [g, names] of Object.entries(GROUPS)) {
-        const h2 = document.createElement('h2'); h2.className = 'label-large'; h2.textContent = g; nav.append(h2);
-        for (const n of names) {
-          const a = document.createElement('a'); a.href = `?c=${n}&t=${theme}`; a.className = 'body-medium'; a.textContent = n; a.dataset.name = n;
-          a.onclick = (e) => { e.preventDefault(); current = n; load(); };
-          nav.append(a);
-        }
-      }
-      const seg = document.getElementById('themes');
-      for (const [id, label] of THEMES) {
-        const b = document.createElement('button'); b.textContent = label; b.dataset.id = id;
-        b.onclick = () => { theme = id; render(); };
-        seg.append(b);
-      }
-      document.getElementById('fit').onclick = (e) => { fit = !fit; e.target.setAttribute('aria-pressed', fit); e.target.textContent = fit ? 'Fit to width' : 'Actual size'; layout(); };
-      addEventListener('resize', layout);
+			const nav = document.getElementById('nav');
+			for (const [g, names] of Object.entries(GROUPS)) {
+				const h2 = document.createElement('h2');
+				h2.className = 'label-large';
+				h2.textContent = g;
+				nav.append(h2);
+				for (const n of names) {
+					const a = document.createElement('a');
+					a.href = `?c=${n}&t=${theme}`;
+					a.className = 'body-medium';
+					a.textContent = n;
+					a.dataset.name = n;
+					a.onclick = (e) => {
+						e.preventDefault();
+						current = n;
+						load();
+					};
+					nav.append(a);
+				}
+			}
+			const seg = document.getElementById('themes');
+			for (const [id, label] of THEMES) {
+				const b = document.createElement('button');
+				b.textContent = label;
+				b.dataset.id = id;
+				b.onclick = () => {
+					theme = id;
+					render();
+				};
+				seg.append(b);
+			}
+			document.getElementById('fit').onclick = (e) => {
+				fit = !fit;
+				e.target.setAttribute('aria-pressed', fit);
+				e.target.textContent = fit ? 'Fit to width' : 'Actual size';
+				layout();
+			};
+			addEventListener('resize', layout);
 
-      const abs = (p) => new URL(p, location.href).href;
-      async function load() {
-        const page = PAGES[current];
-        const src = await (await fetch(page ? page[0] : `components/${current}/preview.html`)).text();
-        const [marker, ...rest] = src.split('\n');
-        const hasMarker = marker.startsWith('<!--');
-        w = page ? page[1] : +(/width=(\d+)/.exec(marker)?.[1] ?? 1100);
-        h = page ? page[2] : +(/height=(\d+)/.exec(marker)?.[1] ?? 400);
-        html = hasMarker ? rest.join('\n') : src;
-        document.getElementById('title').textContent = current;
-        document.getElementById('sub').textContent = (/subtitle="([^"]*)"/.exec(marker)?.[1] ?? '') + (/group="([^"]*)"/.exec(marker) ? ' · ' + /group="([^"]*)"/.exec(marker)[1] : '');
-        history.replaceState(null, '', `?c=${current}&t=${theme}`);
-        render();
-      }
-      function render() {
-        const doc = html
-          .replace('<head>', `<head><link rel="stylesheet" href="${abs('tokens.css')}"><link rel="stylesheet" href="${abs('components/bundle.css')}">`)
-          .replace(/<html lang="de">/, `<html lang="de" data-theme="${theme}">`);
-        document.documentElement.dataset.theme = theme;
-        document.getElementById('frame').srcdoc = doc;
-        for (const b of seg.children) b.setAttribute('aria-pressed', b.dataset.id === theme);
-        for (const a of nav.querySelectorAll('a')) {
-          a.toggleAttribute('aria-current', false);
-          if (a.dataset.name === current) a.setAttribute('aria-current', 'page');
-          a.href = `?c=${a.dataset.name}&t=${theme}`;
-        }
-        history.replaceState(null, '', `?c=${current}&t=${theme}`);
-        layout();
-      }
-      function layout() {
-        const f = document.getElementById('frame'), wrap = document.getElementById('frame-wrap'), stage = document.getElementById('stage');
-        f.style.width = w + 'px'; f.style.height = h + 'px';
-        const s = fit ? Math.min(1, (stage.clientWidth - 48) / w) : 1;
-        wrap.style.transform = `scale(${s})`;
-        wrap.style.width = w + 'px'; wrap.style.height = h + 'px';
-        wrap.style.marginBottom = -(h * (1 - s)) + 'px';
-      }
-      load();
-    </script>
-  </body>
+			const abs = (p) => new URL(p, location.href).href;
+			async function load() {
+				const page = PAGES[current];
+				const src = await (
+					await fetch(page ? page[0] : `components/${current}/preview.html`)
+				).text();
+				const [marker, ...rest] = src.split('\n');
+				const hasMarker = marker.startsWith('<!--');
+				w = page ? page[1] : +(/width=(\d+)/.exec(marker)?.[1] ?? 1100);
+				h = page ? page[2] : +(/height=(\d+)/.exec(marker)?.[1] ?? 400);
+				html = hasMarker ? rest.join('\n') : src;
+				document.getElementById('title').textContent = current;
+				document.getElementById('sub').textContent =
+					(/subtitle="([^"]*)"/.exec(marker)?.[1] ?? '') +
+					(/group="([^"]*)"/.exec(marker) ? ' · ' + /group="([^"]*)"/.exec(marker)[1] : '');
+				history.replaceState(null, '', `?c=${current}&t=${theme}`);
+				render();
+			}
+			function render() {
+				const doc = html
+					.replace(
+						'<head>',
+						`<head><link rel="stylesheet" href="${abs('tokens.css')}"><link rel="stylesheet" href="${abs('components/bundle.css')}">`
+					)
+					.replace(/<html lang="de">/, `<html lang="de" data-theme="${theme}">`);
+				document.documentElement.dataset.theme = theme;
+				document.getElementById('frame').srcdoc = doc;
+				for (const b of seg.children) b.setAttribute('aria-pressed', b.dataset.id === theme);
+				for (const a of nav.querySelectorAll('a')) {
+					a.toggleAttribute('aria-current', false);
+					if (a.dataset.name === current) a.setAttribute('aria-current', 'page');
+					a.href = `?c=${a.dataset.name}&t=${theme}`;
+				}
+				history.replaceState(null, '', `?c=${current}&t=${theme}`);
+				layout();
+			}
+			function layout() {
+				const f = document.getElementById('frame'),
+					wrap = document.getElementById('frame-wrap'),
+					stage = document.getElementById('stage');
+				f.style.width = w + 'px';
+				f.style.height = h + 'px';
+				const s = fit ? Math.min(1, (stage.clientWidth - 48) / w) : 1;
+				wrap.style.transform = `scale(${s})`;
+				wrap.style.width = w + 'px';
+				wrap.style.height = h + 'px';
+				wrap.style.marginBottom = -(h * (1 - s)) + 'px';
+			}
+			load();
+		</script>
+	</body>
 </html>
