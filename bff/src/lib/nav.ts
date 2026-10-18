@@ -23,7 +23,7 @@ export const settingsItem: NavItem = {
 };
 
 export const advisorNav: NavStructure = {
-	top: [{ href: '/', icon: 'dashboard', label: () => m.nav_overview() }],
+	top: [{ href: '/advisor', icon: 'dashboard', label: () => m.nav_overview() }],
 	bottom: [settingsItem]
 };
 

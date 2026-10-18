@@ -45,7 +45,7 @@ npm run format
 npm run check         # paraglide compile + svelte-check
 npm run build
 npm run test:unit -- --run
-npx playwright test   # e2e (npm run test:e2e also runs `playwright install`)
+npx playwright test   # e2e (npm run test:e2e also runs `playwright install`); starts backend/cmd/e2e itself, so Go and Docker are required
 npx vitest --run src/lib/vitest-examples/greet.spec.ts   # single unit test file
 ```
 
