@@ -6,9 +6,8 @@
 	import '#lib/design-system/tokens.css';
 	import '#lib/design-system/bundle.css';
 	import NavigationRail from '#lib/components/NavigationRail/NavigationRail.svelte';
-	import NavigationDrawer from '#lib/components/NavigationDrawer/NavigationDrawer.svelte';
 	import Pane from '#lib/components/Pane/Pane.svelte';
-	import { navFor, settingsItem, type Role } from '#lib/nav.js';
+	import { navFor, type Role } from '#lib/nav.js';
 	import favicon from '#lib/assets/favicon.svg';
 	import type { LayoutProps } from './$types';
 
@@ -17,19 +16,7 @@
 	// TODO: derive from the authenticated user once roles exist.
 	const role: Role = 'advisor';
 
-	// `--window-extra-large` in tokens.css
-	const extraLarge = '(min-width: 1600px)';
-	let isExtraLarge = $state(false);
-
-	$effect(() => {
-		const query = matchMedia(extraLarge);
-		isExtraLarge = query.matches;
-		const onChange = (e: MediaQueryListEvent) => (isExtraLarge = e.matches);
-		query.addEventListener('change', onChange);
-		return () => query.removeEventListener('change', onChange);
-	});
-
-	const groups = $derived(navFor(role));
+	const nav = $derived(navFor(role));
 	const pathname = $derived(deLocalizeHref(page.url.pathname));
 </script>
 
@@ -38,11 +25,7 @@
 </svelte:head>
 
 <div class="md-app shell">
-	{#if role === 'advisor' && isExtraLarge}
-		<NavigationDrawer {groups} footer={settingsItem} {pathname} />
-	{:else}
-		<NavigationRail items={groups.flatMap((g) => g.items)} footer={settingsItem} {pathname} />
-	{/if}
+	<NavigationRail top={nav.top} bottom={nav.bottom} {pathname} />
 
 	<div class="md-panes">
 		<Pane variant="detail">

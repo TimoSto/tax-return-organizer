@@ -11,8 +11,6 @@
 	"nav_start": "Start",
 	"nav_tasks": "Aufgaben",
 	"nav_documents": "Unterlagen",
-	"nav_group_firm": "Kanzlei",
-	"nav_group_collaboration": "Zusammenarbeit",
 	"nav_unread": "{label}, {count} ungelesen",
 	"nav_pending": "{label}, {count} offen"
 }

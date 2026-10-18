@@ -7,13 +7,13 @@
 	import { isActive, type NavItem } from '#lib/nav.js';
 
 	interface Props {
-		items: NavItem[];
-		footer?: NavItem;
+		top: NavItem[];
+		bottom?: NavItem[];
 		pathname: string;
 		fab?: Snippet;
 	}
 
-	let { items, footer, pathname, fab }: Props = $props();
+	let { top, bottom = [], pathname, fab }: Props = $props();
 </script>
 
 {#snippet link(item: NavItem)}
@@ -36,12 +36,16 @@
 <nav class="md-rail" aria-label={m.nav_main()}>
 	{@render fab?.()}
 	<div class="md-rail__group">
-		{#each items as item (item.href)}
+		{#each top as item (item.href)}
 			{@render link(item)}
 		{/each}
 	</div>
 	<div class="md-rail__spacer"></div>
-	{#if footer}{@render link(footer)}{/if}
+	<div class="md-rail__group">
+		{#each bottom as item (item.href)}
+			{@render link(item)}
+		{/each}
+	</div>
 </nav>
 
 <style>

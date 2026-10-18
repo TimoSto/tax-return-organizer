@@ -10,46 +10,40 @@ export interface NavItem {
 	count?: number;
 }
 
-export interface NavGroup {
-	heading: () => string;
-	items: NavItem[];
+/** Rail layout: `top` items sit at the top, `bottom` items are pinned to the bottom. */
+export interface NavStructure {
+	top: NavItem[];
+	bottom: NavItem[];
 }
 
 export const settingsItem: NavItem = {
-	href: '/einstellungen',
+	href: '/settings',
 	icon: 'settings',
 	label: () => m.nav_settings()
 };
 
-export const advisorNav: NavGroup[] = [
-	{
-		heading: () => m.nav_group_firm(),
-		items: [
-			{ href: '/', icon: 'dashboard', label: () => m.nav_overview() },
-			{ href: '/mandanten', icon: 'group', label: () => m.nav_clients() },
-			{ href: '/personas', icon: 'badge', label: () => m.nav_personas() },
-			{ href: '/fristen', icon: 'event', label: () => m.nav_deadlines() }
-		]
-	},
-	{
-		heading: () => m.nav_group_collaboration(),
-		items: [{ href: '/nachrichten', icon: 'chat_bubble', label: () => m.nav_messages() }]
-	}
-];
+export const advisorNav: NavStructure = {
+	top: [
+		{ href: '/', icon: 'dashboard', label: () => m.nav_overview() },
+		{ href: '/clients', icon: 'group', label: () => m.nav_clients() },
+		{ href: '/personas', icon: 'badge', label: () => m.nav_personas() },
+		{ href: '/deadlines', icon: 'event', label: () => m.nav_deadlines() },
+		{ href: '/messages', icon: 'chat_bubble', label: () => m.nav_messages() }
+	],
+	bottom: [settingsItem]
+};
 
-export const clientNav: NavGroup[] = [
-	{
-		heading: () => m.nav_group_firm(),
-		items: [
-			{ href: '/', icon: 'home', label: () => m.nav_start() },
-			{ href: '/aufgaben', icon: 'checklist', label: () => m.nav_tasks() },
-			{ href: '/unterlagen', icon: 'folder', label: () => m.nav_documents() },
-			{ href: '/nachrichten', icon: 'chat_bubble', label: () => m.nav_messages() }
-		]
-	}
-];
+export const clientNav: NavStructure = {
+	top: [
+		{ href: '/', icon: 'home', label: () => m.nav_start() },
+		{ href: '/tasks', icon: 'checklist', label: () => m.nav_tasks() },
+		{ href: '/documents', icon: 'folder', label: () => m.nav_documents() },
+		{ href: '/messages', icon: 'chat_bubble', label: () => m.nav_messages() }
+	],
+	bottom: [settingsItem]
+};
 
-export function navFor(role: Role): NavGroup[] {
+export function navFor(role: Role): NavStructure {
 	return role === 'advisor' ? advisorNav : clientNav;
 }
 

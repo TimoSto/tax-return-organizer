@@ -94,12 +94,6 @@ Common rules for everything below: German UI text, **Sie** for clients, sentence
 - Badges show counts that need the user and have an accessible name ("Nachrichten, 4 ungelesen").
 - The expanded rail (220px, labels beside icons) is an opt-in for users and long labels.
 
-## Navigation drawer
-
-[M3](https://m3.material.io/components/navigation-drawer/overview) · no Material Web component; build `NavigationDrawer.svelte`.
-
-- Optional for advisors on extra-large windows (1600px+), where it replaces the rail. Counts are pending work, never totals.
-
 ## Not used
 
 Navigation bar (bottom navigation), compact and medium window layouts, bottom sheets and phone patterns: the product is desktop only, minimum 1024px.

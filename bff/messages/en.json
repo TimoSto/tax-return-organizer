@@ -11,8 +11,6 @@
 	"nav_start": "Start",
 	"nav_tasks": "Tasks",
 	"nav_documents": "Documents",
-	"nav_group_firm": "Firm",
-	"nav_group_collaboration": "Collaboration",
 	"nav_unread": "{label}, {count} unread",
 	"nav_pending": "{label}, {count} pending"
 }
