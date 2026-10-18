@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { BACKEND_URL } from '$app/env/private';
+import type { GetCollectorResponse } from '#lib/api/types.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, fetch }) => {
@@ -12,7 +13,7 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		error(500, 'Backend request failed');
 	}
 
-	const { name } = (await res.json()) as { name: string };
+	const { name } = (await res.json()) as GetCollectorResponse;
 
 	return { name };
 };
