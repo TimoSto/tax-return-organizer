@@ -64,6 +64,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /collectors/{id}:
+    get:
+      operationId: getCollector
+      summary: Get a collector by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[2-9a-hj-km-np-z]{4}$"
+            example: k7m2
+      responses:
+        "200":
+          description: The collector.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCollectorResponse"
+        "400":
+          description: The id is not a valid collector id.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: No collector with this id exists.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Unexpected error. Details are only logged, quote the request id.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   headers:
     RequestID:
@@ -93,6 +142,20 @@ components:
           type: string
           pattern: "^[2-9a-hj-km-np-z]{4}$"
           example: k7m2
+    GetCollectorResponse:
+      type: object
+      required: [id, name, email]
+      properties:
+        id:
+          type: string
+          pattern: "^[2-9a-hj-km-np-z]{4}$"
+          example: k7m2
+        name:
+          type: string
+          example: Jane Doe
+        email:
+          type: string
+          example: jane@example.com
     Error:
       type: object
       required: [error]
