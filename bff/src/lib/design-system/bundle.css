@@ -1,5 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=swap');
+/* Icon font is self-hosted (@fontsource-variable, FILL + wght axes). block, not swap: icons are ligature names and must not flash as text. */
+@font-face {
+	font-family: 'Material Symbols Outlined Variable';
+	font-style: normal;
+	font-display: block;
+	font-weight: 100 700;
+	src: url('../../../node_modules/@fontsource-variable/material-symbols-outlined/files/material-symbols-outlined-latin-fill-normal.woff2')
+		format('woff2-variations');
+}
 
 /* @material/web bridge: system tokens consumed by Material Web components. Declared on every themed element so a nested data-theme re-resolves. */
 :root,
@@ -146,7 +153,7 @@ body {
 
 /* Icons: Material Symbols Outlined, ligature names */
 .md-icon {
-	font-family: 'Material Symbols Outlined';
+	font-family: 'Material Symbols Outlined Variable';
 	font-weight: 400;
 	font-style: normal;
 	font-size: 24px;
@@ -443,7 +450,7 @@ body {
 }
 .md-field.has-select::after {
 	content: 'arrow_drop_down';
-	font-family: 'Material Symbols Outlined';
+	font-family: 'Material Symbols Outlined Variable';
 	position: absolute;
 	right: 12px;
 	top: 16px;

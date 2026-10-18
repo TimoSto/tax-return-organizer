@@ -3,6 +3,9 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { deLocalizeHref, locales, localizeHref } from '#lib/paraglide/runtime.js';
+	import '@fontsource/roboto/400.css';
+	import '@fontsource/roboto/500.css';
+	import '@fontsource/roboto/700.css';
 	import '#lib/design-system/tokens.css';
 	import '#lib/design-system/bundle.css';
 	import NavigationRail from '#lib/components/NavigationRail/NavigationRail.svelte';
