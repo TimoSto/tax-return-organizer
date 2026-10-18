@@ -127,11 +127,6 @@ jobs:
           cache: npm
           cache-dependency-path: bff/package-lock.json
 
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: backend/go.mod
-          cache-dependency-path: backend/go.sum
-
       - run: npm ci
 
       - name: Install Playwright browser

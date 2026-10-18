@@ -24,7 +24,7 @@ go build -o bin/docker ./cmd/docker
 ```
 
 - Postgres adapter tests start their own container via testcontainers (`internal/testutil/pgtest`), so **Docker must be running**.
-- `cmd/docker` is the production entrypoint (env: `DATABASE_URL` required, `HTTP_ADDR` default `:8080`). `cmd/e2e` (build tag `e2e`: `go run -tags e2e ./cmd/e2e`) starts a throwaway Postgres container, seeds a collector with id `aaaa`, and serves the API for the BFF's Playwright e2e tests.
+- `cmd/docker` is the production entrypoint (env: `DATABASE_URL` required, `HTTP_ADDR` default `:8080`). `cmd/e2e` (build tag `e2e`: `go run -tags e2e ./cmd/e2e`) starts a throwaway Postgres container, seeds a collector with id `aaaa`, and serves the API for end-to-end tests against the real backend (to live in a separate e2e package; the BFF's own Playwright tests mock the backend).
 
 ## Backend architecture (hexagonal)
 
@@ -45,7 +45,7 @@ npm run format
 npm run check         # paraglide compile + svelte-check
 npm run build
 npm run test:unit -- --run
-npx playwright test   # e2e (npm run test:e2e also runs `playwright install`); starts backend/cmd/e2e itself, so Go and Docker are required
+npx playwright test   # e2e (npm run test:e2e also runs `playwright install`); mocks the backend inside the test files (server-side fetches, so not via page.route)
 npx vitest --run src/lib/vitest-examples/greet.spec.ts   # single unit test file
 ```
 
