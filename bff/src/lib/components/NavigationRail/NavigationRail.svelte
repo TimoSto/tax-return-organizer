@@ -19,7 +19,7 @@
 {#snippet link(item: NavItem)}
 	{@const active = isActive(item.href, pathname)}
 	<a
-		class="md-nav-item md-state"
+		class="md-nav-item"
 		class:is-active={active}
 		href={resolve(localizeHref(item.href) as Path)}
 		aria-current={active ? 'page' : undefined}

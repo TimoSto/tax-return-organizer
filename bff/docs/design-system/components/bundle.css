@@ -696,6 +696,12 @@ body {
 .md-nav-item:hover .md-nav-item__ind::before {
 	opacity: var(--state-hover);
 }
+.md-nav-item:focus-visible .md-nav-item__ind::before {
+	opacity: var(--state-focus);
+}
+.md-nav-item:active .md-nav-item__ind::before {
+	opacity: var(--state-pressed);
+}
 .md-nav-item:focus-visible {
 	outline: 3px solid var(--focus-ring);
 	outline-offset: 2px;
@@ -736,11 +742,14 @@ body {
 	gap: 12px;
 	height: 56px;
 	padding: 0 16px;
-	border-radius: var(--shape-full);
+	border-radius: var(--shape-small);
 	font: 500 14px/20px var(--font-sans);
 	letter-spacing: 0.1px;
 	position: relative;
 	isolation: isolate;
+}
+.md-rail--expanded .md-nav-item__ind::before {
+	display: none;
 }
 .md-rail--expanded .md-nav-item::before {
 	content: '';
@@ -754,13 +763,16 @@ body {
 .md-rail--expanded .md-nav-item:hover::before {
 	opacity: var(--state-hover);
 }
+.md-rail--expanded .md-nav-item:focus-visible::before {
+	opacity: var(--state-focus);
+}
+.md-rail--expanded .md-nav-item:active::before {
+	opacity: var(--state-pressed);
+}
 .md-rail--expanded .md-nav-item__ind {
 	width: 24px;
 	height: 24px;
 	border-radius: 0;
-}
-.md-rail--expanded .md-nav-item__ind::before {
-	display: none;
 }
 .md-rail--expanded .md-nav-item.is-active {
 	background: var(--secondary-container);
