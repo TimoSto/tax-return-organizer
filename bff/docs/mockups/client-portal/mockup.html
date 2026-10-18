@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="de">
+	<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>ClientPortal</title><link rel="stylesheet" href="../../design-system/tokens.css" /><link rel="stylesheet" href="../../design-system/components/bundle.css" /><link rel="stylesheet" href="../mockups.css" />
+	</head>
+	<body>
+		<div class="md-app" style="width: 1440px; height: 940px">
+			<nav class="md-rail" aria-label="Hauptnavigation" style="padding-top: 56px">
+				<div class="md-rail__group" style="margin-top: 8px">
+					<a class="md-nav-item md-state"
+						><span class="md-nav-item__ind"
+							><span class="md-icon" aria-hidden="true">home</span></span
+						>Start</a
+					><a class="md-nav-item md-state is-active" aria-current="page"
+						><span class="md-nav-item__ind"
+							><span class="md-icon" aria-hidden="true">task_alt</span
+							><span class="md-badge" aria-label="3 ungelesen">3</span></span
+						>Aufgaben</a
+					><a class="md-nav-item md-state"
+						><span class="md-nav-item__ind"
+							><span class="md-icon" aria-hidden="true">folder_open</span></span
+						>Unterlagen</a
+					><a class="md-nav-item md-state"
+						><span class="md-nav-item__ind"
+							><span class="md-icon" aria-hidden="true">chat_bubble</span></span
+						>Nachrichten</a
+					>
+				</div>
+				<div class="md-rail__spacer"></div>
+				<a class="md-nav-item md-state"
+					><span class="md-nav-item__ind"
+						><span class="md-icon" aria-hidden="true">settings</span></span
+					>Einstellungen</a
+				>
+			</nav>
+			<div class="md-panes">
+				<main
+					class="md-pane md-pane--detail"
+					style="
+						--ring-bg: var(--surface-container-lowest);
+						--field-bg: var(--surface-container-lowest);
+					"
+					aria-label="Ihre Aufgaben"
+				>
+					<div class="md-pane__scroll stack" style="gap: 24px; padding: 32px">
+						<div>
+							<div class="label-large muted">Steuererklärung 2025</div>
+							<h1 class="headline-medium" style="margin: 4px 0 0">Guten Morgen, Lena</h1>
+							<p class="body-large muted" style="margin: 8px 0 0">
+								Es fehlen noch 3 Unterlagen und 4 Angaben. Alles Weitere übernehmen wir.
+							</p>
+						</div>
+						<div class="stack" style="gap: 12px">
+							<h2 class="title-large" style="margin: 0">Unterlagen hochladen</h2>
+							<div class="md-req is-done">
+								<div class="md-req__head">
+									<span class="md-req__icon"
+										><span class="md-icon" aria-hidden="true">check</span></span
+									>
+									<div style="flex: 1">
+										<div class="md-req__title">Lohnsteuerbescheinigung 2025</div>
+										<div class="md-req__hint">
+											Lohnsteuerbescheinigung_2025.pdf · hochgeladen am 12.06.2025
+										</div>
+									</div>
+									<span class="md-status md-status--ok"
+										><span class="md-icon filled" aria-hidden="true">check_circle</span
+										>Geprüft</span
+									>
+								</div>
+							</div>
+							<div class="md-req">
+								<div class="md-req__head">
+									<span class="md-req__icon"
+										><span class="md-icon" aria-hidden="true">upload_file</span></span
+									>
+									<div style="flex: 1">
+										<div class="md-req__title">Mietvertrag</div>
+										<div class="md-req__hint">
+											Alle Verträge des Jahres 2025, auch Nachträge. Fotos sind in Ordnung.
+										</div>
+									</div>
+									<span class="md-status md-status--wait"
+										><span class="md-icon filled" aria-hidden="true">schedule</span>Offen</span
+									>
+								</div>
+								<div class="md-drop">
+									<span class="md-icon">upload_file</span>
+									<div class="title-small">Datei hierher ziehen oder auswählen</div>
+									<div class="body-small muted">PDF, JPG oder PNG, max. 10 MB</div>
+									<button class="md-btn md-btn--outlined md-state" style="margin-top: 4px">
+										Dateien auswählen
+									</button>
+								</div>
+							</div>
+							<div class="md-req">
+								<div class="md-req__head">
+									<span class="md-req__icon"
+										><span class="md-icon" aria-hidden="true">receipt_long</span></span
+									>
+									<div style="flex: 1">
+										<div class="md-req__title">Kinderbetreuungskosten</div>
+										<div class="md-req__hint">Rechnungen von Kita oder Tagesmutter</div>
+									</div>
+									<button class="md-btn md-btn--filled has-icon md-state">
+										<span class="md-icon" aria-hidden="true">upload</span>Datei hochladen
+									</button>
+								</div>
+							</div>
+						</div>
+						<div class="stack" style="gap: 12px">
+							<h2 class="title-large" style="margin: 0">Angaben ergänzen</h2>
+							<div class="md-req">
+								<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 16px">
+									<div>
+										<div class="md-field" style="width: 100%">
+											<input placeholder=" " value="15.600,00" id="p1" /><label for="p1"
+												>Mieteinnahmen 2025 (€)</label
+											>
+										</div>
+										<div class="md-field__support">Gesamt, ohne Nebenkosten · Gespeichert</div>
+									</div>
+									<div>
+										<div class="md-field" style="width: 100%">
+											<input placeholder=" " id="p2" /><label for="p2"
+												>Anzahl vermieteter Objekte</label
+											>
+										</div>
+										<div class="md-field__support">Zahl, z. B. 1</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</main>
+				<aside
+					class="md-pane md-pane--support"
+					style="width: 320px; --ring-bg: var(--surface-container-low)"
+					aria-label="Überblick"
+				>
+					<div class="md-pane__scroll stack" style="gap: 16px; padding-top: 24px">
+						<div class="md-card md-card--tertiary stack" style="gap: 4px">
+							<span class="label-medium">Bitte einreichen bis</span
+							><span class="numeric-large">15.07.2025</span
+							><span class="body-medium">Noch 14 Tage. Wir erinnern Sie rechtzeitig.</span>
+						</div>
+						<div class="md-card md-card--outlined row" style="gap: 16px">
+							<span class="md-ring" style="--p: 58; --ring-bg: var(--surface-container-low)"
+								><span class="num">58 %</span></span
+							>
+							<div>
+								<div class="title-small">Ihr Fortschritt</div>
+								<div class="body-medium muted">7 von 12 Aufgaben erledigt</div>
+							</div>
+						</div>
+						<div class="md-card md-card--outlined stack" style="gap: 12px; align-items: flex-start">
+							<div class="row" style="gap: 12px">
+								<span class="md-avatar">MK</span>
+								<div>
+									<div class="title-medium">Marie Keller</div>
+									<div class="body-medium muted">Ihre Steuerberaterin</div>
+								</div>
+							</div>
+							<div class="row" style="gap: 8px; flex-wrap: wrap">
+								<button class="md-btn md-btn--tonal has-icon md-state">
+									<span class="md-icon" aria-hidden="true">chat_bubble</span>Nachricht</button
+								><button class="md-btn md-btn--outlined md-state">Rückruf</button>
+							</div>
+						</div>
+					</div>
+				</aside>
+			</div>
+		</div>
+	</body>
+</html>
