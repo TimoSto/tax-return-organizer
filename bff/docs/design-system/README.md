@@ -2,7 +2,7 @@ Tax Advisory is a Material Design 3 (M3) system for a **desktop web product for 
 
 ## Using it with Material Web and Svelte
 
-- Production UI is built with **`@material/web`** web components inside **Svelte**. Where Material Web has a component (button, FAB, chips, text field, select, checkbox, switch, tabs, list, dialog, progress), use it; do not rebuild it. Where it has none (navigation rail, drawer, top app bar, card, data table, status chip, steps, file upload, panes), implement a Svelte component using the same tokens and the `md-*` class rules in `components/bundle.css` as the reference rendering. Each component's guideline ends with an **Implementation** line saying which applies.
+- Production UI is built with **`@material/web`** web components inside **Svelte**. Where Material Web has a component (button, FAB, chips, text field, select, checkbox, switch, tabs, list, dialog, progress), use it; do not rebuild it. Where it has none (navigation rail, drawer, top app bar, card, data table, status chip, steps, file upload, panes), implement a Svelte component using the same tokens and the `md-*` class rules in `components/bundle.css` as the reference rendering. [`usage.md`](usage.md) says, per component, which applies and what is specific to this product; the `md-*` rules in `components/bundle.css` are only the reference rendering used by the mockups.
 - `bundle.css` bridges the tokens to Material Web: every `--md-sys-color-*`, `--md-sys-typescale-*` and `--md-sys-shape-corner-*` variable points at this system's tokens, so Material Web components pick up the brand and all three themes without per-component overrides. Load `tokens.css`, then `bundle.css`, then the Material Web scripts.
 - Set the theme with `data-theme="light" | "dark" | "high-contrast"` on `<html>`. Default to `high-contrast` when the OS reports `prefers-contrast: more`, and let users override it in Einstellungen.
 
@@ -15,12 +15,16 @@ Tax Advisory is a Material Design 3 (M3) system for a **desktop web product for 
 - **Reassure, don't alarm:** pending work is "Offen" or "Wartet auf Mandant" (`tertiary`); only a missed statutory deadline is "Überfällig" (`error`).
 - No emoji, no exclamation marks.
 
-## Core flows
+## What is in this folder
 
-1. **Persona builder** (`PersonaBuilder`): an advisor creates a persona and lists its required **Unterlagen** (documents; name, hint for the client, Pflicht on/off) and required **Angaben** (fields; name, type Zahl/Text/Datum/Ja-Nein/Auswahl, Pflicht on/off). A preview shows the client's wording.
-2. **Client setup** (`ClientSetup`): the advisor enters client data and selects any number of personas. The union of their requirements becomes the client's checklist; duplicates merge, and an item that is Pflicht in any persona is Pflicht for the client.
-3. **Advisor home** (`AdvisorHome`): the landing page; shows what needs attention today (KPI cards, clients needing action, next deadlines, latest messages).
-4. **Client portal** (`ClientPortal`): the client sees one list of requirements, uploads files with `FileUpload`, enters values in text fields and watches progress. Done items collapse; open items show their upload zone or field in place.
+- `tokens.json`, `tokens.css`, `components/bundle.css`: the system the app imports.
+- [`usage.md`](usage.md): how the standard Material components (button, text field, dialog, rail, …) are used in this product, with links to the M3 and `@material/web` docs. Their specs are not repeated here.
+- `components/<Name>/README.md` and `preview.html`: full documentation and a static specimen for the components M3 does not provide (DataTable, StatusChip, FileUpload, ProgressIndicator steps). Open `index.html` through a local server to browse them in all three themes.
+- `guidelines/layout.md`: rails, panes and window size classes.
+- `brand/cover.html`: the cover.
+- `screenshots/`: renders of earlier component previews, kept for reference.
+
+Mockups of product screens are **not** part of the system; they live in [`../mockups`](../mockups/README.md) and are built from it. The three core flows they show are: advisors define **personas** (required documents and information), advisors **assign personas to clients** (the union of requirements becomes the client's checklist; an item that is Pflicht in any persona is Pflicht for the client), and **clients** upload documents and enter information.
 
 Statuses use `StatusChip`: Entwurf, In Prüfung, Wartet auf Mandant, Freigegeben, Eingereicht, Überfällig; document-level Offen, Hochgeladen, Geprüft, Rückfrage, Abgelehnt.
 
@@ -36,11 +40,11 @@ Statuses use `StatusChip`: Entwurf, In Prüfung, Wartet auf Mandant, Freigegeben
 
 ## Layout: rails and panes
 
-The product is **desktop only**; the minimum supported width is **1024px**. Use the M3 window size classes **Expanded** (840–1199), **Large** (1200–1599) and **Extra-large** (1600+). See `WindowSizeClasses`.
+The product is **desktop only**; the minimum supported width is **1024px**. Use the M3 window size classes **Expanded** (840–1199), **Large** (1200–1599) and **Extra-large** (1600+). See [`guidelines/layout.md`](guidelines/layout.md).
 
 - A **navigation rail** (`nav-rail-width`) holds 3 to 7 destinations. Advisor: Übersicht, Mandanten, Personas, Fristen, Nachrichten. Client: Start, Aufgaben, Unterlagen, Nachrichten. An optional FAB sits on top of the rail.
 - **Panes** are rounded containers (`shape-extra-large`) inset by `pane-margin` and separated by `pane-gutter` (24px). The list pane has a fixed `pane-list-width`, the supporting pane a fixed `pane-supporting-width`; only the detail pane flexes.
-- Canonical layouts: **list-detail + supporting pane** for advisor work (`PersonaBuilder`, `ClientSetup`), **detail + supporting pane** for clients (`ClientPortal`). The list pane stays visible while the detail changes.
+- Canonical layouts: **list-detail + supporting pane** for advisor work (persona builder, client setup), **detail + supporting pane** for clients (client portal); see the mockups. The list pane stays visible while the detail changes.
 - Below 1200px the supporting pane becomes a side sheet opened from the pane header; the rail never disappears.
 
 ## Iconography

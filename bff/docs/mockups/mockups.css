@@ -1,0 +1,86 @@
+/* Styles used only by the mockups in this folder. Not part of the design system.
+   If one of these becomes a real component, promote it to design-system/components/<Name>/ with a README. */
+.md-kpis {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 16px;
+}
+
+/* Requirement row (client portal) */
+.md-req {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 16px;
+	border: 1px solid var(--outline-variant);
+	border-radius: var(--shape-medium);
+	background: var(--surface-container-lowest);
+}
+.md-req__head {
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+}
+.md-req__icon {
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	border-radius: var(--shape-full);
+	background: var(--tertiary-container);
+	color: var(--on-tertiary-container);
+	flex: none;
+}
+.md-req.is-done .md-req__icon {
+	background: var(--success-container);
+	color: var(--on-success-container);
+}
+.md-req__title {
+	font: 500 16px/24px var(--font-sans);
+	letter-spacing: 0.15px;
+}
+.md-req__hint {
+	font: 400 14px/20px var(--font-sans);
+	letter-spacing: 0.25px;
+	color: var(--on-surface-variant);
+}
+
+/* Selectable card (persona picker) */
+.md-select-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 16px;
+	border: 1px solid var(--outline);
+	border-radius: var(--shape-medium);
+	background: transparent;
+	color: var(--on-surface);
+}
+.md-select-card.is-selected {
+	background: var(--secondary-container);
+	color: var(--on-secondary-container);
+	border-color: transparent;
+}
+.md-select-card__body {
+	flex: 1;
+	min-width: 0;
+}
+.md-select-card__title {
+	font: 500 16px/24px var(--font-sans);
+	letter-spacing: 0.15px;
+}
+.md-select-card__meta {
+	font: 400 12px/16px var(--font-sans);
+	letter-spacing: 0.4px;
+	opacity: 0.85;
+}
+
+/* High contrast */
+[data-theme='high-contrast'] .md-select-card.is-selected {
+	box-shadow: inset 0 0 0 2px var(--outline);
+}
+[data-theme='high-contrast'] .md-select-card,
+[data-theme='high-contrast'] .md-req {
+	border-width: 2px;
+	border-color: var(--outline);
+}

@@ -79,21 +79,21 @@ The Go backend's core domain types and how they relate:
 ```mermaid
 classDiagram
     class Collector {
-        +UUID ID
+        +CollectorID ID
         +string Name
         +string Email
     }
 
     class Client {
         +UUID ID
-        +UUID CollectorID
+        +CollectorID CollectorID
         +string Title
         +string Email
     }
 
     class Persona {
         +UUID ID
-        +UUID CollectorID
+        +CollectorID CollectorID
         +string Name
         +string Description
     }
