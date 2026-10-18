@@ -25,10 +25,6 @@ export const settingsItem: NavItem = {
 export const advisorNav: NavStructure = {
 	top: [
 		{ href: '/', icon: 'dashboard', label: () => m.nav_overview() },
-		{ href: '/clients', icon: 'group', label: () => m.nav_clients() },
-		{ href: '/personas', icon: 'badge', label: () => m.nav_personas() },
-		{ href: '/deadlines', icon: 'event', label: () => m.nav_deadlines() },
-		{ href: '/messages', icon: 'chat_bubble', label: () => m.nav_messages() }
 	],
 	bottom: [settingsItem]
 };
@@ -36,9 +32,6 @@ export const advisorNav: NavStructure = {
 export const clientNav: NavStructure = {
 	top: [
 		{ href: '/', icon: 'home', label: () => m.nav_start() },
-		{ href: '/tasks', icon: 'checklist', label: () => m.nav_tasks() },
-		{ href: '/documents', icon: 'folder', label: () => m.nav_documents() },
-		{ href: '/messages', icon: 'chat_bubble', label: () => m.nav_messages() }
 	],
 	bottom: [settingsItem]
 };
