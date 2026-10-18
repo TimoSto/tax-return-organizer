@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Tax Advisory mockups</title>
+		<link rel="stylesheet" href="../design-system/tokens.css" />
+		<link rel="stylesheet" href="../design-system/components/bundle.css" />
+		<style>
+			body {
+				display: flex;
+				height: 100vh;
+				overflow: hidden;
+			}
+			nav.side {
+				width: 260px;
+				flex: none;
+				overflow: auto;
+				padding: 16px 12px;
+				background: var(--surface-container-low);
+				border-right: 1px solid var(--outline-variant);
+			}
+			nav.side h1 {
+				margin: 4px 12px 12px;
+			}
+			nav.side a {
+				display: block;
+				padding: 8px 12px;
+				border-radius: var(--shape-full);
+				color: var(--on-surface);
+				text-decoration: none;
+			}
+			nav.side a:hover {
+				background: var(--surface-container-high);
+			}
+			nav.side a[aria-current='page'] {
+				background: var(--secondary-container);
+				color: var(--on-secondary-container);
+				font-weight: 500;
+			}
+			nav.side a:focus-visible {
+				outline: 3px solid var(--focus-ring);
+				outline-offset: 2px;
+			}
+			main {
+				flex: 1;
+				min-width: 0;
+				display: flex;
+				flex-direction: column;
+			}
+			header {
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				padding: 12px 24px;
+				border-bottom: 1px solid var(--outline-variant);
+			}
+			header .grow {
+				flex: 1;
+			}
+			.seg {
+				display: inline-flex;
+				border: 1px solid var(--outline);
+				border-radius: var(--shape-full);
+				overflow: hidden;
+			}
+			.seg button {
+				padding: 8px 16px;
+				border: 0;
+				background: transparent;
+				color: var(--on-surface);
+				font: inherit;
+				cursor: pointer;
+			}
+			.seg button[aria-pressed='true'] {
+				background: var(--secondary-container);
+				color: var(--on-secondary-container);
+				font-weight: 500;
+			}
+			.seg button:focus-visible {
+				outline: 3px solid var(--focus-ring);
+				outline-offset: -3px;
+			}
+			#stage {
+				flex: 1;
+				overflow: auto;
+				padding: 24px;
+				background: var(--surface-container);
+			}
+			#frame-wrap {
+				transform-origin: top left;
+			}
+			iframe {
+				border: 1px solid var(--outline-variant);
+				border-radius: var(--shape-medium);
+				background: var(--surface);
+				display: block;
+			}
+		</style>
+	</head>
+	<body>
+		<nav class="side" aria-label="Mockups" id="nav"><h1 class="title-large">Mockups</h1></nav>
+		<main>
+			<header>
+				<div class="grow">
+					<div class="title-medium" id="title"></div>
+					<div class="body-small muted" id="sub"></div>
+				</div>
+				<div class="seg" role="group" aria-label="Theme" id="themes"></div>
+				<button class="md-btn md-btn--outlined md-state" id="fit" aria-pressed="true">
+					Fit to width
+				</button>
+			</header>
+			<div id="stage">
+				<div id="frame-wrap"><iframe id="frame" title="Mockup"></iframe></div>
+			</div>
+		</main>
+		<script>
+			// [folder, title, subtitle, width, height]
+			const MOCKUPS = [
+				['advisor-home', 'Advisor home', 'Übersicht: what needs attention today', 1440, 860],
+				[
+					'persona-builder',
+					'Persona builder',
+					'Define required documents and information',
+					1440,
+					960
+				],
+				['client-setup', 'Client setup', 'Create a client and assign personas', 1440, 860],
+				['client-portal', 'Client portal', 'Upload documents and enter information', 1440, 940]
+			];
+			const THEMES = [
+				['light', 'Light'],
+				['dark', 'Dark'],
+				['high-contrast', 'High contrast']
+			];
+			const q = new URLSearchParams(location.search);
+			let current = MOCKUPS.find((m) => m[0] === q.get('c')) || MOCKUPS[0];
+			let theme = q.get('t') || 'light';
+			let fit = true;
+			const nav = document.getElementById('nav'),
+				frame = document.getElementById('frame');
+			for (const m of MOCKUPS) {
+				const a = document.createElement('a');
+				a.className = 'body-medium';
+				a.textContent = m[1];
+				a.dataset.id = m[0];
+				a.href = `?c=${m[0]}`;
+				a.onclick = (e) => {
+					e.preventDefault();
+					current = m;
+					load();
+				};
+				nav.append(a);
+			}
+			const seg = document.getElementById('themes');
+			for (const [id, label] of THEMES) {
+				const b = document.createElement('button');
+				b.textContent = label;
+				b.dataset.id = id;
+				b.onclick = () => {
+					theme = id;
+					applyTheme();
+				};
+				seg.append(b);
+			}
+			document.getElementById('fit').onclick = (e) => {
+				fit = !fit;
+				e.target.setAttribute('aria-pressed', fit);
+				e.target.textContent = fit ? 'Fit to width' : 'Actual size';
+				layout();
+			};
+			addEventListener('resize', layout);
+			frame.addEventListener('load', applyTheme);
+			function applyTheme() {
+				document.documentElement.dataset.theme = theme;
+				try {
+					frame.contentDocument.documentElement.dataset.theme = theme;
+				} catch {}
+				for (const b of seg.children) b.setAttribute('aria-pressed', b.dataset.id === theme);
+				history.replaceState(null, '', `?c=${current[0]}&t=${theme}`);
+			}
+			function load() {
+				frame.src = `${current[0]}/mockup.html`;
+				document.getElementById('title').textContent = current[1];
+				document.getElementById('sub').textContent = current[2];
+				for (const a of nav.querySelectorAll('a'))
+					(a.toggleAttribute('aria-current', false),
+						a.dataset.id === current[0] && a.setAttribute('aria-current', 'page'));
+				layout();
+				applyTheme();
+			}
+			function layout() {
+				const wrap = document.getElementById('frame-wrap'),
+					stage = document.getElementById('stage');
+				const [, , , w, h] = current;
+				frame.style.width = w + 'px';
+				frame.style.height = h + 'px';
+				const s = fit ? Math.min(1, (stage.clientWidth - 48) / w) : 1;
+				wrap.style.transform = `scale(${s})`;
+				wrap.style.width = w + 'px';
+				wrap.style.height = h + 'px';
+				wrap.style.marginBottom = -(h * (1 - s)) + 'px';
+			}
+			load();
+		</script>
+	</body>
+</html>
