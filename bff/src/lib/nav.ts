@@ -23,16 +23,12 @@ export const settingsItem: NavItem = {
 };
 
 export const advisorNav: NavStructure = {
-	top: [
-		{ href: '/', icon: 'dashboard', label: () => m.nav_overview() },
-	],
+	top: [{ href: '/', icon: 'dashboard', label: () => m.nav_overview() }],
 	bottom: [settingsItem]
 };
 
 export const clientNav: NavStructure = {
-	top: [
-		{ href: '/', icon: 'home', label: () => m.nav_start() },
-	],
+	top: [{ href: '/', icon: 'home', label: () => m.nav_start() }],
 	bottom: [settingsItem]
 };
 
