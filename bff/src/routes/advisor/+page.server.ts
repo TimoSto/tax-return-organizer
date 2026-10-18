@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ locals, fetch }) => {
 		error(404, 'Collector not found');
 	}
 	if (!res.ok) {
-		error(502, 'Backend request failed');
+		error(500, 'Backend request failed');
 	}
 
 	const { name } = (await res.json()) as { name: string };
