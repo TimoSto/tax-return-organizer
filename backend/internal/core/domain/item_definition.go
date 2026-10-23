@@ -83,6 +83,18 @@ func NewItemDefinition(
 	documentSpec *DocumentSpec,
 	dataSpec *ValueSpec,
 ) (*ItemDefinition, error) {
+	return buildItemDefinition(uuid.New(), personaID, title, kind, recurrence, documentSpec, dataSpec)
+}
+
+// buildItemDefinition validates the input and returns an item definition with the given id.
+func buildItemDefinition(
+	id, personaID uuid.UUID,
+	title string,
+	kind Kind,
+	recurrence Recurrence,
+	documentSpec *DocumentSpec,
+	dataSpec *ValueSpec,
+) (*ItemDefinition, error) {
 	title = strings.TrimSpace(title)
 
 	if title == "" {
@@ -117,7 +129,7 @@ func NewItemDefinition(
 	}
 
 	return &ItemDefinition{
-		ID:           uuid.New(),
+		ID:           id,
 		PersonaID:    personaID,
 		Title:        title,
 		Kind:         kind,

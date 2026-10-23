@@ -55,7 +55,7 @@ func TestNewPersona_GeneratesUniqueIDs(t *testing.T) {
 	}
 }
 
-func newPersonaWithItems(t *testing.T) (*domain.Persona, *domain.ItemDefinition, *domain.ItemDefinition) {
+func newPersonaWithItems(t *testing.T) (*domain.Persona, domain.ItemDefinition, domain.ItemDefinition) {
 	t.Helper()
 
 	p, err := domain.NewPersona("aaaa", "Employed", "")
@@ -94,6 +94,12 @@ func TestPersona_AddItem(t *testing.T) {
 
 	if len(p.Items) != 2 {
 		t.Errorf("rejected item was added, items = %d", len(p.Items))
+	}
+
+	payslip.Title = "Changed"
+
+	if p.Items[0].Title != "Payslip" {
+		t.Errorf("changing the returned copy changed the persona: %+v", p.Items[0])
 	}
 }
 

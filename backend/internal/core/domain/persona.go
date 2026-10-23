@@ -49,22 +49,23 @@ func NewPersona(collectorID CollectorID, name, description string) (*Persona, er
 	return &Persona{ID: uuid.New(), CollectorID: collectorID, Name: name, Description: description}, nil
 }
 
-// AddItem validates the input, appends a new item definition and returns it.
+// AddItem validates the input, appends a new item definition and returns a copy of it.
+// Changes to the copy do not affect the persona, use UpdateItem for that.
 func (p *Persona) AddItem(
 	title string,
 	kind Kind,
 	recurrence Recurrence,
 	documentSpec *DocumentSpec,
 	valueSpec *ValueSpec,
-) (*ItemDefinition, error) {
+) (ItemDefinition, error) {
 	item, err := NewItemDefinition(p.ID, title, kind, recurrence, documentSpec, valueSpec)
 	if err != nil {
-		return nil, err
+		return ItemDefinition{}, err
 	}
 
 	p.Items = append(p.Items, *item)
 
-	return item, nil
+	return *item, nil
 }
 
 // UpdateItem replaces title, recurrence and spec of an item. The id and the kind stay the same,
@@ -81,12 +82,11 @@ func (p *Persona) UpdateItem(
 		return fmt.Errorf("%w: %s", ErrItemNotFound, id)
 	}
 
-	updated, err := NewItemDefinition(p.ID, title, p.Items[i].Kind, recurrence, documentSpec, valueSpec)
+	updated, err := buildItemDefinition(id, p.ID, title, p.Items[i].Kind, recurrence, documentSpec, valueSpec)
 	if err != nil {
 		return err
 	}
 
-	updated.ID = id
 	p.Items[i] = *updated
 
 	return nil
