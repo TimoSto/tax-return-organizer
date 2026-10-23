@@ -48,6 +48,23 @@ func TestRecurrence(t *testing.T) {
 	}
 }
 
+func TestNewItemDefinition_NormalizesEmptyMetadataFields(t *testing.T) {
+	in := &domain.DocumentSpec{MetadataFields: []domain.MetadataField{}}
+
+	item, err := domain.NewItemDefinition(uuid.New(), "Notice", domain.KindDocument, domain.RecurrenceAnnually, in, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if item.DocumentSpec.MetadataFields != nil {
+		t.Errorf("MetadataFields = %#v, want nil", item.DocumentSpec.MetadataFields)
+	}
+
+	if in.MetadataFields == nil {
+		t.Error("the caller's spec was modified")
+	}
+}
+
 func TestNewItemDefinition(t *testing.T) {
 	personaID := uuid.New()
 	docSpec := &domain.DocumentSpec{MetadataFields: []domain.MetadataField{

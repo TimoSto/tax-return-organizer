@@ -83,6 +83,18 @@ func NewItemDefinition(
 	documentSpec *DocumentSpec,
 	dataSpec *ValueSpec,
 ) (*ItemDefinition, error) {
+	return buildItemDefinition(uuid.New(), personaID, title, kind, recurrence, documentSpec, dataSpec)
+}
+
+// buildItemDefinition validates the input and returns an item definition with the given id.
+func buildItemDefinition(
+	id, personaID uuid.UUID,
+	title string,
+	kind Kind,
+	recurrence Recurrence,
+	documentSpec *DocumentSpec,
+	dataSpec *ValueSpec,
+) (*ItemDefinition, error) {
 	title = strings.TrimSpace(title)
 
 	if title == "" {
@@ -106,6 +118,9 @@ func NewItemDefinition(
 		if err := documentSpec.Validate(); err != nil {
 			return nil, err
 		}
+
+		normalized := documentSpec.normalized()
+		documentSpec = &normalized
 	case KindData:
 		if dataSpec == nil || documentSpec != nil {
 			return nil, fmt.Errorf("%w: a data item needs a data spec and no document spec", ErrSpecMismatch)
@@ -117,7 +132,7 @@ func NewItemDefinition(
 	}
 
 	return &ItemDefinition{
-		ID:           uuid.New(),
+		ID:           id,
 		PersonaID:    personaID,
 		Title:        title,
 		Kind:         kind,
