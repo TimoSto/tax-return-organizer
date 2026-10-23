@@ -214,7 +214,7 @@ components:
           example: jane@example.com
     GetPersonaResponse:
       type: object
-      required: [id, collectorId, name, description, items]
+      required: [id, collectorId, name, description, version, items]
       properties:
         id:
           type: string
@@ -230,6 +230,11 @@ components:
           type: string
           description: May be empty.
           example: Has a job
+        version:
+          type: integer
+          minimum: 1
+          description: Counts the saves of the persona. A change has to be based on the current version.
+          example: 1
         items:
           type: array
           description: The item definitions of the persona in the order the collector arranged them. May be empty.

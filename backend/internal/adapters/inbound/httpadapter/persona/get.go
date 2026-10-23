@@ -17,6 +17,7 @@ type getResponse struct {
 	CollectorID string         `json:"collectorId"`
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
+	Version     int            `json:"version"`
 	Items       []itemResponse `json:"items"`
 }
 
@@ -89,6 +90,7 @@ func newGetResponse(p *domain.Persona) getResponse {
 		CollectorID: p.CollectorID.String(),
 		Name:        p.Name,
 		Description: p.Description,
+		Version:     p.Version,
 		Items:       items,
 	}
 }

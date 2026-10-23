@@ -45,17 +45,23 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 	}
 
 	employed := personaWithItems(aliceID, "Employed", "Has a job", payslip, notice, days)
+	// Updates are based on the version the first save assigned, which is 1.
 	employedRearranged := employed
+	employedRearranged.Version = 1
 	employedRearranged.Name = "Employed (renamed)"
 	employedRearranged.Items = withPersonaID(employed.ID, days, payslip)
 	employedReduced := employed
+	employedReduced.Version = 1
 	employedReduced.Items = withPersonaID(employed.ID, notice)
 	employedCleared := employed
+	employedCleared.Version = 1
 	employedCleared.Items = nil
+	letting := personaWithItems(aliceID, "Letting", "")
+	lettingUpdate := letting
+	lettingUpdate.Version = 1
 	hijack := employed
 	hijack.CollectorID = bobID
 	hijack.Name = "Hijacked"
-	letting := personaWithItems(aliceID, "Letting", "")
 	orphan := personaWithItems("zzzz", "Orphan", "")                    // no such collector
 	stolenItem := personaWithItems(aliceID, "Stolen item", "", payslip) // payslip belongs to employed
 	bobsDays := days
@@ -76,35 +82,35 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			saves:        []domain.Persona{employed},
 			getCollector: aliceID,
 			getID:        employed.ID,
-			exp:          &employed,
+			exp:          storedAt(employed, 1),
 		},
 		{
 			name:         "Get persona with empty description and no items",
 			saves:        []domain.Persona{letting},
 			getCollector: aliceID,
 			getID:        letting.ID,
-			exp:          &letting,
+			exp:          storedAt(letting, 1),
 		},
 		{
 			name:         "Saving again replaces the persona, reorders items and keeps their ids",
 			saves:        []domain.Persona{employed, employedRearranged},
 			getCollector: aliceID,
 			getID:        employed.ID,
-			exp:          &employedRearranged,
+			exp:          storedAt(employedRearranged, 2),
 		},
 		{
 			name:         "Saving again deletes removed items",
 			saves:        []domain.Persona{employed, employedReduced},
 			getCollector: aliceID,
 			getID:        employed.ID,
-			exp:          &employedReduced,
+			exp:          storedAt(employedReduced, 2),
 		},
 		{
 			name:         "Saving again without items deletes all items",
 			saves:        []domain.Persona{employed, employedCleared},
 			getCollector: aliceID,
 			getID:        employed.ID,
-			exp:          &employedCleared,
+			exp:          storedAt(employedCleared, 2),
 		},
 		{
 			name:         "Saving a persona id of another collector is rejected and keeps the original",
@@ -112,7 +118,7 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			saveErr:      domain.ErrPersonaNotFound,
 			getCollector: aliceID,
 			getID:        employed.ID,
-			exp:          &employed,
+			exp:          storedAt(employed, 1),
 		},
 		{
 			name:         "Saving an item id used by another persona is rejected",
@@ -120,6 +126,30 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			saveErr:      domain.ErrItemIDTaken,
 			getCollector: aliceID,
 			getID:        stolenItem.ID,
+			expErr:       domain.ErrPersonaNotFound,
+		},
+		{
+			name:         "Saving from an outdated version is rejected and keeps the newer one",
+			saves:        []domain.Persona{employed, employedRearranged, employedReduced},
+			saveErr:      domain.ErrVersionConflict,
+			getCollector: aliceID,
+			getID:        employed.ID,
+			exp:          storedAt(employedRearranged, 2),
+		},
+		{
+			name:         "Creating a persona id that exists already is rejected",
+			saves:        []domain.Persona{employed, employed},
+			saveErr:      domain.ErrVersionConflict,
+			getCollector: aliceID,
+			getID:        employed.ID,
+			exp:          storedAt(employed, 1),
+		},
+		{
+			name:         "Updating a persona that does not exist is rejected",
+			saves:        []domain.Persona{lettingUpdate},
+			saveErr:      domain.ErrPersonaNotFound,
+			getCollector: aliceID,
+			getID:        letting.ID,
 			expErr:       domain.ErrPersonaNotFound,
 		},
 		{
@@ -155,7 +185,7 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			saves:        []domain.Persona{employed, letting, bobs},
 			getCollector: bobID,
 			getID:        bobs.ID,
-			exp:          &bobs,
+			exp:          storedAt(bobs, 1),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -178,6 +208,13 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			}
 		})
 	}
+}
+
+// storedAt returns the persona as the repository returns it after it assigned the given version.
+func storedAt(p domain.Persona, version int) *domain.Persona {
+	p.Version = version
+
+	return &p
 }
 
 // personaWithItems returns a persona whose items belong to it.

@@ -49,8 +49,17 @@ func (r *Repository) SavePersona(_ context.Context, persona *domain.Persona) err
 		return domain.ErrUnknownCollector
 	}
 
-	if existing, ok := r.personas[persona.ID]; ok && existing.CollectorID != persona.CollectorID {
+	existing, exists := r.personas[persona.ID]
+
+	switch {
+	case exists && existing.CollectorID != persona.CollectorID:
 		return domain.ErrPersonaNotFound
+	case persona.Version == 0 && exists:
+		return domain.ErrVersionConflict
+	case persona.Version > 0 && !exists:
+		return domain.ErrPersonaNotFound
+	case persona.Version > 0 && existing.Version != persona.Version:
+		return domain.ErrVersionConflict
 	}
 
 	for id, other := range r.personas {
@@ -65,7 +74,10 @@ func (r *Repository) SavePersona(_ context.Context, persona *domain.Persona) err
 		}
 	}
 
-	r.personas[persona.ID] = *clone(persona)
+	stored := clone(persona)
+	stored.Version = persona.Version + 1
+	r.personas[persona.ID] = *stored
+	persona.Version = stored.Version
 
 	return nil
 }

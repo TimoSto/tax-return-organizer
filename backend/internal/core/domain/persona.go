@@ -20,6 +20,8 @@ var (
 	ErrItemIDTaken = errors.New("item definition id already taken")
 	// ErrUnknownCollector is returned when a persona refers to a collector that does not exist.
 	ErrUnknownCollector = errors.New("collector does not exist")
+	// ErrVersionConflict is returned when a persona is saved from an outdated version, or created twice.
+	ErrVersionConflict = errors.New("persona was changed by someone else")
 )
 
 // Persona groups the items a client has to provide if they do something tax relevant, e.g. "Employed".
@@ -29,6 +31,9 @@ type Persona struct {
 	CollectorID CollectorID
 	Name        string
 	Description string
+	// Version counts the saves of the persona and guards against lost updates. It is 0 until the persona
+	// is first saved; the repository assigns it.
+	Version int
 	// Items are in the order the collector arranged them.
 	Items []ItemDefinition
 }

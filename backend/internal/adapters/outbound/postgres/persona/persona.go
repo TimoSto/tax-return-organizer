@@ -36,7 +36,7 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 // Persona and items are read in one statement, so a concurrent SavePersona can never show up half-applied.
 func (r *Repository) GetPersona(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT p.id, p.collector_id, p.name, p.description,
+		SELECT p.id, p.collector_id, p.name, p.description, p.version,
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
 		FROM personas p
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
@@ -55,7 +55,7 @@ func (r *Repository) GetPersona(ctx context.Context, collectorID domain.Collecto
 			item nullableItemRow
 		)
 
-		if err := rows.Scan(&p.ID, &p.CollectorID, &p.Name, &p.Description,
+		if err := rows.Scan(&p.ID, &p.CollectorID, &p.Name, &p.Description, &p.Version,
 			&item.ID, &item.Title, &item.Kind, &item.Recurrence, &item.DocumentSpec, &item.ValueSpec); err != nil {
 			return nil, fmt.Errorf("get persona: scan: %w", err)
 		}
@@ -107,7 +107,8 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	if err := savePersonaRow(ctx, tx, newPersonaRow(persona)); err != nil {
+	version, err := savePersonaRow(ctx, tx, newPersonaRow(persona))
+	if err != nil {
 		return err
 	}
 
@@ -119,31 +120,69 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 		return fmt.Errorf("save persona: commit: %w", err)
 	}
 
+	persona.Version = version
+
 	return nil
 }
 
-// savePersonaRow upserts the persona. The collector of an existing persona never changes.
-func savePersonaRow(ctx context.Context, tx pgx.Tx, row personaRow) error {
-	tag, err := tx.Exec(ctx, `
-		INSERT INTO personas (id, collector_id, name, description) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description
-		WHERE personas.collector_id = EXCLUDED.collector_id`,
-		row.ID, row.CollectorID, row.Name, row.Description)
+// savePersonaRow creates the persona (version 0) or updates it if the stored version still matches.
+// The collector of an existing persona never changes. It returns the new stored version.
+func savePersonaRow(ctx context.Context, tx pgx.Tx, row personaRow) (int, error) {
+	if row.Version == 0 {
+		tag, err := tx.Exec(ctx, `
+			INSERT INTO personas (id, collector_id, name, description) VALUES ($1, $2, $3, $4)
+			ON CONFLICT (id) DO NOTHING`,
+			row.ID, row.CollectorID, row.Name, row.Description)
 
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation && pgErr.ConstraintName == collectorFKName {
-		return fmt.Errorf("save persona: %w", domain.ErrUnknownCollector)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation && pgErr.ConstraintName == collectorFKName {
+			return 0, fmt.Errorf("save persona: %w", domain.ErrUnknownCollector)
+		}
+
+		if err != nil {
+			return 0, fmt.Errorf("save persona: %w", err)
+		}
+
+		// No row means the id exists already: either a conflict or someone else's persona.
+		if tag.RowsAffected() == 0 {
+			return 0, existingPersonaError(ctx, tx, row)
+		}
+
+		return 1, nil
+	}
+
+	var version int
+
+	err := tx.QueryRow(ctx, `
+		UPDATE personas SET name = $3, description = $4, version = version + 1
+		WHERE id = $1 AND collector_id = $2 AND version = $5
+		RETURNING version`,
+		row.ID, row.CollectorID, row.Name, row.Description, row.Version).Scan(&version)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, existingPersonaError(ctx, tx, row)
+	}
+
+	if err != nil {
+		return 0, fmt.Errorf("save persona: %w", err)
+	}
+
+	return version, nil
+}
+
+// existingPersonaError explains why a save did not touch the persona row.
+func existingPersonaError(ctx context.Context, tx pgx.Tx, row personaRow) error {
+	var collectorID string
+
+	err := tx.QueryRow(ctx, `SELECT collector_id FROM personas WHERE id = $1`, row.ID).Scan(&collectorID)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && collectorID != row.CollectorID) {
+		return domain.ErrPersonaNotFound
 	}
 
 	if err != nil {
 		return fmt.Errorf("save persona: %w", err)
 	}
 
-	if tag.RowsAffected() == 0 {
-		return domain.ErrPersonaNotFound
-	}
-
-	return nil
+	return domain.ErrVersionConflict
 }
 
 // saveItems upserts the items by id, so they keep their identity, and deletes the ones that are gone.
@@ -187,10 +226,11 @@ type personaRow struct {
 	CollectorID string
 	Name        string
 	Description string
+	Version     int
 }
 
 func newPersonaRow(p *domain.Persona) personaRow {
-	return personaRow{ID: p.ID, CollectorID: string(p.CollectorID), Name: p.Name, Description: p.Description}
+	return personaRow{ID: p.ID, CollectorID: string(p.CollectorID), Name: p.Name, Description: p.Description, Version: p.Version}
 }
 
 func (r personaRow) toDomain() *domain.Persona {
@@ -199,5 +239,6 @@ func (r personaRow) toDomain() *domain.Persona {
 		CollectorID: domain.CollectorID(r.CollectorID),
 		Name:        r.Name,
 		Description: r.Description,
+		Version:     r.Version,
 	}
 }

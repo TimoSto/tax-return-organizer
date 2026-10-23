@@ -42,7 +42,7 @@ func TestGetPersona_OK(t *testing.T) {
 	rec := doGet(t, func(_ context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error) {
 		gotCollector, gotID = collectorID, id
 
-		return &domain.Persona{ID: testID, CollectorID: testCollectorID, Name: "Employed", Description: "Has a job"}, nil
+		return &domain.Persona{ID: testID, CollectorID: testCollectorID, Name: "Employed", Description: "Has a job", Version: 3}, nil
 	}, http.MethodGet, testCollectorID.String(), testID.String())
 
 	if rec.Code != http.StatusOK {
@@ -54,7 +54,7 @@ func TestGetPersona_OK(t *testing.T) {
 	}
 
 	want := `{"id":"` + testID.String() + `","collectorId":"` + testCollectorID.String() +
-		`","name":"Employed","description":"Has a job","items":[]}`
+		`","name":"Employed","description":"Has a job","version":3,"items":[]}`
 	if got := strings.TrimSpace(rec.Body.String()); got != want {
 		t.Errorf("body = %s, want %s", got, want)
 	}
