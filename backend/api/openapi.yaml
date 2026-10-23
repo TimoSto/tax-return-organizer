@@ -113,6 +113,62 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /collectors/{collectorId}/personas/{id}:
+    get:
+      operationId: getPersona
+      summary: Get a persona of a collector by id
+      description: A persona that belongs to another collector is reported as not found.
+      parameters:
+        - name: collectorId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[2-9a-hj-km-np-z]{4}$"
+            example: k7m2
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: The persona.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPersonaResponse"
+        "400":
+          description: The collector id or the persona id is invalid.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: The collector has no persona with this id.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Unexpected error. Details are only logged, quote the request id.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   headers:
     RequestID:
@@ -156,6 +212,84 @@ components:
         email:
           type: string
           example: jane@example.com
+    GetPersonaResponse:
+      type: object
+      required: [id, collectorId, name, description, items]
+      properties:
+        id:
+          type: string
+          format: uuid
+        collectorId:
+          type: string
+          pattern: "^[2-9a-hj-km-np-z]{4}$"
+          example: k7m2
+        name:
+          type: string
+          example: Employed
+        description:
+          type: string
+          description: May be empty.
+          example: Has a job
+        items:
+          type: array
+          description: The item definitions of the persona in the order the collector arranged them. May be empty.
+          items:
+            $ref: "#/components/schemas/ItemDefinition"
+    ItemDefinition:
+      type: object
+      description: >
+        Something the persona asks the client to provide. A document item has a documentSpec and a null
+        valueSpec, a data item the reverse.
+      required: [id, title, kind, recurrence, documentSpec, valueSpec]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Payslip
+        kind:
+          type: string
+          enum: [document, data]
+        recurrence:
+          type: string
+          enum: [monthly, quarterly, semiannually, annually]
+        documentSpec:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/DocumentSpec"
+        valueSpec:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ValueSpec"
+    DocumentSpec:
+      type: object
+      required: [metadataFields]
+      properties:
+        metadataFields:
+          type: array
+          items:
+            type: object
+            required: [name, spec]
+            properties:
+              name:
+                type: string
+                example: Employer
+              spec:
+                $ref: "#/components/schemas/ValueSpec"
+    ValueSpec:
+      type: object
+      required: [type, unit, required]
+      properties:
+        type:
+          type: string
+          enum: [text, number, date, bool]
+        unit:
+          type: string
+          description: Optional free-text display label such as EUR or days. Empty if there is none.
+          example: EUR
+        required:
+          type: boolean
     Error:
       type: object
       required: [error]

@@ -44,7 +44,7 @@ func WriteError(log *slog.Logger, w http.ResponseWriter, r *http.Request, err er
 	switch {
 	case errors.Is(err, domain.ErrNameRequired), errors.Is(err, domain.ErrInvalidEmail), errors.Is(err, domain.ErrInvalidCollectorID):
 		WriteJSON(log, w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	case errors.Is(err, domain.ErrCollectorNotFound):
+	case errors.Is(err, domain.ErrCollectorNotFound), errors.Is(err, domain.ErrPersonaNotFound):
 		WriteJSON(log, w, http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	default:
 		log.ErrorContext(r.Context(), "request failed", "error", err, "request_id", w.Header().Get(RequestIDHeader))
