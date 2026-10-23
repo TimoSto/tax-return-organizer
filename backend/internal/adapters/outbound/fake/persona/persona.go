@@ -16,13 +16,15 @@ var _ ports.PersonaRepository = (*Repository)(nil)
 
 // Repository is an in-memory ports.PersonaRepository. A persona is stored as one object including its items.
 type Repository struct {
-	mu       sync.RWMutex
-	personas map[uuid.UUID]domain.Persona
+	mu         sync.RWMutex
+	collectors []domain.CollectorID
+	personas   map[uuid.UUID]domain.Persona
 }
 
-// NewRepository returns an empty repository.
-func NewRepository() *Repository {
-	return &Repository{personas: make(map[uuid.UUID]domain.Persona)}
+// NewRepository returns an empty repository. Personas can only be saved for the given collectors,
+// as a foreign key does in a relational store.
+func NewRepository(collectors ...domain.CollectorID) *Repository {
+	return &Repository{collectors: collectors, personas: make(map[uuid.UUID]domain.Persona)}
 }
 
 // GetPersona implements ports.PersonaRepository.
@@ -42,6 +44,10 @@ func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorI
 func (r *Repository) SavePersona(_ context.Context, persona *domain.Persona) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	if !slices.Contains(r.collectors, persona.CollectorID) {
+		return domain.ErrUnknownCollector
+	}
 
 	if existing, ok := r.personas[persona.ID]; ok && existing.CollectorID != persona.CollectorID {
 		return domain.ErrPersonaNotFound

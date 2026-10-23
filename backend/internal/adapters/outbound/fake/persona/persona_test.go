@@ -10,7 +10,7 @@ import (
 )
 
 func TestPersonaRepository(t *testing.T) {
-	porttest.TestPersonaRepository(t, func(*testing.T, ...domain.CollectorID) ports.PersonaRepository {
-		return persona.NewRepository()
+	porttest.TestPersonaRepository(t, func(_ *testing.T, collectors ...domain.CollectorID) ports.PersonaRepository {
+		return persona.NewRepository(collectors...)
 	})
 }

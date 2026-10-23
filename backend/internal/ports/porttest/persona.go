@@ -56,6 +56,7 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 	hijack.CollectorID = bobID
 	hijack.Name = "Hijacked"
 	letting := personaWithItems(aliceID, "Letting", "")
+	orphan := personaWithItems("zzzz", "Orphan", "")                    // no such collector
 	stolenItem := personaWithItems(aliceID, "Stolen item", "", payslip) // payslip belongs to employed
 	bobsDays := days
 	bobsDays.ID = uuid.New() // item ids are unique across all personas
@@ -119,6 +120,14 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			saveErr:      domain.ErrItemIDTaken,
 			getCollector: aliceID,
 			getID:        stolenItem.ID,
+			expErr:       domain.ErrPersonaNotFound,
+		},
+		{
+			name:         "Saving a persona for an unknown collector is rejected",
+			saves:        []domain.Persona{orphan},
+			saveErr:      domain.ErrUnknownCollector,
+			getCollector: "zzzz",
+			getID:        orphan.ID,
 			expErr:       domain.ErrPersonaNotFound,
 		},
 		{

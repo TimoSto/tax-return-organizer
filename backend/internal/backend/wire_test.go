@@ -76,7 +76,7 @@ func TestWire_GetCollector_NotFound(t *testing.T) {
 }
 
 func TestWire_GetPersona(t *testing.T) {
-	personas := fakepersona.NewRepository()
+	personas := fakepersona.NewRepository("k7m2")
 	p := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Employed"}
 
 	if err := personas.SavePersona(context.Background(), p); err != nil {

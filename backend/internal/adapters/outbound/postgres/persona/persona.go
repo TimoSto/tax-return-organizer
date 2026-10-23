@@ -3,14 +3,21 @@ package persona
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+)
+
+const (
+	foreignKeyViolation = "23503"
+	collectorFKName     = "personas_collector_id_fkey"
 )
 
 var _ ports.PersonaRepository = (*Repository)(nil)
@@ -122,6 +129,12 @@ func savePersonaRow(ctx context.Context, tx pgx.Tx, row personaRow) error {
 		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description
 		WHERE personas.collector_id = EXCLUDED.collector_id`,
 		row.ID, row.CollectorID, row.Name, row.Description)
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation && pgErr.ConstraintName == collectorFKName {
+		return fmt.Errorf("save persona: %w", domain.ErrUnknownCollector)
+	}
+
 	if err != nil {
 		return fmt.Errorf("save persona: %w", err)
 	}

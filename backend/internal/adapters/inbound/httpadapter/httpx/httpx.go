@@ -43,7 +43,7 @@ func WriteJSON(log *slog.Logger, w http.ResponseWriter, status int, body any) {
 func WriteError(log *slog.Logger, w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, domain.ErrNameRequired), errors.Is(err, domain.ErrInvalidEmail), errors.Is(err, domain.ErrInvalidCollectorID),
-		errors.Is(err, domain.ErrItemIDTaken):
+		errors.Is(err, domain.ErrItemIDTaken), errors.Is(err, domain.ErrUnknownCollector):
 		WriteJSON(log, w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, domain.ErrCollectorNotFound), errors.Is(err, domain.ErrPersonaNotFound):
 		WriteJSON(log, w, http.StatusNotFound, ErrorResponse{Error: err.Error()})
