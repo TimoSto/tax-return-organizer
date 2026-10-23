@@ -186,11 +186,14 @@ func existingPersonaError(ctx context.Context, tx pgx.Tx, row personaRow) error 
 }
 
 // saveItems upserts the items by id, so they keep their identity, and deletes the ones that are gone.
+// All statements go out as one batch, so it costs a single round trip however many items there are.
 func saveItems(ctx context.Context, tx pgx.Tx, personaID uuid.UUID, items []itemRow) error {
-	ids := make([]string, 0, len(items))
+	// Never nil: a nil slice is sent as NULL and "<> ALL(NULL)" would delete nothing.
+	ids := make([]uuid.UUID, 0, len(items))
+	batch := &pgx.Batch{}
 
 	for position, item := range items {
-		tag, err := tx.Exec(ctx, `
+		batch.Queue(`
 			INSERT INTO item_definitions (id, persona_id, position, title, kind, recurrence, document_spec, value_spec)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			ON CONFLICT (id) DO UPDATE SET
@@ -198,7 +201,19 @@ func saveItems(ctx context.Context, tx pgx.Tx, personaID uuid.UUID, items []item
 				recurrence = EXCLUDED.recurrence, document_spec = EXCLUDED.document_spec, value_spec = EXCLUDED.value_spec
 			WHERE item_definitions.persona_id = EXCLUDED.persona_id`,
 			item.ID, personaID, position, item.Title, item.Kind, item.Recurrence, item.DocumentSpec, item.ValueSpec)
+
+		ids = append(ids, item.ID)
+	}
+
+	batch.Queue(`DELETE FROM item_definitions WHERE persona_id = $1 AND id <> ALL($2::uuid[])`, personaID, ids)
+
+	results := tx.SendBatch(ctx, batch)
+
+	for _, item := range items {
+		tag, err := results.Exec()
 		if err != nil {
+			_ = results.Close()
+
 			return fmt.Errorf("save item %s: %w", item.ID, err)
 		}
 
@@ -206,15 +221,20 @@ func saveItems(ctx context.Context, tx pgx.Tx, personaID uuid.UUID, items []item
 		// means the id exists under another persona and the WHERE above skipped the update. Keep the
 		// statement and this check in sync: any other way to affect no rows would be misreported here.
 		if tag.RowsAffected() == 0 {
+			_ = results.Close()
+
 			return fmt.Errorf("save item %s: %w", item.ID, domain.ErrItemIDTaken)
 		}
-
-		ids = append(ids, item.ID.String())
 	}
 
-	if _, err := tx.Exec(ctx,
-		`DELETE FROM item_definitions WHERE persona_id = $1 AND id::text <> ALL($2)`, personaID, ids); err != nil {
+	if _, err := results.Exec(); err != nil {
+		_ = results.Close()
+
 		return fmt.Errorf("delete removed items: %w", err)
+	}
+
+	if err := results.Close(); err != nil {
+		return fmt.Errorf("save items: %w", err)
 	}
 
 	return nil
