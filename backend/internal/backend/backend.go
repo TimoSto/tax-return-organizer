@@ -26,7 +26,7 @@ const shutdownTimeout = 10 * time.Second
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
 func wire(log *slog.Logger, collectors ports.CollectorRepository, personas ports.PersonaRepository) http.Handler {
 	return httpadapter.NewHandler(log, httpadapter.Deps{
-		CreateCollector: createcollector.New(collectors).Execute,
+		CreateCollector: createcollector.New(log, collectors, personas).Execute,
 		GetCollector:    getcollector.New(collectors).Execute,
 		GetPersona:      getpersona.New(personas).Execute,
 	})

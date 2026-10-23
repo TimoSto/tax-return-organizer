@@ -47,7 +47,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/CreateCollectorResponse"
         "400":
-          description: Malformed body, unknown field, empty name or invalid email address.
+          description: Malformed body, unknown field, empty name, invalid email address or unknown locale.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -190,6 +190,11 @@ components:
           type: string
           description: Plain address. Display names such as "Jane <jane@example.com>" are rejected.
           example: jane@example.com
+        locale:
+          type: string
+          enum: [en, de]
+          default: en
+          description: Language of the predefined personas the new collector starts with.
     CreateCollectorResponse:
       type: object
       required: [id]
