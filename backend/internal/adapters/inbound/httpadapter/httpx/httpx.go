@@ -42,7 +42,8 @@ func WriteJSON(log *slog.Logger, w http.ResponseWriter, status int, body any) {
 // everything else is logged and answered with a generic 500.
 func WriteError(log *slog.Logger, w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, domain.ErrNameRequired), errors.Is(err, domain.ErrInvalidEmail), errors.Is(err, domain.ErrInvalidCollectorID):
+	case errors.Is(err, domain.ErrNameRequired), errors.Is(err, domain.ErrInvalidEmail), errors.Is(err, domain.ErrInvalidCollectorID),
+		errors.Is(err, domain.ErrItemIDTaken):
 		WriteJSON(log, w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, domain.ErrCollectorNotFound), errors.Is(err, domain.ErrPersonaNotFound):
 		WriteJSON(log, w, http.StatusNotFound, ErrorResponse{Error: err.Error()})

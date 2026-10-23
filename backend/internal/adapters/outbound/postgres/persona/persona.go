@@ -152,8 +152,11 @@ func saveItems(ctx context.Context, tx pgx.Tx, personaID uuid.UUID, items []item
 			return fmt.Errorf("save item %s: %w", item.ID, err)
 		}
 
+		// The statement inserts a new id or updates an item of this persona, both affect one row. Zero rows
+		// means the id exists under another persona and the WHERE above skipped the update. Keep the
+		// statement and this check in sync: any other way to affect no rows would be misreported here.
 		if tag.RowsAffected() == 0 {
-			return fmt.Errorf("save item %s: id belongs to another persona", item.ID)
+			return fmt.Errorf("save item %s: %w", item.ID, domain.ErrItemIDTaken)
 		}
 
 		ids = append(ids, item.ID.String())

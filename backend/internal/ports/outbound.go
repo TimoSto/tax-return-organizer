@@ -24,6 +24,7 @@ type PersonaRepository interface {
 	GetPersona(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error)
 	// SavePersona inserts the persona or, if its id exists already, replaces name, description and items.
 	// Items missing from persona.Items are deleted, the others keep their id.
-	// It returns domain.ErrPersonaNotFound if the id belongs to another collector, nothing is changed then.
+	// It returns domain.ErrPersonaNotFound if the id belongs to another collector and
+	// domain.ErrItemIDTaken if an item id is already used by another persona. Nothing is changed then.
 	SavePersona(ctx context.Context, persona *domain.Persona) error
 }
