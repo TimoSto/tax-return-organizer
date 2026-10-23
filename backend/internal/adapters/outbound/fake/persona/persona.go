@@ -95,6 +95,11 @@ func clone(p *domain.Persona) *domain.Persona {
 		if item.DocumentSpec != nil {
 			spec := *item.DocumentSpec
 			spec.MetadataFields = slices.Clone(spec.MetadataFields)
+			// Like the domain and a relational store, report no fields as nil, never as an empty slice.
+			if len(spec.MetadataFields) == 0 {
+				spec.MetadataFields = nil
+			}
+
 			item.DocumentSpec = &spec
 		}
 

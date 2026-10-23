@@ -118,6 +118,9 @@ func buildItemDefinition(
 		if err := documentSpec.Validate(); err != nil {
 			return nil, err
 		}
+
+		normalized := documentSpec.normalized()
+		documentSpec = &normalized
 	case KindData:
 		if dataSpec == nil || documentSpec != nil {
 			return nil, fmt.Errorf("%w: a data item needs a data spec and no document spec", ErrSpecMismatch)

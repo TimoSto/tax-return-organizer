@@ -62,6 +62,14 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 	hijack := employed
 	hijack.CollectorID = bobID
 	hijack.Name = "Hijacked"
+	emptyFields := notice // explicit empty slice, which every repository reports as nil
+	emptyFields.ID = uuid.New()
+	emptyFields.DocumentSpec = &domain.DocumentSpec{MetadataFields: []domain.MetadataField{}}
+	withEmptyFields := personaWithItems(aliceID, "Empty fields", "", emptyFields)
+	nilFields := emptyFields
+	nilFields.DocumentSpec = &domain.DocumentSpec{}
+	withNilFields := withEmptyFields
+	withNilFields.Items = withPersonaID(withEmptyFields.ID, nilFields)
 	orphan := personaWithItems("zzzz", "Orphan", "")                    // no such collector
 	stolenItem := personaWithItems(aliceID, "Stolen item", "", payslip) // payslip belongs to employed
 	bobsDays := days
@@ -83,6 +91,13 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			getCollector: aliceID,
 			getID:        employed.ID,
 			exp:          storedAt(employed, 1),
+		},
+		{
+			name:         "A document spec without metadata fields is returned with nil fields",
+			saves:        []domain.Persona{withEmptyFields},
+			getCollector: aliceID,
+			getID:        withEmptyFields.ID,
+			exp:          storedAt(withNilFields, 1),
 		},
 		{
 			name:         "Get persona with empty description and no items",
