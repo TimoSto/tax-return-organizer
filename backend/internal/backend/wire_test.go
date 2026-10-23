@@ -16,8 +16,16 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
+// newFakeRepositories returns in-memory repositories. The persona repository accepts personas of collector k7m2.
+func newFakeRepositories() repositories {
+	return repositories{
+		collectors: fakecollector.NewRepository(),
+		personas:   fakepersona.NewRepository("k7m2"),
+	}
+}
+
 func TestWire_CreateCollector(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), fakecollector.NewRepository(), fakepersona.NewRepository())
+	h := wire(slog.New(slog.DiscardHandler), newFakeRepositories())
 
 	req := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
 	rec := httptest.NewRecorder()
@@ -29,7 +37,7 @@ func TestWire_CreateCollector(t *testing.T) {
 }
 
 func TestWire_Healthz(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), fakecollector.NewRepository(), fakepersona.NewRepository())
+	h := wire(slog.New(slog.DiscardHandler), newFakeRepositories())
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
@@ -44,7 +52,7 @@ func TestWire_Healthz(t *testing.T) {
 }
 
 func TestWire_GetCollector(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), fakecollector.NewRepository(), fakepersona.NewRepository())
+	h := wire(slog.New(slog.DiscardHandler), newFakeRepositories())
 
 	create := httptest.NewRecorder()
 	h.ServeHTTP(create, httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`)))
@@ -65,7 +73,7 @@ func TestWire_GetCollector(t *testing.T) {
 }
 
 func TestWire_GetCollector_NotFound(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), fakecollector.NewRepository(), fakepersona.NewRepository())
+	h := wire(slog.New(slog.DiscardHandler), newFakeRepositories())
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/k7m2", nil))
@@ -76,14 +84,14 @@ func TestWire_GetCollector_NotFound(t *testing.T) {
 }
 
 func TestWire_GetPersona(t *testing.T) {
-	personas := fakepersona.NewRepository("k7m2")
+	repos := newFakeRepositories()
 	p := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Employed"}
 
-	if err := personas.SavePersona(context.Background(), p); err != nil {
+	if err := repos.personas.SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	h := wire(slog.New(slog.DiscardHandler), fakecollector.NewRepository(), personas)
+	h := wire(slog.New(slog.DiscardHandler), repos)
 
 	for _, tc := range []struct {
 		name, path string
