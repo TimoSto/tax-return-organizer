@@ -73,7 +73,17 @@ func newItemRow(item domain.ItemDefinition) (itemRow, error) {
 	return row, nil
 }
 
+// toDomain maps the row to the domain type. The table does not restrict kind and recurrence, so unknown
+// values are rejected here instead of being passed on to the domain.
 func (r itemRow) toDomain(personaID uuid.UUID) (domain.ItemDefinition, error) {
+	if kind := domain.Kind(r.Kind); !kind.Valid() {
+		return domain.ItemDefinition{}, fmt.Errorf("item %s: %w: %q", r.ID, domain.ErrInvalidKind, r.Kind)
+	}
+
+	if recurrence := domain.Recurrence(r.Recurrence); !recurrence.Valid() {
+		return domain.ItemDefinition{}, fmt.Errorf("item %s: %w: %q", r.ID, domain.ErrInvalidRecurrence, r.Recurrence)
+	}
+
 	item := domain.ItemDefinition{
 		ID:         r.ID,
 		PersonaID:  personaID,

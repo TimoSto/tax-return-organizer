@@ -31,7 +31,6 @@ Hexagonal slice is clean; main risks are in `SavePersona` and fake/Postgres drif
 
 7. **Smaller points**
    - `httpx.WriteError` maps only `ErrPersonaNotFound`; map `ErrItemTitleRequired`, `ErrSpecMismatch`, `ErrItemNotFound` when write slices arrive.
-   - Kind/recurrence values duplicated between SQL `CHECK`s and Go constants; add a drift test.
    - `CHECK` doesn't catch JSON `null` literal in specs; add `jsonb_typeof(...) = 'object'`.
    - `toDomain` turns empty `metadataFields: []` into `nil` (nil-vs-empty subtlety).
    - API naming: `spec` (metadata field) vs `valueSpec` (item); pick one before clients depend on it.
