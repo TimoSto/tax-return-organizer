@@ -14,7 +14,7 @@ func TestCollectorRepository(t *testing.T) {
 	pool := postgrestest.RequirePool(t)
 
 	porttest.TestCollectorRepository(t, func(t *testing.T) ports.CollectorRepository {
-		if _, err := pool.Exec(context.Background(), `TRUNCATE collectors`); err != nil {
+		if _, err := pool.Exec(context.Background(), `TRUNCATE collectors CASCADE`); err != nil {
 			t.Fatalf("truncate collectors: %v", err)
 		}
 
