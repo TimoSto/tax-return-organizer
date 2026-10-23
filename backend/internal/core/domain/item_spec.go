@@ -55,8 +55,8 @@ func (s ValueSpec) Validate() error {
 
 // MetadataField is a value the client enters for an uploaded document.
 type MetadataField struct {
-	Name string
-	Spec ValueSpec
+	Name      string
+	ValueSpec ValueSpec
 }
 
 // DocumentSpec describes what is asked for a document item.
@@ -80,7 +80,7 @@ func (s DocumentSpec) Validate() error {
 
 		seen[name] = true
 
-		if err := f.Spec.Validate(); err != nil {
+		if err := f.ValueSpec.Validate(); err != nil {
 			return fmt.Errorf("metadata field %q: %w", name, err)
 		}
 	}

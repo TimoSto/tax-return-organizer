@@ -62,7 +62,7 @@ func (r Recurrence) Periods() int {
 }
 
 // ItemDefinition is something a persona asks the client to provide.
-// A document item carries a DocumentSpec, a data item a DataSpec, never both.
+// A document item carries a DocumentSpec, a data item a ValueSpec, never both.
 type ItemDefinition struct {
 	ID           uuid.UUID
 	PersonaID    uuid.UUID
@@ -70,7 +70,7 @@ type ItemDefinition struct {
 	Kind         Kind
 	Recurrence   Recurrence
 	DocumentSpec *DocumentSpec
-	DataSpec     *ValueSpec
+	ValueSpec    *ValueSpec
 }
 
 // NewItemDefinition validates the input and returns an item definition with a fresh id.
@@ -123,6 +123,6 @@ func NewItemDefinition(
 		Kind:         kind,
 		Recurrence:   recurrence,
 		DocumentSpec: documentSpec,
-		DataSpec:     dataSpec,
+		ValueSpec:    dataSpec,
 	}, nil
 }

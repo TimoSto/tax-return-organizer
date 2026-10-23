@@ -48,32 +48,32 @@ func TestDocumentSpec_Validate(t *testing.T) {
 		{
 			name: "Valid fields",
 			spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
-				{Name: "Employer", Spec: text},
-				{Name: "Period start", Spec: domain.ValueSpec{Type: domain.ValueTypeDate, Required: true}},
+				{Name: "Employer", ValueSpec: text},
+				{Name: "Period start", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeDate, Required: true}},
 			}},
 		},
 		{
 			name:   "Blank name",
-			spec:   domain.DocumentSpec{MetadataFields: []domain.MetadataField{{Name: "  ", Spec: text}}},
+			spec:   domain.DocumentSpec{MetadataFields: []domain.MetadataField{{Name: "  ", ValueSpec: text}}},
 			expErr: domain.ErrMetadataFieldNameRequired,
 		},
 		{
 			name: "Duplicate name",
 			spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
-				{Name: "Employer", Spec: text}, {Name: "Employer", Spec: text},
+				{Name: "Employer", ValueSpec: text}, {Name: "Employer", ValueSpec: text},
 			}},
 			expErr: domain.ErrDuplicateMetadataField,
 		},
 		{
 			name: "Duplicate name differing in surrounding whitespace",
 			spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
-				{Name: "Employer", Spec: text}, {Name: " Employer ", Spec: text},
+				{Name: "Employer", ValueSpec: text}, {Name: " Employer ", ValueSpec: text},
 			}},
 			expErr: domain.ErrDuplicateMetadataField,
 		},
 		{
 			name:   "Invalid nested spec",
-			spec:   domain.DocumentSpec{MetadataFields: []domain.MetadataField{{Name: "Employer", Spec: domain.ValueSpec{}}}},
+			spec:   domain.DocumentSpec{MetadataFields: []domain.MetadataField{{Name: "Employer", ValueSpec: domain.ValueSpec{}}}},
 			expErr: domain.ErrInvalidValueType,
 		},
 	} {

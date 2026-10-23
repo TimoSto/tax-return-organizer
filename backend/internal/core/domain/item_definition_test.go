@@ -51,7 +51,7 @@ func TestRecurrence(t *testing.T) {
 func TestNewItemDefinition(t *testing.T) {
 	personaID := uuid.New()
 	docSpec := &domain.DocumentSpec{MetadataFields: []domain.MetadataField{
-		{Name: "Employer", Spec: domain.ValueSpec{Type: domain.ValueTypeText}},
+		{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText}},
 	}}
 	dataSpec := &domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "EUR", Required: true}
 
