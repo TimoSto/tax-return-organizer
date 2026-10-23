@@ -19,6 +19,25 @@ type itemRow struct {
 	ValueSpec    []byte
 }
 
+// nullableItemRow scans the item columns of a LEFT JOIN, which are all NULL for a persona without items.
+// Only ID is checked for NULL; the other columns are NOT NULL (or nullable specs) once an item exists.
+type nullableItemRow struct {
+	ID           *uuid.UUID
+	Title        *string
+	Kind         *string
+	Recurrence   *string
+	DocumentSpec []byte
+	ValueSpec    []byte
+}
+
+// toRow must only be called when ID is not nil.
+func (r nullableItemRow) toRow() itemRow {
+	return itemRow{
+		ID: *r.ID, Title: *r.Title, Kind: *r.Kind, Recurrence: *r.Recurrence,
+		DocumentSpec: r.DocumentSpec, ValueSpec: r.ValueSpec,
+	}
+}
+
 type valueSpecJSON struct {
 	Type     string `json:"type"`
 	Unit     string `json:"unit"`

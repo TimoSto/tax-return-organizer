@@ -3,7 +3,6 @@ package persona
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -27,60 +26,59 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 }
 
 // GetPersona implements ports.PersonaRepository.
+// Persona and items are read in one statement, so a concurrent SavePersona can never show up half-applied.
 func (r *Repository) GetPersona(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error) {
-	var row personaRow
-
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, collector_id, name, description FROM personas WHERE id = $1 AND collector_id = $2`,
-		id, string(collectorID)).
-		Scan(&row.ID, &row.CollectorID, &row.Name, &row.Description)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, domain.ErrPersonaNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get persona: %w", err)
-	}
-
-	persona := row.toDomain()
-
-	persona.Items, err = r.getItems(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("get persona: %w", err)
-	}
-
-	return persona, nil
-}
-
-func (r *Repository) getItems(ctx context.Context, personaID uuid.UUID) ([]domain.ItemDefinition, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, title, kind, recurrence, document_spec, value_spec
-		FROM item_definitions WHERE persona_id = $1 ORDER BY position`, personaID)
+		SELECT p.id, p.collector_id, p.name, p.description,
+		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
+		FROM personas p
+		LEFT JOIN item_definitions i ON i.persona_id = p.id
+		WHERE p.id = $1 AND p.collector_id = $2
+		ORDER BY i.position`, id, string(collectorID))
 	if err != nil {
-		return nil, fmt.Errorf("query items: %w", err)
+		return nil, fmt.Errorf("get persona: %w", err)
 	}
 	defer rows.Close()
 
-	var items []domain.ItemDefinition
+	var persona *domain.Persona
 
 	for rows.Next() {
-		var row itemRow
-		if err := rows.Scan(&row.ID, &row.Title, &row.Kind, &row.Recurrence, &row.DocumentSpec, &row.ValueSpec); err != nil {
-			return nil, fmt.Errorf("scan item: %w", err)
+		var (
+			p    personaRow
+			item nullableItemRow
+		)
+
+		if err := rows.Scan(&p.ID, &p.CollectorID, &p.Name, &p.Description,
+			&item.ID, &item.Title, &item.Kind, &item.Recurrence, &item.DocumentSpec, &item.ValueSpec); err != nil {
+			return nil, fmt.Errorf("get persona: scan: %w", err)
 		}
 
-		item, err := row.toDomain(personaID)
+		if persona == nil {
+			persona = p.toDomain()
+		}
+
+		// A persona without items yields one row with NULL item columns.
+		if item.ID == nil {
+			continue
+		}
+
+		domainItem, err := item.toRow().toDomain(persona.ID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("get persona: %w", err)
 		}
 
-		items = append(items, item)
+		persona.Items = append(persona.Items, domainItem)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("read items: %w", err)
+		return nil, fmt.Errorf("get persona: read rows: %w", err)
 	}
 
-	return items, nil
+	if persona == nil {
+		return nil, domain.ErrPersonaNotFound
+	}
+
+	return persona, nil
 }
 
 // SavePersona implements ports.PersonaRepository. Persona and items are written in one transaction.
