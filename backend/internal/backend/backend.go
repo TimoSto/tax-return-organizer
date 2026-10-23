@@ -14,18 +14,21 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
+	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getpersona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 const shutdownTimeout = 10 * time.Second
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
-func wire(log *slog.Logger, collectors ports.CollectorRepository) http.Handler {
+func wire(log *slog.Logger, collectors ports.CollectorRepository, personas ports.PersonaRepository) http.Handler {
 	return httpadapter.NewHandler(log, httpadapter.Deps{
 		CreateCollector: createcollector.New(collectors).Execute,
 		GetCollector:    getcollector.New(collectors).Execute,
+		GetPersona:      getpersona.New(personas).Execute,
 	})
 }
 
@@ -45,7 +48,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer pool.Close()
 
-	return serve(ctx, newServer(cfg.HTTPAddr, wire(slog.Default(), pgcollector.NewRepository(pool))))
+	return serve(ctx, newServer(cfg.HTTPAddr, wire(slog.Default(), pgcollector.NewRepository(pool), pgpersona.NewRepository(pool))))
 }
 
 func newServer(addr string, handler http.Handler) *http.Server {
