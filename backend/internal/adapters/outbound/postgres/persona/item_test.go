@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
 // The table does not restrict kind and recurrence, so reading must reject values the domain does not know.
@@ -15,8 +13,8 @@ func TestItemRow_ToDomain_RejectsUnknownValues(t *testing.T) {
 		name, kind, recurrence string
 		expErr                 error
 	}{
-		{"unknown kind", "documnet", "monthly", domain.ErrInvalidKind},
-		{"unknown recurrence", "document", "weekly", domain.ErrInvalidRecurrence},
+		{"unknown kind", "documnet", "monthly", errUnknownValue},
+		{"unknown recurrence", "document", "weekly", errUnknownValue},
 		{"valid", "document", "monthly", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

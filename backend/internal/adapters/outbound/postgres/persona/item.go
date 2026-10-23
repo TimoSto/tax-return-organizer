@@ -2,12 +2,17 @@ package persona
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
+
+// errUnknownValue marks a stored row with a kind or recurrence the domain does not know. It is deliberately not
+// domain.ErrInvalidKind: bad stored data is a server fault, whereas the domain errors are bad requests.
+var errUnknownValue = errors.New("unknown value in stored item")
 
 // itemRow mirrors the item_definitions table. The specs are stored as JSONB.
 type itemRow struct {
@@ -77,11 +82,11 @@ func newItemRow(item domain.ItemDefinition) (itemRow, error) {
 // values are rejected here instead of being passed on to the domain.
 func (r itemRow) toDomain(personaID uuid.UUID) (domain.ItemDefinition, error) {
 	if kind := domain.Kind(r.Kind); !kind.Valid() {
-		return domain.ItemDefinition{}, fmt.Errorf("item %s: %w: %q", r.ID, domain.ErrInvalidKind, r.Kind)
+		return domain.ItemDefinition{}, fmt.Errorf("item %s: %w: kind %q", r.ID, errUnknownValue, r.Kind)
 	}
 
 	if recurrence := domain.Recurrence(r.Recurrence); !recurrence.Valid() {
-		return domain.ItemDefinition{}, fmt.Errorf("item %s: %w: %q", r.ID, domain.ErrInvalidRecurrence, r.Recurrence)
+		return domain.ItemDefinition{}, fmt.Errorf("item %s: %w: recurrence %q", r.ID, errUnknownValue, r.Recurrence)
 	}
 
 	item := domain.ItemDefinition{

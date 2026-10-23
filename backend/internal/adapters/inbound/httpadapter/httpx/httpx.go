@@ -42,15 +42,31 @@ func WriteJSON(log *slog.Logger, w http.ResponseWriter, status int, body any) {
 // everything else is logged and answered with a generic 500.
 func WriteError(log *slog.Logger, w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, domain.ErrNameRequired), errors.Is(err, domain.ErrInvalidEmail), errors.Is(err, domain.ErrInvalidCollectorID),
-		errors.Is(err, domain.ErrItemIDTaken), errors.Is(err, domain.ErrUnknownCollector):
+	case isInvalidInput(err):
 		WriteJSON(log, w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, domain.ErrVersionConflict):
 		WriteJSON(log, w, http.StatusConflict, ErrorResponse{Error: err.Error()})
-	case errors.Is(err, domain.ErrCollectorNotFound), errors.Is(err, domain.ErrPersonaNotFound):
+	case errors.Is(err, domain.ErrCollectorNotFound), errors.Is(err, domain.ErrPersonaNotFound),
+		errors.Is(err, domain.ErrItemNotFound):
 		WriteJSON(log, w, http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	default:
 		log.ErrorContext(r.Context(), "request failed", "error", err, "request_id", w.Header().Get(RequestIDHeader))
 		WriteJSON(log, w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
 	}
+}
+
+// isInvalidInput reports whether err says the request itself is wrong, as opposed to a conflict or a server fault.
+func isInvalidInput(err error) bool {
+	for _, target := range []error{
+		domain.ErrNameRequired, domain.ErrInvalidEmail, domain.ErrInvalidCollectorID,
+		domain.ErrPersonaNameRequired, domain.ErrItemTitleRequired, domain.ErrInvalidKind, domain.ErrInvalidRecurrence,
+		domain.ErrSpecMismatch, domain.ErrInvalidValueType, domain.ErrMetadataFieldNameRequired,
+		domain.ErrDuplicateMetadataField, domain.ErrItemIDTaken, domain.ErrUnknownCollector,
+	} {
+		if errors.Is(err, target) {
+			return true
+		}
+	}
+
+	return false
 }
