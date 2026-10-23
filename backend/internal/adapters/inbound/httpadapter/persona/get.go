@@ -36,8 +36,8 @@ type documentSpecResponse struct {
 }
 
 type metadataFieldResponse struct {
-	Name string            `json:"name"`
-	Spec valueSpecResponse `json:"spec"`
+	Name      string            `json:"name"`
+	ValueSpec valueSpecResponse `json:"valueSpec"`
 }
 
 type valueSpecResponse struct {
@@ -106,7 +106,7 @@ func newItemResponse(item domain.ItemDefinition) itemResponse {
 	if item.DocumentSpec != nil {
 		fields := make([]metadataFieldResponse, 0, len(item.DocumentSpec.MetadataFields))
 		for _, f := range item.DocumentSpec.MetadataFields {
-			fields = append(fields, metadataFieldResponse{Name: f.Name, Spec: newValueSpecResponse(f.ValueSpec)})
+			fields = append(fields, metadataFieldResponse{Name: f.Name, ValueSpec: newValueSpecResponse(f.ValueSpec)})
 		}
 
 		resp.DocumentSpec = &documentSpecResponse{MetadataFields: fields}

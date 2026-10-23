@@ -31,7 +31,6 @@ Hexagonal slice is clean; main risks are in `SavePersona` and fake/Postgres drif
 
 7. **Smaller points**
    - `toDomain` turns empty `metadataFields: []` into `nil` (nil-vs-empty subtlety).
-   - API naming: `spec` (metadata field) vs `valueSpec` (item); pick one before clients depend on it.
    - `wire(log, collectors, personas)` grows a parameter per repository; use a `repositories` struct.
    - No authorization yet; collector ids are guessable (known WIP).
    - `SavePersona` has no production caller; endpoint only 404s outside tests (documented).

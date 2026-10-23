@@ -124,7 +124,7 @@ func TestGetPersona_Items(t *testing.T) {
 
 	want := `"items":[` +
 		`{"id":"` + docID.String() + `","title":"Payslip","kind":"document","recurrence":"monthly",` +
-		`"documentSpec":{"metadataFields":[{"name":"Employer","spec":{"type":"text","unit":"","required":true}}]},"valueSpec":null},` +
+		`"documentSpec":{"metadataFields":[{"name":"Employer","valueSpec":{"type":"text","unit":"","required":true}}]},"valueSpec":null},` +
 		`{"id":"` + dataID.String() + `","title":"Commuting days","kind":"data","recurrence":"annually",` +
 		`"documentSpec":null,"valueSpec":{"type":"number","unit":"days","required":false}}]`
 	if got := rec.Body.String(); !strings.Contains(got, want) {

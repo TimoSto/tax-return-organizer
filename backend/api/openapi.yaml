@@ -275,12 +275,12 @@ components:
           type: array
           items:
             type: object
-            required: [name, spec]
+            required: [name, valueSpec]
             properties:
               name:
                 type: string
                 example: Employer
-              spec:
+              valueSpec:
                 $ref: "#/components/schemas/ValueSpec"
     ValueSpec:
       type: object
