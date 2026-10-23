@@ -23,12 +23,26 @@ import (
 
 const shutdownTimeout = 10 * time.Second
 
+// repositories holds one repository per resource. A new resource adds a field here instead of a parameter to wire.
+type repositories struct {
+	collectors ports.CollectorRepository
+	personas   ports.PersonaRepository
+}
+
+// postgresRepositories returns the repositories backed by pool.
+func postgresRepositories(pool *pgxpool.Pool) repositories {
+	return repositories{
+		collectors: pgcollector.NewRepository(pool),
+		personas:   pgpersona.NewRepository(pool),
+	}
+}
+
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
-func wire(log *slog.Logger, collectors ports.CollectorRepository, personas ports.PersonaRepository) http.Handler {
+func wire(log *slog.Logger, repos repositories) http.Handler {
 	return httpadapter.NewHandler(log, httpadapter.Deps{
-		CreateCollector: createcollector.New(log, collectors, personas).Execute,
-		GetCollector:    getcollector.New(collectors).Execute,
-		GetPersona:      getpersona.New(personas).Execute,
+		CreateCollector: createcollector.New(log, repos.collectors, repos.personas).Execute,
+		GetCollector:    getcollector.New(repos.collectors).Execute,
+		GetPersona:      getpersona.New(repos.personas).Execute,
 	})
 }
 
@@ -48,7 +62,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer pool.Close()
 
-	return serve(ctx, newServer(cfg.HTTPAddr, wire(slog.Default(), pgcollector.NewRepository(pool), pgpersona.NewRepository(pool))))
+	return serve(ctx, newServer(cfg.HTTPAddr, wire(slog.Default(), postgresRepositories(pool))))
 }
 
 func newServer(addr string, handler http.Handler) *http.Server {
