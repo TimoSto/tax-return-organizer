@@ -30,7 +30,6 @@ Hexagonal slice is clean; main risks are in `SavePersona` and fake/Postgres drif
    - `UpdateItem` generates a throwaway UUID and overwrites it; consider an internal constructor taking the id.
 
 7. **Smaller points**
-   - `CHECK` doesn't catch JSON `null` literal in specs; add `jsonb_typeof(...) = 'object'`.
    - `toDomain` turns empty `metadataFields: []` into `nil` (nil-vs-empty subtlety).
    - API naming: `spec` (metadata field) vs `valueSpec` (item); pick one before clients depend on it.
    - `wire(log, collectors, personas)` grows a parameter per repository; use a `repositories` struct.
