@@ -97,6 +97,10 @@ classDiagram
         +CollectorID CollectorID
         +string Name
         +string Description
+        +ItemDefinition[] Items
+        +AddItem(...) ItemDefinition
+        +UpdateItem(UUID, ...) error
+        +RemoveItem(UUID) error
     }
 
     class ItemDefinition {
@@ -210,6 +214,7 @@ classDiagram
 
 Notes:
 - **Persona assignment is a live reference, generated items are snapshots.** A `ClientTaxYear` only references its `Persona`s, so renaming a persona or adding a definition shows up on the client immediately. `Generate()` expands each `ItemDefinition` of each assigned persona into `RequiredItem`s (12 for `monthly`, 4 `quarterly`, 2 `semiannually`, 1 `annually`, distinguished by `PeriodIndex`) and copies title, kind and spec into the item. Later edits to a persona therefore never silently change an existing list; `SyncItems()` is the explicit, optional way to pull in new definitions (it only adds items and leaves existing ones untouched).
+- **Persona is the aggregate root of its item definitions.** `ItemDefinition`s are only read and changed through their `Persona` and are loaded and saved together with it, so there is no separate item repository. The order of `Items` is the order the collector arranged. An item keeps its `ID` across edits (`RequiredItem.DefinitionID` points at it) and its `Kind` cannot change after creation; `UpdateItem` only replaces title, recurrence and spec.
 - **The client never sees personas.** A `RequiredItem` carries everything needed to render it (title, kind, spec, state), so the client view works on items alone. `DefinitionID` is only a back-reference used by `SyncItems()`.
 - **Two kinds of items.** `document` items are satisfied by uploaded `Document`s, `data` items by a single `DataEntry` whose `Value` has the type given by `ValueSpec.Type`. `Unit` is an optional free-text display label set by the collector (e.g. *EUR*, *days*, *km*) and is purely descriptive: the backend does no conversion, so EUR is a `number` with unit `EUR` stored as e.g. `12.50`, not cents. `Done()` is derived, there is no separate flag: documents → at least one `Document`; data → a `DataEntry` exists, or the spec is not `Required`. A `bool` entry of `false` still counts as entered; only a missing entry is outstanding.
 - **Shared `ValueSpec`.** `ItemDefinition.ValueSpec` (data items only) and `MetadataField.ValueSpec` are the same type (`Type`, `Unit`, `Required`), so type, unit and required-ness are defined in one place. `Type` is one of `text`, `number`, `date`, `bool`; a `Value` is a string, decimal (arbitrary precision, no floats), ISO-8601 date or boolean accordingly. `Unit` mostly makes sense for `number`.

@@ -61,7 +61,18 @@ type MetadataField struct {
 
 // DocumentSpec describes what is asked for a document item.
 type DocumentSpec struct {
+	// MetadataFields is nil, never empty, if the document has none: item definitions and repositories
+	// normalise it, so values compare equal after a round trip.
 	MetadataFields []MetadataField
+}
+
+// normalized returns a copy whose empty MetadataFields is nil.
+func (s DocumentSpec) normalized() DocumentSpec {
+	if len(s.MetadataFields) == 0 {
+		s.MetadataFields = nil
+	}
+
+	return s
 }
 
 // Validate checks that all metadata fields have a unique, non-blank name and a valid spec.
