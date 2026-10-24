@@ -8,6 +8,7 @@ import (
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
 )
 
@@ -28,7 +29,7 @@ func TestExecute_Success(t *testing.T) {
 		t.Fatalf("seed collector: %v", err)
 	}
 
-	got, err := getcollector.New(repo).Execute(context.Background(), want.ID)
+	got, err := getcollector.New(repo).Execute(tenant.WithCollector(context.Background(), want.ID))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -39,7 +40,7 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_NotFound(t *testing.T) {
-	got, err := getcollector.New(fakecollector.NewRepository()).Execute(context.Background(), "k7m2")
+	got, err := getcollector.New(fakecollector.NewRepository()).Execute(tenant.WithCollector(context.Background(), "k7m2"))
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
@@ -52,8 +53,15 @@ func TestExecute_NotFound(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := getcollector.New(failingRepo{err: boom}).Execute(context.Background(), "k7m2")
+	_, err := getcollector.New(failingRepo{err: boom}).Execute(tenant.WithCollector(context.Background(), "k7m2"))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want it to wrap %v", err, boom)
+	}
+}
+
+func TestExecute_NoTenant(t *testing.T) {
+	_, err := getcollector.New(fakecollector.NewRepository()).Execute(context.Background())
+	if !errors.Is(err, tenant.ErrNoTenant) {
+		t.Errorf("err = %v, want %v", err, tenant.ErrNoTenant)
 	}
 }

@@ -14,24 +14,17 @@ type getResponse struct {
 	Email string `json:"email"`
 }
 
-// Getter retrieves a collector by its id.
+// Getter retrieves the collector the request acts for (see tenant.WithCollector).
 type Getter interface {
-	Execute(ctx context.Context, id domain.CollectorID) (*domain.Collector, error)
+	Execute(ctx context.Context) (*domain.Collector, error)
 }
 
-// Get is GET /collectors/{id}.
+// Get is GET /collectors/{collectorId}.
 func Get(getter Getter) httpx.Route {
 	return httpx.Route{
-		Pattern: "GET /collectors/{id}",
+		Pattern: "GET /collectors/{collectorId}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			id, err := domain.ParseCollectorID(r.PathValue("id"))
-			if err != nil {
-				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid collector id"})
-
-				return
-			}
-
-			c, err := getter.Execute(r.Context(), id)
+			c, err := getter.Execute(r.Context())
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

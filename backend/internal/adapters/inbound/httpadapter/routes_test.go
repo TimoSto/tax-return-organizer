@@ -31,3 +31,16 @@ func TestNewHandler(t *testing.T) {
 		}
 	}
 }
+
+func TestNewHandler_InvalidCollectorID(t *testing.T) {
+	h := httpadapter.NewHandler(httpadapter.Deps{})
+
+	for _, path := range []string{"/collectors/!", "/collectors/!/personas", "/collectors/!/personas/3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("GET %s = %d, want 400", path, rec.Code)
+		}
+	}
+}

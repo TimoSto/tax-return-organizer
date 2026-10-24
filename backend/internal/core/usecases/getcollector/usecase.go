@@ -7,6 +7,7 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 )
 
 // Usecase is the getcollector use case.
@@ -19,8 +20,13 @@ func New(repo port.CollectorRepository) *Usecase {
 	return &Usecase{repo: repo}
 }
 
-// Execute retrieves a collector by its id.
-func (u *Usecase) Execute(ctx context.Context, id domain.CollectorID) (*domain.Collector, error) {
+// Execute retrieves the collector the context acts for.
+func (u *Usecase) Execute(ctx context.Context) (*domain.Collector, error) {
+	id, err := tenant.MustCollectorFrom(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get collector: %w", err)
+	}
+
 	c, err := u.repo.GetCollector(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get collector: %w", err)
