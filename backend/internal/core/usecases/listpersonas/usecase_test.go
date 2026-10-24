@@ -16,14 +16,24 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/listpersonas"
 )
 
-type failingRepo struct {
-	port.PersonaRepository
+// failingStore hands out repositories whose ListPersonas fails.
+type failingStore struct {
 	err error
 }
 
-func (r failingRepo) ListPersonas(context.Context, domain.CollectorID) ([]*domain.Persona, error) {
-	return nil, r.err
+func (s failingStore) For(domain.CollectorID) port.PersonaRepository { return failingRepo(s) }
+
+type failingRepo struct {
+	err error
 }
+
+func (failingRepo) GetPersona(context.Context, domain.PersonaID) (*domain.Persona, error) {
+	return nil, nil
+}
+
+func (r failingRepo) ListPersonas(context.Context) ([]*domain.Persona, error) { return nil, r.err }
+
+func (failingRepo) SavePersona(context.Context, *domain.Persona) error { return nil }
 
 // seededCollectors returns a collector repository that holds the collectors k7m2 and bbbb.
 func seededCollectors(t *testing.T) port.CollectorRepository {
@@ -41,19 +51,19 @@ func seededCollectors(t *testing.T) port.CollectorRepository {
 }
 
 func TestExecute_Success(t *testing.T) {
-	collectors, repo := seededCollectors(t), fakepersona.NewRepository()
+	collectors, store := seededCollectors(t), fakepersona.NewStore()
 	ctx := context.Background()
 	employed := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "Has a job")
 	letting := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Letting", "")
 	other := domaintest.Persona(domaintest.PersonaID(), "bbbb", "Other", "")
 
 	for _, p := range []*domain.Persona{letting, other, employed} {
-		if err := repo.SavePersona(ctx, p); err != nil {
+		if err := store.For(p.CollectorID()).SavePersona(ctx, p); err != nil {
 			t.Fatalf("seed persona: %v", err)
 		}
 	}
 
-	got, err := listpersonas.New(collectors, repo).Execute(tenant.WithCollector(ctx, "k7m2"))
+	got, err := listpersonas.New(collectors, store).Execute(tenant.WithCollector(ctx, "k7m2"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -64,7 +74,7 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_UnknownCollector(t *testing.T) {
-	got, err := listpersonas.New(fakecollector.NewRepository(), fakepersona.NewRepository()).Execute(tenant.WithCollector(context.Background(), "k7m2"))
+	got, err := listpersonas.New(fakecollector.NewRepository(), fakepersona.NewStore()).Execute(tenant.WithCollector(context.Background(), "k7m2"))
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
@@ -77,14 +87,14 @@ func TestExecute_UnknownCollector(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := listpersonas.New(seededCollectors(t), failingRepo{err: boom}).Execute(tenant.WithCollector(context.Background(), "k7m2"))
+	_, err := listpersonas.New(seededCollectors(t), failingStore{err: boom}).Execute(tenant.WithCollector(context.Background(), "k7m2"))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want wrapped %v", err, boom)
 	}
 }
 
 func TestExecute_NoTenant(t *testing.T) {
-	_, err := listpersonas.New(fakecollector.NewRepository(), fakepersona.NewRepository()).Execute(context.Background())
+	_, err := listpersonas.New(fakecollector.NewRepository(), fakepersona.NewStore()).Execute(context.Background())
 	if !errors.Is(err, tenant.ErrNoTenant) {
 		t.Errorf("err = %v, want %v", err, tenant.ErrNoTenant)
 	}

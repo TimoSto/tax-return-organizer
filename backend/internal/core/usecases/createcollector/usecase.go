@@ -96,7 +96,7 @@ func save(ctx context.Context, repos port.Repositories, c *domain.Collector, per
 	}
 
 	for _, p := range personas {
-		if err := repos.Personas.SavePersona(ctx, p); err != nil {
+		if err := repos.Personas.For(c.ID()).SavePersona(ctx, p); err != nil {
 			return fmt.Errorf("save persona %q: %w", p.Name(), err)
 		}
 	}

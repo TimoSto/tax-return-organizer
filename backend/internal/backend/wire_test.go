@@ -25,7 +25,7 @@ func newFakeRepositories() port.Repositories {
 		panic(err)
 	}
 
-	return port.Repositories{Collectors: collectors, Personas: fakepersona.NewRepository()}
+	return port.Repositories{Collectors: collectors, Personas: fakepersona.NewStore()}
 }
 
 type pinger struct{ err error }
@@ -130,7 +130,7 @@ func TestWire_GetPersona(t *testing.T) {
 	repos := newFakeRepositories()
 	p := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "")
 
-	if err := repos.Personas.SavePersona(context.Background(), p); err != nil {
+	if err := repos.Personas.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
@@ -156,7 +156,7 @@ func TestWire_ListPersonas(t *testing.T) {
 	repos := newFakeRepositories()
 	p := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "")
 
-	if err := repos.Personas.SavePersona(context.Background(), p); err != nil {
+	if err := repos.Personas.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 

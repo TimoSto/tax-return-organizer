@@ -13,12 +13,19 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 )
 
-// personaRecorder is a persona repository that only remembers what was saved.
+// personaRecorder is a persona store whose repositories only remember what was saved.
 type personaRecorder struct {
-	port.PersonaRepository
 	saved []*domain.Persona
 	err   error
 }
+
+func (r *personaRecorder) For(domain.CollectorID) port.PersonaRepository { return r }
+
+func (r *personaRecorder) GetPersona(context.Context, domain.PersonaID) (*domain.Persona, error) {
+	return nil, domain.ErrPersonaNotFound
+}
+
+func (r *personaRecorder) ListPersonas(context.Context) ([]*domain.Persona, error) { return nil, nil }
 
 func (r *personaRecorder) SavePersona(_ context.Context, p *domain.Persona) error {
 	if r.err != nil {
@@ -30,7 +37,7 @@ func (r *personaRecorder) SavePersona(_ context.Context, p *domain.Persona) erro
 	return nil
 }
 
-func newTransactor(repo port.CollectorRepository, personas port.PersonaRepository) *faketransactor.Transactor {
+func newTransactor(repo port.CollectorRepository, personas port.PersonaStore) *faketransactor.Transactor {
 	return faketransactor.New(port.Repositories{Collectors: repo, Personas: personas})
 }
 

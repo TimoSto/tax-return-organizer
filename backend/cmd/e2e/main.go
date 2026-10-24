@@ -98,7 +98,7 @@ func seed(ctx context.Context, dsn string) error {
 
 	create := createcollector.New(
 		pgdb.NewTransactor(pool, func(db pgdb.DBTX) port.Repositories {
-			return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewRepository(db)}
+			return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewStore(db)}
 		}),
 		templates.New(),
 		createcollector.WithIDGenerator(fixedCollectorID{}),

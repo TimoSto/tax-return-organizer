@@ -20,7 +20,7 @@ import (
 )
 
 func repositories(db pgdb.DBTX) port.Repositories {
-	return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewRepository(db)}
+	return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewStore(db)}
 }
 
 // newTransactor returns a transactor on an emptied database.
@@ -117,7 +117,7 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 			return err
 		}
 
-		if err := r.Personas.SavePersona(ctx, p); err != nil {
+		if err := r.Personas.For("aaaa").SavePersona(ctx, p); err != nil {
 			return err
 		}
 
@@ -137,15 +137,25 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 	}
 }
 
-// failingPersonas fails the n-th SavePersona, like a database error in the middle of creating a collector.
+// failingPersonas fails the n-th SavePersona, whichever collector's repository it goes through, like a database
+// error in the middle of creating a collector.
 type failingPersonas struct {
-	port.PersonaRepository
+	port.PersonaStore
 	failAt, calls int
 }
 
-func (r *failingPersonas) SavePersona(ctx context.Context, p *domain.Persona) error {
-	r.calls++
-	if r.calls == r.failAt {
+func (s *failingPersonas) For(id domain.CollectorID) port.PersonaRepository {
+	return &failingPersonaRepo{PersonaRepository: s.PersonaStore.For(id), store: s}
+}
+
+type failingPersonaRepo struct {
+	port.PersonaRepository
+	store *failingPersonas
+}
+
+func (r *failingPersonaRepo) SavePersona(ctx context.Context, p *domain.Persona) error {
+	r.store.calls++
+	if r.store.calls == r.store.failAt {
 		return errors.New("simulated persona failure")
 	}
 
@@ -157,7 +167,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 	failing := &failingPersonas{failAt: 2}
 	tx, pool := newTransactor(t, func(db pgdb.DBTX) port.Repositories {
 		r := repositories(db)
-		failing.PersonaRepository = r.Personas
+		failing.PersonaStore = r.Personas
 		r.Personas = failing
 
 		return r
@@ -190,7 +200,7 @@ func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
 		t.Fatalf("Execute: %v", err)
 	}
 
-	personas, err := pgpersona.NewRepository(pool).ListPersonas(context.Background(), id)
+	personas, err := pgpersona.NewStore(pool).For(id).ListPersonas(context.Background())
 	if err != nil {
 		t.Fatalf("ListPersonas: %v", err)
 	}

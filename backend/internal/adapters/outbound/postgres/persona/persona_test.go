@@ -16,8 +16,8 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/porttest"
 )
 
-func newRepo(pool *pgxpool.Pool) porttest.PersonaRepositoryFactory {
-	return func(t *testing.T, collectors ...domain.CollectorID) port.PersonaRepository {
+func newStore(pool *pgxpool.Pool) porttest.PersonaStoreFactory {
+	return func(t *testing.T, collectors ...domain.CollectorID) port.PersonaStore {
 		ctx := context.Background()
 
 		// personas reference collectors, so both tables are reset and the collectors re-seeded.
@@ -33,16 +33,20 @@ func newRepo(pool *pgxpool.Pool) porttest.PersonaRepositoryFactory {
 			}
 		}
 
-		return persona.NewRepository(pool)
+		return persona.NewStore(pool)
 	}
 }
 
 func TestPersonaRepository(t *testing.T) {
-	porttest.TestPersonaRepository(t, newRepo(postgrestest.RequirePool(t)))
+	porttest.TestPersonaRepository(t, newStore(postgrestest.RequirePool(t)))
 }
 
 func TestPersonaRepositoryList(t *testing.T) {
-	porttest.TestPersonaRepositoryList(t, newRepo(postgrestest.RequirePool(t)))
+	porttest.TestPersonaRepositoryList(t, newStore(postgrestest.RequirePool(t)))
+}
+
+func TestPersonaRepositoryIsolation(t *testing.T) {
+	porttest.TestPersonaRepositoryIsolation(t, newStore(postgrestest.RequirePool(t)))
 }
 
 // A JSON null literal passes the "spec matches kind" check, so only the object check can reject it.
@@ -90,9 +94,9 @@ func TestItemDefinitions_SpecsMustBeJSONObjects(t *testing.T) {
 // The repository does not check collectors, callers do. A persona for a missing collector hits the foreign key and
 // comes back as an unclassified error (HTTP 500), not as a domain error.
 func TestSavePersona_MissingCollector(t *testing.T) {
-	repo := newRepo(postgrestest.RequirePool(t))(t)
+	store := newStore(postgrestest.RequirePool(t))(t)
 
-	err := repo.SavePersona(context.Background(), domaintest.Persona(domaintest.PersonaID(), "zzzz", "Orphan", ""))
+	err := store.For("zzzz").SavePersona(context.Background(), domaintest.Persona(domaintest.PersonaID(), "zzzz", "Orphan", ""))
 	if err == nil {
 		t.Fatal("SavePersona() error = nil, want a foreign key error")
 	}

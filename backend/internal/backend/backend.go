@@ -32,7 +32,7 @@ const shutdownTimeout = 10 * time.Second
 func postgresRepositories(db pgdb.DBTX) port.Repositories {
 	return port.Repositories{
 		Collectors: pgcollector.NewRepository(db),
-		Personas:   pgpersona.NewRepository(db),
+		Personas:   pgpersona.NewStore(db),
 	}
 }
 

@@ -13,28 +13,42 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
-var _ port.PersonaRepository = (*Repository)(nil)
+var (
+	_ port.PersonaStore      = (*Store)(nil)
+	_ port.PersonaRepository = (*Repository)(nil)
+)
 
-// Repository is the Postgres implementation of port.PersonaRepository.
-type Repository struct {
+// Store is the Postgres implementation of port.PersonaStore.
+type Store struct {
 	db pgdb.DBTX
 }
 
-// NewRepository returns a repository backed by db, the pool or a transaction.
-func NewRepository(db pgdb.DBTX) *Repository {
-	return &Repository{db: db}
+// NewStore returns a store backed by db, the pool or a transaction.
+func NewStore(db pgdb.DBTX) *Store {
+	return &Store{db: db}
+}
+
+// For implements port.PersonaStore. The repository is a view on the same db, nothing is allocated per collector.
+func (s *Store) For(collectorID domain.CollectorID) port.PersonaRepository {
+	return &Repository{db: s.db, collectorID: collectorID}
+}
+
+// Repository is the Postgres implementation of port.PersonaRepository for one collector.
+type Repository struct {
+	db          pgdb.DBTX
+	collectorID domain.CollectorID
 }
 
 // GetPersona implements port.PersonaRepository.
 // Persona and items are read in one statement, so a concurrent SavePersona can never show up half-applied.
-func (r *Repository) GetPersona(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error) {
+func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
 		FROM personas p
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
 		WHERE p.id = $1 AND p.collector_id = $2
-		ORDER BY i.position`, uuid.UUID(id), string(collectorID))
+		ORDER BY i.position`, uuid.UUID(id), string(r.collectorID))
 	if err != nil {
 		return nil, fmt.Errorf("get persona: %w", err)
 	}
@@ -54,14 +68,14 @@ func (r *Repository) GetPersona(ctx context.Context, collectorID domain.Collecto
 
 // ListPersonas implements port.PersonaRepository.
 // Names sort bytewise (collation C), like the in-memory repository. An unknown collector yields an empty list, callers check the collector.
-func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
+func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
 		FROM personas p
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
 		WHERE p.collector_id = $1
-		ORDER BY p.name COLLATE "C", p.id, i.position`, string(collectorID))
+		ORDER BY p.name COLLATE "C", p.id, i.position`, string(r.collectorID))
 	if err != nil {
 		return nil, fmt.Errorf("list personas: %w", err)
 	}
@@ -77,6 +91,10 @@ func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.Collec
 
 // SavePersona implements port.PersonaRepository. Persona and items are written in one transaction.
 func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) error {
+	if persona.CollectorID() != r.collectorID {
+		return fmt.Errorf("save persona %s: %w", persona.ID(), port.ErrTenantMismatch)
+	}
+
 	items := make([]itemRow, 0, len(persona.Items()))
 
 	for _, item := range persona.Items() {

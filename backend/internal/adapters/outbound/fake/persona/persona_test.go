@@ -9,14 +9,18 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/porttest"
 )
 
-func newRepo(*testing.T, ...domain.CollectorID) port.PersonaRepository {
-	return persona.NewRepository()
+func newStore(*testing.T, ...domain.CollectorID) port.PersonaStore {
+	return persona.NewStore()
 }
 
 func TestPersonaRepository(t *testing.T) {
-	porttest.TestPersonaRepository(t, newRepo)
+	porttest.TestPersonaRepository(t, newStore)
 }
 
 func TestPersonaRepositoryList(t *testing.T) {
-	porttest.TestPersonaRepositoryList(t, newRepo)
+	porttest.TestPersonaRepositoryList(t, newStore)
+}
+
+func TestPersonaRepositoryIsolation(t *testing.T) {
+	porttest.TestPersonaRepositoryIsolation(t, newStore)
 }

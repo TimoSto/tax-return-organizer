@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 
@@ -12,26 +13,40 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
-var _ port.PersonaRepository = (*Repository)(nil)
+var (
+	_ port.PersonaStore      = (*Store)(nil)
+	_ port.PersonaRepository = (*Repository)(nil)
+)
 
-// Repository is an in-memory port.PersonaRepository. A persona is stored as one object including its items.
-type Repository struct {
+// Store is an in-memory port.PersonaStore. A persona is stored as one object including its items.
+type Store struct {
 	mu       sync.RWMutex
 	personas map[domain.PersonaID]domain.Persona
 }
 
-// NewRepository returns an empty repository.
-func NewRepository() *Repository {
-	return &Repository{personas: make(map[domain.PersonaID]domain.Persona)}
+// NewStore returns an empty store.
+func NewStore() *Store {
+	return &Store{personas: make(map[domain.PersonaID]domain.Persona)}
+}
+
+// For implements port.PersonaStore. The repositories of all collectors share the storage of the store.
+func (s *Store) For(collectorID domain.CollectorID) port.PersonaRepository {
+	return &Repository{store: s, collectorID: collectorID}
+}
+
+// Repository is the view of a Store on the personas of one collector.
+type Repository struct {
+	store       *Store
+	collectorID domain.CollectorID
 }
 
 // GetPersona implements port.PersonaRepository.
-func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *Repository) GetPersona(_ context.Context, id domain.PersonaID) (*domain.Persona, error) {
+	r.store.mu.RLock()
+	defer r.store.mu.RUnlock()
 
-	p, ok := r.personas[id]
-	if !ok || p.CollectorID() != collectorID {
+	p, ok := r.store.personas[id]
+	if !ok || p.CollectorID() != r.collectorID {
 		return nil, domain.ErrPersonaNotFound
 	}
 
@@ -39,14 +54,14 @@ func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorI
 }
 
 // ListPersonas implements port.PersonaRepository.
-func (r *Repository) ListPersonas(_ context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+func (r *Repository) ListPersonas(_ context.Context) ([]*domain.Persona, error) {
+	r.store.mu.RLock()
+	defer r.store.mu.RUnlock()
 
 	personas := make([]*domain.Persona, 0)
 
-	for _, p := range r.personas {
-		if p.CollectorID() == collectorID {
+	for _, p := range r.store.personas {
+		if p.CollectorID() == r.collectorID {
 			personas = append(personas, clone(&p))
 		}
 	}
@@ -60,14 +75,18 @@ func (r *Repository) ListPersonas(_ context.Context, collectorID domain.Collecto
 
 // SavePersona implements port.PersonaRepository.
 func (r *Repository) SavePersona(_ context.Context, persona *domain.Persona) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	if persona.CollectorID() != r.collectorID {
+		return fmt.Errorf("save persona %s: %w", persona.ID(), port.ErrTenantMismatch)
+	}
 
-	if existing, ok := r.personas[persona.ID()]; ok && existing.CollectorID() != persona.CollectorID() {
+	r.store.mu.Lock()
+	defer r.store.mu.Unlock()
+
+	if existing, ok := r.store.personas[persona.ID()]; ok && existing.CollectorID() != persona.CollectorID() {
 		return domain.ErrPersonaNotFound
 	}
 
-	for id, other := range r.personas {
+	for id, other := range r.store.personas {
 		if id == persona.ID() {
 			continue
 		}
@@ -79,7 +98,7 @@ func (r *Repository) SavePersona(_ context.Context, persona *domain.Persona) err
 		}
 	}
 
-	r.personas[persona.ID()] = *clone(persona)
+	r.store.personas[persona.ID()] = *clone(persona)
 
 	return nil
 }
