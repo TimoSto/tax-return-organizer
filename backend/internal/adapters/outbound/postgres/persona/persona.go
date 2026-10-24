@@ -47,45 +47,44 @@ func (r *Repository) GetPersona(ctx context.Context, collectorID domain.Collecto
 	}
 	defer rows.Close()
 
-	var persona *domain.Persona
-
-	for rows.Next() {
-		var (
-			p    personaRow
-			item nullableItemRow
-		)
-
-		if err := rows.Scan(&p.ID, &p.CollectorID, &p.Name, &p.Description,
-			&item.ID, &item.Title, &item.Kind, &item.Recurrence, &item.DocumentSpec, &item.ValueSpec); err != nil {
-			return nil, fmt.Errorf("get persona: scan: %w", err)
-		}
-
-		if persona == nil {
-			persona = p.toDomain()
-		}
-
-		// A persona without items yields one row with NULL item columns.
-		if item.ID == nil {
-			continue
-		}
-
-		domainItem, err := item.toRow().toDomain(persona.ID)
-		if err != nil {
-			return nil, fmt.Errorf("get persona: %w", err)
-		}
-
-		persona.Items = append(persona.Items, domainItem)
+	personas, _, err := scanPersonas(rows)
+	if err != nil {
+		return nil, fmt.Errorf("get persona: %w", err)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("get persona: read rows: %w", err)
-	}
-
-	if persona == nil {
+	if len(personas) == 0 {
 		return nil, domain.ErrPersonaNotFound
 	}
 
-	return persona, nil
+	return personas[0], nil
+}
+
+// ListPersonas implements ports.PersonaRepository.
+// Names sort bytewise (collation C), like the in-memory repository. The query starts at the collector, so an unknown collector (no rows) is told apart from one without personas.
+func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT p.id, p.collector_id, p.name, p.description,
+		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
+		FROM collectors c
+		LEFT JOIN personas p ON p.collector_id = c.id
+		LEFT JOIN item_definitions i ON i.persona_id = p.id
+		WHERE c.id = $1
+		ORDER BY p.name COLLATE "C", p.id, i.position`, string(collectorID))
+	if err != nil {
+		return nil, fmt.Errorf("list personas: %w", err)
+	}
+	defer rows.Close()
+
+	personas, found, err := scanPersonas(rows)
+	if err != nil {
+		return nil, fmt.Errorf("list personas: %w", err)
+	}
+
+	if !found {
+		return nil, domain.ErrCollectorNotFound
+	}
+
+	return personas, nil
 }
 
 // SavePersona implements ports.PersonaRepository. Persona and items are written in one transaction.
@@ -199,6 +198,69 @@ func saveItems(ctx context.Context, tx pgx.Tx, personaID uuid.UUID, items []item
 	}
 
 	return nil
+}
+
+// scanPersonas reads rows of persona and item columns ordered by persona. It reports whether there was any row
+// at all: a LEFT JOIN from collectors yields one row with NULL persona columns for a collector without personas.
+func scanPersonas(rows pgx.Rows) ([]*domain.Persona, bool, error) {
+	personas := make([]*domain.Persona, 0)
+	sawRow := false
+
+	var current *domain.Persona
+
+	for rows.Next() {
+		sawRow = true
+
+		var (
+			p    nullablePersonaRow
+			item nullableItemRow
+		)
+
+		if err := rows.Scan(&p.ID, &p.CollectorID, &p.Name, &p.Description,
+			&item.ID, &item.Title, &item.Kind, &item.Recurrence, &item.DocumentSpec, &item.ValueSpec); err != nil {
+			return nil, false, fmt.Errorf("scan: %w", err)
+		}
+
+		if p.ID == nil {
+			continue
+		}
+
+		if current == nil || current.ID != *p.ID {
+			current = p.toRow().toDomain()
+			personas = append(personas, current)
+		}
+
+		// A persona without items yields one row with NULL item columns.
+		if item.ID == nil {
+			continue
+		}
+
+		domainItem, err := item.toRow().toDomain(current.ID)
+		if err != nil {
+			return nil, false, err
+		}
+
+		current.Items = append(current.Items, domainItem)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, false, fmt.Errorf("read rows: %w", err)
+	}
+
+	return personas, sawRow, nil
+}
+
+// nullablePersonaRow holds the persona columns of an outer join, which are NULL if there is no persona.
+// ID is nil in that case, the other fields are only valid if it is not.
+type nullablePersonaRow struct {
+	ID          *uuid.UUID
+	CollectorID *string
+	Name        *string
+	Description *string
+}
+
+func (r nullablePersonaRow) toRow() personaRow {
+	return personaRow{ID: *r.ID, CollectorID: *r.CollectorID, Name: *r.Name, Description: *r.Description}
 }
 
 // personaRow mirrors the personas table and keeps SQL concerns out of the domain type.

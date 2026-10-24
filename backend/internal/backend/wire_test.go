@@ -107,3 +107,29 @@ func TestWire_GetPersona(t *testing.T) {
 		}
 	}
 }
+
+func TestWire_ListPersonas(t *testing.T) {
+	repos := newFakeRepositories()
+	p := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Employed"}
+
+	if err := repos.personas.SavePersona(context.Background(), p); err != nil {
+		t.Fatalf("seed persona: %v", err)
+	}
+
+	h := wire(repos)
+
+	for _, tc := range []struct {
+		name, path string
+		want       int
+	}{
+		{"found", "/collectors/k7m2/personas", http.StatusOK},
+		{"unknown collector", "/collectors/bbbb/personas", http.StatusNotFound},
+	} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
+
+		if rec.Code != tc.want {
+			t.Errorf("%s: status = %d, want %d", tc.name, rec.Code, tc.want)
+		}
+	}
+}

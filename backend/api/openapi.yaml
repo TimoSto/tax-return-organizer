@@ -113,6 +113,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /collectors/{collectorId}/personas:
+    get:
+      operationId: listPersonas
+      summary: List all personas of a collector
+      description: The personas come with their items, ordered by name and then id.
+      parameters:
+        - name: collectorId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[2-9a-hj-km-np-z]{4}$"
+            example: k7m2
+      responses:
+        "200":
+          description: The personas of the collector. Empty if it has none.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListPersonasResponse"
+        "400":
+          description: The collector id is invalid.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: No collector with this id exists.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Unexpected error. Details are only logged, quote the request id.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /collectors/{collectorId}/personas/{id}:
     get:
       operationId: getPersona
@@ -217,6 +267,15 @@ components:
         email:
           type: string
           example: jane@example.com
+    ListPersonasResponse:
+      type: object
+      required: [personas]
+      properties:
+        personas:
+          type: array
+          description: May be empty.
+          items:
+            $ref: "#/components/schemas/GetPersonaResponse"
     GetPersonaResponse:
       type: object
       required: [id, collectorId, name, description, items]

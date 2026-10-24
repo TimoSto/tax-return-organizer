@@ -25,3 +25,6 @@ type GetCollectorPort func(ctx context.Context, id domain.CollectorID) (*domain.
 
 // GetPersonaPort retrieves a persona of a collector by its id.
 type GetPersonaPort func(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error)
+
+// ListPersonasPort retrieves all personas of a collector.
+type ListPersonasPort func(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error)

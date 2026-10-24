@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest"
@@ -13,10 +14,8 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports/porttest"
 )
 
-func TestPersonaRepository(t *testing.T) {
-	pool := postgrestest.RequirePool(t)
-
-	porttest.TestPersonaRepository(t, func(t *testing.T, collectors ...domain.CollectorID) ports.PersonaRepository {
+func newRepo(pool *pgxpool.Pool) porttest.PersonaRepositoryFactory {
+	return func(t *testing.T, collectors ...domain.CollectorID) ports.PersonaRepository {
 		ctx := context.Background()
 
 		// personas reference collectors, so both tables are reset and the collectors re-seeded.
@@ -33,7 +32,15 @@ func TestPersonaRepository(t *testing.T) {
 		}
 
 		return persona.NewRepository(pool)
-	})
+	}
+}
+
+func TestPersonaRepository(t *testing.T) {
+	porttest.TestPersonaRepository(t, newRepo(postgrestest.RequirePool(t)))
+}
+
+func TestPersonaRepositoryList(t *testing.T) {
+	porttest.TestPersonaRepositoryList(t, newRepo(postgrestest.RequirePool(t)))
 }
 
 // A JSON null literal passes the "spec matches kind" check, so only the object check can reject it.

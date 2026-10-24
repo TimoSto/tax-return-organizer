@@ -16,6 +16,7 @@ type Deps struct {
 	CreateCollector ports.CreateCollectorPort
 	GetCollector    ports.GetCollectorPort
 	GetPersona      ports.GetPersonaPort
+	ListPersonas    ports.ListPersonasPort
 }
 
 // NewHandler registers all endpoints and wraps them in the middleware.
@@ -27,6 +28,7 @@ func NewHandler(d Deps) http.Handler {
 		collector.Create(d.CreateCollector),
 		collector.Get(d.GetCollector),
 		persona.Get(d.GetPersona),
+		persona.List(d.ListPersonas),
 	} {
 		mux.Handle(r.Pattern, r.Handler)
 	}

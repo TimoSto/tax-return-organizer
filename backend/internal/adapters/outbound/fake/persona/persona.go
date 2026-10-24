@@ -2,6 +2,8 @@
 package persona
 
 import (
+	"bytes"
+	"cmp"
 	"context"
 	"slices"
 	"sync"
@@ -38,6 +40,30 @@ func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorI
 	}
 
 	return clone(&p), nil
+}
+
+// ListPersonas implements ports.PersonaRepository.
+func (r *Repository) ListPersonas(_ context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if !slices.Contains(r.collectors, collectorID) {
+		return nil, domain.ErrCollectorNotFound
+	}
+
+	personas := make([]*domain.Persona, 0)
+
+	for _, p := range r.personas {
+		if p.CollectorID == collectorID {
+			personas = append(personas, clone(&p))
+		}
+	}
+
+	slices.SortFunc(personas, func(a, b *domain.Persona) int {
+		return cmp.Or(cmp.Compare(a.Name, b.Name), bytes.Compare(a.ID[:], b.ID[:]))
+	})
+
+	return personas, nil
 }
 
 // SavePersona implements ports.PersonaRepository.

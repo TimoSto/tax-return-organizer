@@ -1,6 +1,7 @@
 package porttest
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"slices"
@@ -215,4 +216,92 @@ func withPersonaID(personaID uuid.UUID, items ...domain.ItemDefinition) []domain
 	}
 
 	return out
+}
+
+// TestPersonaRepositoryList runs the contract tests of ListPersonas against repositories created by newRepo.
+func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
+	t.Helper()
+
+	ctx := context.Background()
+
+	const (
+		aliceID domain.CollectorID = "aaaa"
+		bobID   domain.CollectorID = "bbbb"
+		noneID  domain.CollectorID = "cccc"
+	)
+
+	payslip := domain.ItemDefinition{
+		ID: uuid.New(), Title: "Payslip", Kind: domain.KindDocument, Recurrence: domain.RecurrenceMonthly,
+		DocumentSpec: &domain.DocumentSpec{MetadataFields: []domain.MetadataField{
+			{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
+		}},
+	}
+	days := domain.ItemDefinition{
+		ID: uuid.New(), Title: "Commuting days", Kind: domain.KindData, Recurrence: domain.RecurrenceQuarterly,
+		ValueSpec: &domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
+	}
+	bobsDays := days
+	bobsDays.ID = uuid.New() // item ids are unique across all personas
+
+	// Names are compared bytewise, so "Zeta" sorts before "alpha". Equal names fall back to the id.
+	zeta := personaWithItems(aliceID, "Zeta", "Last", payslip, days)
+	alpha1 := personaWithItems(aliceID, "alpha", "")
+	alpha2 := personaWithItems(aliceID, "alpha", "")
+	bobs := personaWithItems(bobID, "Self-employed", "Freelancer", bobsDays)
+
+	alphas := []domain.Persona{alpha1, alpha2}
+	slices.SortFunc(alphas, func(a, b domain.Persona) int { return bytes.Compare(a.ID[:], b.ID[:]) })
+
+	for _, tc := range []struct {
+		name        string
+		saves       []domain.Persona
+		collectorID domain.CollectorID
+		exp         []*domain.Persona
+		expErr      error
+	}{
+		{
+			name:        "Lists personas with their items ordered by name and id",
+			saves:       []domain.Persona{alpha1, zeta, alpha2},
+			collectorID: aliceID,
+			exp:         []*domain.Persona{&zeta, &alphas[0], &alphas[1]},
+		},
+		{
+			name:        "Personas of other collectors are not listed",
+			saves:       []domain.Persona{zeta, bobs},
+			collectorID: bobID,
+			exp:         []*domain.Persona{&bobs},
+		},
+		{
+			name:        "A collector without personas yields an empty list",
+			saves:       []domain.Persona{zeta},
+			collectorID: noneID,
+			exp:         []*domain.Persona{},
+		},
+		{
+			name:        "An unknown collector is not found",
+			saves:       []domain.Persona{zeta},
+			collectorID: "zzzz",
+			expErr:      domain.ErrCollectorNotFound,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := newRepo(t, aliceID, bobID, noneID)
+
+			for _, p := range tc.saves {
+				if err := repo.SavePersona(ctx, &p); err != nil {
+					t.Fatalf("SavePersona() error = %v", err)
+				}
+			}
+
+			got, err := repo.ListPersonas(ctx, tc.collectorID)
+
+			if !errors.Is(err, tc.expErr) {
+				t.Fatalf("ListPersonas() error = %v, wantErr %v", err, tc.expErr)
+			}
+
+			if diff := cmp.Diff(tc.exp, got); diff != "" {
+				t.Errorf("ListPersonas() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
 }
