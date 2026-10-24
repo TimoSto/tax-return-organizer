@@ -64,12 +64,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /collectors/{id}:
+  /collectors/{collectorId}:
     get:
       operationId: getCollector
       summary: Get a collector by id
       parameters:
-        - name: id
+        - name: collectorId
           in: path
           required: true
           schema:

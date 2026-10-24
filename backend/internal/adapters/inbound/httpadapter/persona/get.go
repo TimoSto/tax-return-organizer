@@ -44,9 +44,9 @@ type valueSpecResponse struct {
 	Required bool   `json:"required"`
 }
 
-// Getter retrieves a persona of a collector by its id.
+// Getter retrieves a persona of the collector the request acts for by its id.
 type Getter interface {
-	Execute(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error)
+	Execute(ctx context.Context, id uuid.UUID) (*domain.Persona, error)
 }
 
 // Get is GET /collectors/{collectorId}/personas/{id}.
@@ -54,13 +54,6 @@ func Get(getter Getter) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas/{id}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			collectorID, err := domain.ParseCollectorID(r.PathValue("collectorId"))
-			if err != nil {
-				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid collector id"})
-
-				return
-			}
-
 			id, err := uuid.Parse(r.PathValue("id"))
 			if err != nil {
 				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid persona id"})
@@ -68,7 +61,7 @@ func Get(getter Getter) httpx.Route {
 				return
 			}
 
-			p, err := getter.Execute(r.Context(), collectorID, id)
+			p, err := getter.Execute(r.Context(), id)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 
