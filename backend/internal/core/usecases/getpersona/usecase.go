@@ -12,12 +12,12 @@ import (
 
 // Usecase is the getpersona use case.
 type Usecase struct {
-	repo port.PersonaRepository
+	personas port.PersonaStore
 }
 
-// New returns a use case that gets personas from repo.
-func New(repo port.PersonaRepository) *Usecase {
-	return &Usecase{repo: repo}
+// New returns a use case that gets personas from the persona store.
+func New(personas port.PersonaStore) *Usecase {
+	return &Usecase{personas: personas}
 }
 
 // Execute retrieves a persona of the collector the context acts for by its id.
@@ -27,7 +27,7 @@ func (u *Usecase) Execute(ctx context.Context, id domain.PersonaID) (*domain.Per
 		return nil, fmt.Errorf("get persona: %w", err)
 	}
 
-	p, err := u.repo.GetPersona(ctx, collectorID, id)
+	p, err := u.personas.For(collectorID).GetPersona(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get persona: %w", err)
 	}

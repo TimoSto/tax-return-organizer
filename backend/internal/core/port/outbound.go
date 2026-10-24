@@ -3,6 +3,7 @@ package port
 
 import (
 	"context"
+	"errors"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
@@ -13,7 +14,8 @@ type PersonaTemplateCatalog interface {
 	PersonaTemplates() []personatemplate.PersonaTemplate
 }
 
-// CollectorRepository persists collectors.
+// CollectorRepository persists collectors. It is deliberately not tenant-scoped: the collector is the tenant itself,
+// so it is looked up and created by id. Everything a collector owns is reached through a store (see PersonaStore).
 type CollectorRepository interface {
 	// GetCollector returns domain.ErrCollectorNotFound if no collector with the given id exists.
 	GetCollector(ctx context.Context, id domain.CollectorID) (*domain.Collector, error)
@@ -21,19 +23,35 @@ type CollectorRepository interface {
 	SaveCollector(ctx context.Context, collector *domain.Collector) error
 }
 
-// PersonaRepository persists personas together with their item definitions, which are part of the persona.
+// ErrTenantMismatch is returned when a repository bound to one collector is asked to save data of another. It is
+// deliberately not a domain error: it is a programming error (a use case picked the wrong repository), so it
+// surfaces as a 500 instead of being shown to the client.
+var ErrTenantMismatch = errors.New("entity belongs to another collector")
+
+// PersonaStore hands out persona repositories that are bound to one collector. Tenant isolation is structural: a
+// use case can only reach the personas of the collector it asked For, there is no method that takes a collector id.
+// A store is cheap and holds no per-collector state, For returns a small view on the shared storage.
+type PersonaStore interface {
+	For(collectorID domain.CollectorID) PersonaRepository
+}
+
+// PersonaRepository persists the personas of one collector (see PersonaStore.For) together with their item
+// definitions, which are part of the persona. Personas, and the ids of their items, of other collectors are not
+// visible through it.
 type PersonaRepository interface {
 	// GetPersona returns the persona with all its items in their stored order.
 	// It returns domain.ErrPersonaNotFound if the collector has no persona with the given id,
 	// which includes personas that belong to another collector.
-	GetPersona(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error)
+	GetPersona(ctx context.Context, id domain.PersonaID) (*domain.Persona, error)
 	// ListPersonas returns all personas of the collector with their items, ordered by name and then id.
 	// A collector without personas yields an empty list.
-	ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error)
+	ListPersonas(ctx context.Context) ([]*domain.Persona, error)
 	// SavePersona inserts the persona or, if its id exists already, replaces name, description and items.
 	// Items missing from persona.Items are deleted, the others keep their id.
-	// It returns domain.ErrPersonaNotFound if the id belongs to another collector,
-	// domain.ErrItemIDTaken if an item id is already used by another persona. Nothing is changed then.
+	// It returns ErrTenantMismatch if the persona belongs to another collector than the repository,
+	// domain.ErrPersonaNotFound if the id belongs to another collector,
+	// domain.ErrItemIDTaken if an item id is already used by another persona (of any collector, which
+	// tells a caller that the id exists elsewhere). Nothing is changed then.
 	// The collector is not checked here, callers verify it exists through CollectorRepository.
 	//
 	// There is no concurrency control: SavePersona replaces the whole persona, so the last save wins. Two
@@ -46,9 +64,10 @@ type PersonaRepository interface {
 }
 
 // Repositories groups the repositories that can take part in one transaction.
+// Resources owned by a collector are added as stores, never as plain repositories.
 type Repositories struct {
 	Collectors CollectorRepository
-	Personas   PersonaRepository
+	Personas   PersonaStore
 }
 
 // Transactor runs fn in a transaction. All repositories fn receives share it. The transaction commits if fn

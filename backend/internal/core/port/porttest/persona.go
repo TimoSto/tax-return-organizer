@@ -14,13 +14,14 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
-// PersonaRepositoryFactory returns an empty repository for the given test.
+// PersonaStoreFactory returns an empty store for the given test.
 // Implementations that enforce referential integrity (the foreign key to collectors) must make sure the given
-// collectors exist. The repository itself does not check collectors, callers do.
-type PersonaRepositoryFactory func(t *testing.T, collectors ...domain.CollectorID) port.PersonaRepository
+// collectors exist. The repositories themselves do not check collectors, callers do.
+type PersonaStoreFactory func(t *testing.T, collectors ...domain.CollectorID) port.PersonaStore
 
-// TestPersonaRepository runs the contract tests against repositories created by newRepo.
-func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
+// TestPersonaRepository runs the contract tests against stores created by newStore. Each persona is saved through
+// the repository of its own collector, as a use case would.
+func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -150,15 +151,15 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := newRepo(t, aliceID, bobID)
+			store := newStore(t, aliceID, bobID)
 
 			for _, p := range tc.saves {
-				if err := repo.SavePersona(ctx, p); err != nil && !errors.Is(err, tc.saveErr) {
+				if err := store.For(p.CollectorID()).SavePersona(ctx, p); err != nil && !errors.Is(err, tc.saveErr) {
 					t.Fatalf("SavePersona() error = %v, want nil or %v", err, tc.saveErr)
 				}
 			}
 
-			got, err := repo.GetPersona(ctx, tc.getCollector, tc.getID)
+			got, err := store.For(tc.getCollector).GetPersona(ctx, tc.getID)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("GetPersona() error = %v, wantErr %v", err, tc.expErr)
@@ -183,8 +184,8 @@ func variant(p *domain.Persona, name string, collectorID domain.CollectorID, ite
 	return domaintest.Persona(p.ID(), collectorID, name, p.Description(), items...)
 }
 
-// TestPersonaRepositoryList runs the contract tests of ListPersonas against repositories created by newRepo.
-func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
+// TestPersonaRepositoryList runs the contract tests of ListPersonas against stores created by newStore.
+func TestPersonaRepositoryList(t *testing.T, newStore PersonaStoreFactory) {
 	t.Helper()
 
 	ctx := context.Background()
@@ -240,15 +241,15 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := newRepo(t, aliceID, bobID, noneID)
+			store := newStore(t, aliceID, bobID, noneID)
 
 			for _, p := range tc.saves {
-				if err := repo.SavePersona(ctx, p); err != nil {
+				if err := store.For(p.CollectorID()).SavePersona(ctx, p); err != nil {
 					t.Fatalf("SavePersona() error = %v", err)
 				}
 			}
 
-			got, err := repo.ListPersonas(ctx, tc.collectorID)
+			got, err := store.For(tc.collectorID).ListPersonas(ctx)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("ListPersonas() error = %v, wantErr %v", err, tc.expErr)
@@ -258,6 +259,69 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 				t.Errorf("ListPersonas() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+// TestPersonaRepositoryIsolation runs the contract tests that a repository bound to one collector cannot reach the
+// personas of another one, whatever the caller passes.
+func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) {
+	t.Helper()
+
+	ctx := context.Background()
+
+	const (
+		aliceID domain.CollectorID = "aaaa"
+		bobID   domain.CollectorID = "bbbb"
+	)
+
+	alices := personaWithItems(aliceID, "Employed", "Has a job")
+	bobs := personaWithItems(bobID, "Self-employed", "Freelancer")
+
+	t.Run("A repository bound to another collector cannot get a persona by its id", func(t *testing.T) {
+		store := newStore(t, aliceID, bobID)
+		mustSave(t, store.For(aliceID), alices)
+
+		if _, err := store.For(bobID).GetPersona(ctx, alices.ID()); !errors.Is(err, domain.ErrPersonaNotFound) {
+			t.Errorf("GetPersona() error = %v, want %v", err, domain.ErrPersonaNotFound)
+		}
+	})
+
+	t.Run("A repository bound to another collector does not list the persona", func(t *testing.T) {
+		store := newStore(t, aliceID, bobID)
+		mustSave(t, store.For(aliceID), alices)
+		mustSave(t, store.For(bobID), bobs)
+
+		got, err := store.For(bobID).ListPersonas(ctx)
+		if err != nil {
+			t.Fatalf("ListPersonas() error = %v", err)
+		}
+
+		if diff := cmp.Diff([]*domain.Persona{bobs}, got, domaintest.CmpOptions()); diff != "" {
+			t.Errorf("ListPersonas() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("Saving a persona of another collector is rejected and changes nothing", func(t *testing.T) {
+		store := newStore(t, aliceID, bobID)
+
+		if err := store.For(aliceID).SavePersona(ctx, bobs); !errors.Is(err, port.ErrTenantMismatch) {
+			t.Fatalf("SavePersona() error = %v, want %v", err, port.ErrTenantMismatch)
+		}
+
+		for _, id := range []domain.CollectorID{aliceID, bobID} {
+			got, err := store.For(id).ListPersonas(ctx)
+			if err != nil || len(got) != 0 {
+				t.Errorf("ListPersonas(%s) = %v, %v, want an empty list", id, got, err)
+			}
+		}
+	})
+}
+
+func mustSave(t *testing.T, repo port.PersonaRepository, p *domain.Persona) {
+	t.Helper()
+
+	if err := repo.SavePersona(context.Background(), p); err != nil {
+		t.Fatalf("SavePersona() error = %v", err)
 	}
 }
 
