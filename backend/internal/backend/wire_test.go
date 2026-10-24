@@ -3,7 +3,6 @@ package backend
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,7 +24,7 @@ func newFakeRepositories() repositories {
 }
 
 func TestWire_CreateCollector(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), newFakeRepositories())
+	h := wire(newFakeRepositories())
 
 	req := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
 	rec := httptest.NewRecorder()
@@ -37,7 +36,7 @@ func TestWire_CreateCollector(t *testing.T) {
 }
 
 func TestWire_Healthz(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), newFakeRepositories())
+	h := wire(newFakeRepositories())
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
@@ -52,7 +51,7 @@ func TestWire_Healthz(t *testing.T) {
 }
 
 func TestWire_GetCollector(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), newFakeRepositories())
+	h := wire(newFakeRepositories())
 
 	create := httptest.NewRecorder()
 	h.ServeHTTP(create, httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`)))
@@ -73,7 +72,7 @@ func TestWire_GetCollector(t *testing.T) {
 }
 
 func TestWire_GetCollector_NotFound(t *testing.T) {
-	h := wire(slog.New(slog.DiscardHandler), newFakeRepositories())
+	h := wire(newFakeRepositories())
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/k7m2", nil))
@@ -91,7 +90,7 @@ func TestWire_GetPersona(t *testing.T) {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	h := wire(slog.New(slog.DiscardHandler), repos)
+	h := wire(repos)
 
 	for _, tc := range []struct {
 		name, path string

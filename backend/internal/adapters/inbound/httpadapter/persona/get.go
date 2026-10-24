@@ -2,7 +2,6 @@
 package persona
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -46,32 +45,32 @@ type valueSpecResponse struct {
 }
 
 // Get is GET /collectors/{collectorId}/personas/{id}.
-func Get(log *slog.Logger, get ports.GetPersonaPort) httpx.Route {
+func Get(get ports.GetPersonaPort) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas/{id}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			collectorID, err := domain.ParseCollectorID(r.PathValue("collectorId"))
 			if err != nil {
-				httpx.WriteJSON(log, w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid collector id"})
+				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid collector id"})
 
 				return
 			}
 
 			id, err := uuid.Parse(r.PathValue("id"))
 			if err != nil {
-				httpx.WriteJSON(log, w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid persona id"})
+				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid persona id"})
 
 				return
 			}
 
 			p, err := get(r.Context(), collectorID, id)
 			if err != nil {
-				httpx.WriteError(log, w, r, err)
+				httpx.WriteError(w, r, err)
 
 				return
 			}
 
-			httpx.WriteJSON(log, w, http.StatusOK, newGetResponse(p))
+			httpx.WriteJSON(w, http.StatusOK, newGetResponse(p))
 		}),
 	}
 }

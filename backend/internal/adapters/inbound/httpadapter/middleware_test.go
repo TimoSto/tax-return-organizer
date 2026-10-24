@@ -11,11 +11,22 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter"
 )
 
+// captureLogs makes the default logger write to logs until the test ends. Tests using it must not run in parallel.
+func captureLogs(t *testing.T, logs *bytes.Buffer) {
+	t.Helper()
+
+	prev := slog.Default()
+
+	slog.SetDefault(slog.New(slog.NewTextHandler(logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+}
+
 func TestMiddleware_RecoversPanic(t *testing.T) {
 	var logs bytes.Buffer
 
-	log := slog.New(slog.NewTextHandler(&logs, nil))
-	h := httpadapter.Middleware(log, http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("boom") }))
+	captureLogs(t, &logs)
+
+	h := httpadapter.Middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("boom") }))
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/x", nil))
@@ -36,8 +47,9 @@ func TestMiddleware_RecoversPanic(t *testing.T) {
 func TestMiddleware_LogsRequest(t *testing.T) {
 	var logs bytes.Buffer
 
-	log := slog.New(slog.NewTextHandler(&logs, nil))
-	h := httpadapter.Middleware(log, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	captureLogs(t, &logs)
+
+	h := httpadapter.Middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTeapot)
 	}))
 

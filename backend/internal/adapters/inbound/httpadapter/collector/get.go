@@ -1,7 +1,6 @@
 package collector
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
@@ -16,25 +15,25 @@ type getResponse struct {
 }
 
 // Get is GET /collectors/{id}.
-func Get(log *slog.Logger, get ports.GetCollectorPort) httpx.Route {
+func Get(get ports.GetCollectorPort) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{id}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			id, err := domain.ParseCollectorID(r.PathValue("id"))
 			if err != nil {
-				httpx.WriteJSON(log, w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid collector id"})
+				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid collector id"})
 
 				return
 			}
 
 			c, err := get(r.Context(), id)
 			if err != nil {
-				httpx.WriteError(log, w, r, err)
+				httpx.WriteError(w, r, err)
 
 				return
 			}
 
-			httpx.WriteJSON(log, w, http.StatusOK, getResponse{ID: c.ID.String(), Name: c.Name, Email: c.Email})
+			httpx.WriteJSON(w, http.StatusOK, getResponse{ID: c.ID.String(), Name: c.Name, Email: c.Email})
 		}),
 	}
 }
