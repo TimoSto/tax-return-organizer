@@ -20,11 +20,26 @@ const maxIDAttempts = 5
 type Usecase struct {
 	repo     ports.CollectorRepository
 	personas ports.PersonaRepository
+	newID    func() (domain.CollectorID, error)
+}
+
+// Option customizes a Usecase.
+type Option func(*Usecase)
+
+// WithIDGenerator replaces the random collector id generation, e.g. to seed a collector with a well-known id.
+func WithIDGenerator(newID func() (domain.CollectorID, error)) Option {
+	return func(u *Usecase) { u.newID = newID }
 }
 
 // New returns a use case that stores collectors in repo and gives each the predefined personas in personas.
-func New(repo ports.CollectorRepository, personas ports.PersonaRepository) *Usecase {
-	return &Usecase{repo: repo, personas: personas}
+func New(repo ports.CollectorRepository, personas ports.PersonaRepository, opts ...Option) *Usecase {
+	u := &Usecase{repo: repo, personas: personas, newID: domain.NewCollectorID}
+
+	for _, opt := range opts {
+		opt(u)
+	}
+
+	return u
 }
 
 // Execute creates and persists a collector with the predefined personas in the requested locale and returns its id.
@@ -35,7 +50,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd ports.CreateCollectorCmd) (do
 	}
 
 	for range maxIDAttempts {
-		id, err := domain.NewCollectorID()
+		id, err := u.newID()
 		if err != nil {
 			return "", err
 		}

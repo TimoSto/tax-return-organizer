@@ -185,3 +185,17 @@ func TestExecute_PersonaFailureKeepsCollector(t *testing.T) {
 		t.Errorf("collector not saved: %v", err)
 	}
 }
+
+func TestExecute_WithIDGenerator(t *testing.T) {
+	repo := fakecollector.NewRepository()
+	uc := createcollector.New(repo, &personaRecorder{}, createcollector.WithIDGenerator(func() (domain.CollectorID, error) { return "aaaa", nil }))
+
+	id, err := uc.Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if id != "aaaa" {
+		t.Errorf("id = %q, want aaaa", id)
+	}
+}
