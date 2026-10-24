@@ -2,11 +2,13 @@
 package collector
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 )
 
 type createRequest struct {
@@ -20,8 +22,13 @@ type createResponse struct {
 	ID string `json:"id"`
 }
 
+// Creator creates a collector and returns its id.
+type Creator interface {
+	Execute(ctx context.Context, cmd createcollector.Command) (domain.CollectorID, error)
+}
+
 // Create is POST /collectors.
-func Create(create ports.CreateCollectorPort) httpx.Route {
+func Create(creator Creator) httpx.Route {
 	return httpx.Route{
 		Pattern: "POST /collectors",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +43,7 @@ func Create(create ports.CreateCollectorPort) httpx.Route {
 				return
 			}
 
-			id, err := create(r.Context(), ports.CreateCollectorCmd{Name: req.Name, Email: req.Email, Locale: req.Locale})
+			id, err := creator.Execute(r.Context(), createcollector.Command{Name: req.Name, Email: req.Email, Locale: req.Locale})
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

@@ -1,11 +1,11 @@
 package collector
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 type getResponse struct {
@@ -14,8 +14,13 @@ type getResponse struct {
 	Email string `json:"email"`
 }
 
+// Getter retrieves a collector by its id.
+type Getter interface {
+	Execute(ctx context.Context, id domain.CollectorID) (*domain.Collector, error)
+}
+
 // Get is GET /collectors/{id}.
-func Get(get ports.GetCollectorPort) httpx.Route {
+func Get(getter Getter) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{id}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +31,7 @@ func Get(get ports.GetCollectorPort) httpx.Route {
 				return
 			}
 
-			c, err := get(r.Context(), id)
+			c, err := getter.Execute(r.Context(), id)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

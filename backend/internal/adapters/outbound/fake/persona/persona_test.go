@@ -5,11 +5,11 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports/porttest"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/porttest"
 )
 
-func newRepo(_ *testing.T, collectors ...domain.CollectorID) ports.PersonaRepository {
+func newRepo(_ *testing.T, collectors ...domain.CollectorID) port.PersonaRepository {
 	return persona.NewRepository(collectors...)
 }
 

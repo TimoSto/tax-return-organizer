@@ -11,15 +11,15 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
 // uniqueViolation is the SQLSTATE of a violated unique or primary key constraint.
 const uniqueViolation = "23505"
 
-var _ ports.CollectorRepository = (*Repository)(nil)
+var _ port.CollectorRepository = (*Repository)(nil)
 
-// Repository is the Postgres implementation of ports.CollectorRepository.
+// Repository is the Postgres implementation of port.CollectorRepository.
 type Repository struct {
 	db pgdb.DBTX
 }
@@ -29,7 +29,7 @@ func NewRepository(db pgdb.DBTX) *Repository {
 	return &Repository{db: db}
 }
 
-// GetCollector implements ports.CollectorRepository.
+// GetCollector implements port.CollectorRepository.
 func (r *Repository) GetCollector(ctx context.Context, id domain.CollectorID) (*domain.Collector, error) {
 	var row collectorRow
 
@@ -45,7 +45,7 @@ func (r *Repository) GetCollector(ctx context.Context, id domain.CollectorID) (*
 	return row.toDomain(), nil
 }
 
-// SaveCollector implements ports.CollectorRepository.
+// SaveCollector implements port.CollectorRepository.
 func (r *Repository) SaveCollector(ctx context.Context, collector *domain.Collector) error {
 	row := newCollectorRow(collector)
 

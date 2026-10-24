@@ -7,12 +7,12 @@ import (
 
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 type failingRepo struct {
-	ports.CollectorRepository
+	port.CollectorRepository
 	err error
 }
 

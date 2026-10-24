@@ -10,10 +10,15 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-func doList(t *testing.T, list ports.ListPersonasPort, method, collectorID string) *httptest.ResponseRecorder {
+type listFunc func(context.Context, domain.CollectorID) ([]*domain.Persona, error)
+
+func (f listFunc) Execute(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
+	return f(ctx, collectorID)
+}
+
+func doList(t *testing.T, list listFunc, method, collectorID string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors/"+collectorID+"/personas", nil)

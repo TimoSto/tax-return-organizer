@@ -29,9 +29,9 @@ go build -o bin/docker ./cmd/docker
 ## Backend architecture (hexagonal)
 
 - `internal/core/domain` — entities and validation (`Collector`, `CollectorID`, `Email`), plus sentinel errors (`ErrCollectorNotFound`, `ErrCollectorIDTaken`). Collector IDs are short strings, not UUIDs (see migration `0002`), unlike the README diagram.
-- `internal/ports` — `inbound.go` (use-case interfaces, e.g. `CreateCollectorPort`) and `outbound.go` (repository interfaces). `ports/porttest` holds shared contract tests that every repository implementation (fake and postgres) runs.
+- `internal/core/port` — outbound ports (repository interfaces, `Transactor`) owned by the core. `port/porttest` holds shared contract tests that every repository implementation (fake and postgres) runs. There are no inbound port types: `httpadapter` resource packages declare the small interfaces (e.g. `collector.Creator`) the use cases must satisfy, and `backend.wire` assigns the use cases to them.
 - `internal/core/usecases/<name>` — one package per use case (`New(repo).Execute`).
-- `internal/adapters/inbound/httpadapter` — routes, middleware, per-resource subpackages; `httpx` has shared HTTP helpers. Handlers depend on use-case function values via `Deps`.
+- `internal/adapters/inbound/httpadapter` — routes, middleware, per-resource subpackages; `httpx` has shared HTTP helpers. Handlers depend on use cases via the interfaces in `Deps`.
 - `internal/adapters/outbound/{postgres,fake}/<resource>` — repository implementations in per-resource subpackages. Postgres migrations are embedded SQL in `postgres/migrations` (numbered `NNNN_name.up|down.sql`) and applied by `postgres.Migrate` on startup.
 - `internal/backend` — composition root: `wire()` builds use cases on repositories and returns the HTTP handler; `Run` migrates, connects, serves, and shuts down gracefully. New use cases must be wired here and added to `httpadapter.Deps`.
 

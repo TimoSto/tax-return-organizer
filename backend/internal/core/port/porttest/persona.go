@@ -11,12 +11,12 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
 // PersonaRepositoryFactory returns an empty repository for the given test.
 // Implementations that enforce referential integrity must make sure the given collectors exist.
-type PersonaRepositoryFactory func(t *testing.T, collectors ...domain.CollectorID) ports.PersonaRepository
+type PersonaRepositoryFactory func(t *testing.T, collectors ...domain.CollectorID) port.PersonaRepository
 
 // TestPersonaRepository runs the contract tests against repositories created by newRepo.
 func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {

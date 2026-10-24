@@ -10,12 +10,12 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports/porttest"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/porttest"
 )
 
 func newRepo(pool *pgxpool.Pool) porttest.PersonaRepositoryFactory {
-	return func(t *testing.T, collectors ...domain.CollectorID) ports.PersonaRepository {
+	return func(t *testing.T, collectors ...domain.CollectorID) port.PersonaRepository {
 		ctx := context.Background()
 
 		// personas reference collectors, so both tables are reset and the collectors re-seeded.

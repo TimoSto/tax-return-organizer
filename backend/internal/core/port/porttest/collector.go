@@ -9,11 +9,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
 // CollectorRepositoryFactory returns an empty repository for the given test.
-type CollectorRepositoryFactory func(t *testing.T) ports.CollectorRepository
+type CollectorRepositoryFactory func(t *testing.T) port.CollectorRepository
 
 // TestCollectorRepository runs the contract tests against repositories created by newRepo.
 func TestCollectorRepository(t *testing.T, newRepo CollectorRepositoryFactory) {

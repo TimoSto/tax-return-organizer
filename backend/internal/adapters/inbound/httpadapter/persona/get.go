@@ -2,13 +2,13 @@
 package persona
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 type getResponse struct {
@@ -44,8 +44,13 @@ type valueSpecResponse struct {
 	Required bool   `json:"required"`
 }
 
+// Getter retrieves a persona of a collector by its id.
+type Getter interface {
+	Execute(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error)
+}
+
 // Get is GET /collectors/{collectorId}/personas/{id}.
-func Get(get ports.GetPersonaPort) httpx.Route {
+func Get(getter Getter) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas/{id}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +68,7 @@ func Get(get ports.GetPersonaPort) httpx.Route {
 				return
 			}
 
-			p, err := get(r.Context(), collectorID, id)
+			p, err := getter.Execute(r.Context(), collectorID, id)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

@@ -16,19 +16,19 @@ import (
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getpersona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/listpersonas"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 const shutdownTimeout = 10 * time.Second
 
 // postgresRepositories returns one repository per resource on db, which is the pool or a transaction.
-// A new resource adds a field to ports.Repositories and a line here.
-func postgresRepositories(db pgdb.DBTX) ports.Repositories {
-	return ports.Repositories{
+// A new resource adds a field to port.Repositories and a line here.
+func postgresRepositories(db pgdb.DBTX) port.Repositories {
+	return port.Repositories{
 		Collectors: pgcollector.NewRepository(db),
 		Personas:   pgpersona.NewRepository(db),
 	}
@@ -36,12 +36,12 @@ func postgresRepositories(db pgdb.DBTX) ports.Repositories {
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
 // Reads use repos directly, writes that span several repositories go through tx.
-func wire(repos ports.Repositories, tx ports.Transactor) http.Handler {
+func wire(repos port.Repositories, tx port.Transactor) http.Handler {
 	return httpadapter.NewHandler(httpadapter.Deps{
-		CreateCollector: createcollector.New(tx).Execute,
-		GetCollector:    getcollector.New(repos.Collectors).Execute,
-		GetPersona:      getpersona.New(repos.Personas).Execute,
-		ListPersonas:    listpersonas.New(repos.Personas).Execute,
+		CreateCollector: createcollector.New(tx),
+		GetCollector:    getcollector.New(repos.Collectors),
+		GetPersona:      getpersona.New(repos.Personas),
+		ListPersonas:    listpersonas.New(repos.Personas),
 	})
 }
 
