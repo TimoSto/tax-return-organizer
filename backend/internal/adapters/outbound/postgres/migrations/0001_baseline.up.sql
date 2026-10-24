@@ -1,3 +1,20 @@
+-- Collector ids are short, URL-friendly codes (no 0, 1, i, l, o).
+CREATE TABLE collectors (
+    id    text PRIMARY KEY,
+    name  text NOT NULL,
+    email text NOT NULL,
+    CONSTRAINT collectors_id_format CHECK (id ~ '^[2-9a-hj-km-np-z]{4}$')
+);
+
+CREATE TABLE personas (
+    id           uuid PRIMARY KEY,
+    collector_id text NOT NULL REFERENCES collectors (id),
+    name         text NOT NULL,
+    description  text NOT NULL DEFAULT ''
+);
+
+CREATE INDEX personas_collector_id_idx ON personas (collector_id);
+
 CREATE TABLE item_definitions (
     id            uuid PRIMARY KEY,
     persona_id    uuid NOT NULL REFERENCES personas (id) ON DELETE CASCADE,

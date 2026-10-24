@@ -28,7 +28,7 @@ go build -o bin/docker ./cmd/docker
 
 ## Backend architecture (hexagonal)
 
-- `internal/core/domain` — entities and validation (`Collector`, `CollectorID`, `Email`), plus sentinel errors (`ErrCollectorNotFound`, `ErrCollectorIDTaken`). Collector IDs are short strings, not UUIDs (see migration `0002`), unlike the README diagram.
+- `internal/core/domain` — entities and validation (`Collector`, `CollectorID`, `Email`), plus sentinel errors (`ErrCollectorNotFound`, `ErrCollectorIDTaken`). Collector IDs are short strings, not UUIDs (see the baseline migration), unlike the README diagram.
 - `internal/core/port` — outbound ports (repository interfaces, `Transactor`) owned by the core. `port/porttest` holds shared contract tests that every repository implementation (fake and postgres) runs. There are no inbound port types: `httpadapter` resource packages declare the small interfaces (e.g. `collector.Creator`) the use cases must satisfy, and `backend.wire` assigns the use cases to them.
 - `internal/core/usecases/<name>` — one package per use case (`New(repo).Execute`).
 - `internal/adapters/inbound/httpadapter` — routes, middleware, per-resource subpackages; `httpx` has shared HTTP helpers. Handlers depend on use cases via the interfaces in `Deps`.
