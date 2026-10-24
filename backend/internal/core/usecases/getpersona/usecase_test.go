@@ -10,6 +10,7 @@ import (
 
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getpersona"
@@ -26,25 +27,20 @@ func (r failingRepo) GetPersona(context.Context, domain.CollectorID, domain.Pers
 
 func TestExecute_Success(t *testing.T) {
 	repo := fakepersona.NewRepository("k7m2")
-	id := domain.PersonaID(uuid.New())
-	want := &domain.Persona{
-		ID: id, CollectorID: "k7m2", Name: "Employed", Description: "Has a job",
-		Items: []domain.ItemDefinition{{
-			ID: domain.ItemID(uuid.New()), Title: "Payslip",
-			Recurrence: domain.RecurrenceMonthly, Spec: domain.DocumentSpec{},
-		}},
-	}
+	id := domaintest.PersonaID()
+	want := domaintest.Persona(id, "k7m2", "Employed", "Has a job",
+		domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}))
 
 	if err := repo.SavePersona(context.Background(), want); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	got, err := getpersona.New(repo).Execute(tenant.WithCollector(context.Background(), want.CollectorID), want.ID)
+	got, err := getpersona.New(repo).Execute(tenant.WithCollector(context.Background(), want.CollectorID()), want.ID())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, got, domaintest.CmpOptions()); diff != "" {
 		t.Errorf("persona mismatch (-want +got):\n%s", diff)
 	}
 }
@@ -62,13 +58,13 @@ func TestExecute_NotFound(t *testing.T) {
 
 func TestExecute_OtherCollector(t *testing.T) {
 	repo := fakepersona.NewRepository("k7m2")
-	p := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "k7m2", Name: "Employed"}
+	p := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "")
 
 	if err := repo.SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	_, err := getpersona.New(repo).Execute(tenant.WithCollector(context.Background(), "bbbb"), p.ID)
+	_, err := getpersona.New(repo).Execute(tenant.WithCollector(context.Background(), "bbbb"), p.ID())
 	if !errors.Is(err, domain.ErrPersonaNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrPersonaNotFound)
 	}

@@ -73,30 +73,31 @@ func Get(getter Getter) httpx.Route {
 
 func newGetResponse(p *domain.Persona) getResponse {
 	// Never null, so clients can iterate without a check.
-	items := make([]itemResponse, 0, len(p.Items))
+	pItems := p.Items()
+	items := make([]itemResponse, 0, len(pItems))
 
-	for _, item := range p.Items {
+	for _, item := range pItems {
 		items = append(items, newItemResponse(item))
 	}
 
 	return getResponse{
-		ID:          p.ID.String(),
-		CollectorID: p.CollectorID.String(),
-		Name:        p.Name,
-		Description: p.Description,
+		ID:          p.ID().String(),
+		CollectorID: p.CollectorID().String(),
+		Name:        p.Name(),
+		Description: p.Description(),
 		Items:       items,
 	}
 }
 
 func newItemResponse(item domain.ItemDefinition) itemResponse {
 	resp := itemResponse{
-		ID:         item.ID.String(),
-		Title:      item.Title,
+		ID:         item.ID().String(),
+		Title:      item.Title(),
 		Kind:       string(item.Kind()),
-		Recurrence: string(item.Recurrence),
+		Recurrence: string(item.Recurrence()),
 	}
 
-	switch spec := item.Spec.(type) {
+	switch spec := item.Spec().(type) {
 	case domain.DocumentSpec:
 		fields := make([]metadataFieldResponse, 0, len(spec.MetadataFields))
 		for _, f := range spec.MetadataFields {

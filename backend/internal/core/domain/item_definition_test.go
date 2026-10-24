@@ -103,11 +103,11 @@ func TestNewItemDefinition(t *testing.T) {
 				return
 			}
 
-			if item.Title != tc.expTitle || item.Kind() != tc.expKind || item.Recurrence != tc.recurrence {
+			if item.Title() != tc.expTitle || item.Kind() != tc.expKind || item.Recurrence() != tc.recurrence {
 				t.Errorf("unexpected item %+v", item)
 			}
 
-			if item.ID == (domain.ItemID{}) {
+			if item.ID() == (domain.ItemID{}) {
 				t.Error("item has no id")
 			}
 		})

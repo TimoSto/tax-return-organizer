@@ -16,8 +16,8 @@ func TestPersonaTemplates_InstantiateInEveryLocale(t *testing.T) {
 				continue
 			}
 
-			if len(p.Items) != len(tmpl.Items) {
-				t.Errorf("%s/%s: %d items, want %d", l, p.Name, len(p.Items), len(tmpl.Items))
+			if len(p.Items()) != len(tmpl.Items) {
+				t.Errorf("%s/%s: %d items, want %d", l, p.Name(), len(p.Items()), len(tmpl.Items))
 			}
 		}
 	}
@@ -52,8 +52,8 @@ func TestPersonaTemplate_InstantiateUsesLocale(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if p.Name != "Angestellt" {
-		t.Errorf("name = %q, want Angestellt", p.Name)
+	if p.Name() != "Angestellt" {
+		t.Errorf("name = %q, want Angestellt", p.Name())
 	}
 }
 
@@ -63,7 +63,7 @@ func TestPersonaTemplate_InstantiateCreatesFreshIDs(t *testing.T) {
 	a, _ := tmpl.Instantiate(domain.RandomIDs{}, "k7m2", domain.LocaleEN)
 	b, _ := tmpl.Instantiate(domain.RandomIDs{}, "k7m2", domain.LocaleEN)
 
-	if a.ID == b.ID || a.Items[0].ID == b.Items[0].ID {
+	if a.ID() == b.ID() || a.Items()[0].ID() == b.Items()[0].ID() {
 		t.Error("two instances share ids")
 	}
 }

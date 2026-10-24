@@ -7,6 +7,7 @@ import (
 
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
@@ -23,13 +24,13 @@ func (r failingRepo) GetCollector(context.Context, domain.CollectorID) (*domain.
 
 func TestExecute_Success(t *testing.T) {
 	repo := fakecollector.NewRepository()
-	want := &domain.Collector{ID: "k7m2", Name: "Jane", Email: "jane@example.com"}
+	want := domaintest.Collector("k7m2", "Jane", "jane@example.com")
 
 	if err := repo.SaveCollector(context.Background(), want); err != nil {
 		t.Fatalf("seed collector: %v", err)
 	}
 
-	got, err := getcollector.New(repo).Execute(tenant.WithCollector(context.Background(), want.ID))
+	got, err := getcollector.New(repo).Execute(tenant.WithCollector(context.Background(), want.ID()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

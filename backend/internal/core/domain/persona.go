@@ -21,37 +21,78 @@ var (
 
 // Persona groups the items a client has to provide if they do something tax relevant, e.g. "Employed".
 // It is the aggregate root of its item definitions: they are only read and changed through the persona.
+// Create personas with NewPersona or RehydratePersona, so they are always valid.
 type Persona struct {
-	ID          PersonaID
-	CollectorID CollectorID
-	Name        string
-	Description string
-	// Items are in the order the collector arranged them.
-	Items []ItemDefinition
+	id          PersonaID
+	collectorID CollectorID
+	name        string
+	description string
+	// items are in the order the collector arranged them.
+	items []ItemDefinition
 }
 
-// NewPersona validates the input and returns a persona with the given id.
+// NewPersona validates the input and returns a persona with the given id and no items.
 func NewPersona(id PersonaID, collectorID CollectorID, name, description string) (*Persona, error) {
+	return RehydratePersona(id, collectorID, name, description, nil)
+}
+
+// RehydratePersona rebuilds a persona that was stored earlier, e.g. when a repository loads it. It applies the same
+// rules as NewPersona, so corrupt stored data is reported instead of becoming an invalid persona. The items are
+// copied.
+func RehydratePersona(
+	id PersonaID, collectorID CollectorID, name, description string, items []ItemDefinition,
+) (*Persona, error) {
 	name, description = strings.TrimSpace(name), strings.TrimSpace(description)
 
 	if name == "" {
 		return nil, ErrPersonaNameRequired
 	}
 
-	return &Persona{ID: id, CollectorID: collectorID, Name: name, Description: description}, nil
+	p := &Persona{id: id, collectorID: collectorID, name: name, description: description}
+	for _, item := range items {
+		p.items = append(p.items, cloneItem(item))
+	}
+
+	return p, nil
 }
 
-// AddItem validates the input, appends a new item definition and returns a copy of it.
-// Changes to the copy do not affect the persona, use UpdateItem for that.
+// ID returns the id of the persona.
+func (p *Persona) ID() PersonaID { return p.id }
+
+// CollectorID returns the collector the persona belongs to.
+func (p *Persona) CollectorID() CollectorID { return p.collectorID }
+
+// Name returns the name of the persona.
+func (p *Persona) Name() string { return p.name }
+
+// Description returns the description of the persona, which may be empty.
+func (p *Persona) Description() string { return p.description }
+
+// Items returns the item definitions in the order the collector arranged them. The result is a copy:
+// use AddItem, UpdateItem and RemoveItem to change the persona.
+func (p *Persona) Items() []ItemDefinition {
+	if p.items == nil {
+		return nil
+	}
+
+	items := make([]ItemDefinition, len(p.items))
+	for i, item := range p.items {
+		items[i] = cloneItem(item)
+	}
+
+	return items
+}
+
+// AddItem validates the input, appends a new item definition and returns it.
 func (p *Persona) AddItem(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
 	item, err := NewItemDefinition(id, title, recurrence, spec)
 	if err != nil {
 		return ItemDefinition{}, err
 	}
 
-	p.Items = append(p.Items, *item)
+	p.items = append(p.items, item)
 
-	return *item, nil
+	return cloneItem(item), nil
 }
 
 // UpdateItem replaces title, recurrence and spec of an item. The id and the kind stay the same,
@@ -62,16 +103,16 @@ func (p *Persona) UpdateItem(id ItemID, title string, recurrence Recurrence, spe
 		return fmt.Errorf("%w: %s", ErrItemNotFound, id)
 	}
 
-	if spec != nil && spec.Kind() != p.Items[i].Kind() {
-		return fmt.Errorf("%w: a %s item cannot get a %s spec", ErrSpecMismatch, p.Items[i].Kind(), spec.Kind())
+	if spec != nil && spec.Kind() != p.items[i].Kind() {
+		return fmt.Errorf("%w: a %s item cannot get a %s spec", ErrSpecMismatch, p.items[i].Kind(), spec.Kind())
 	}
 
-	updated, err := buildItemDefinition(id, title, recurrence, spec)
+	updated, err := NewItemDefinition(id, title, recurrence, spec)
 	if err != nil {
 		return err
 	}
 
-	p.Items[i] = *updated
+	p.items[i] = updated
 
 	return nil
 }
@@ -83,11 +124,17 @@ func (p *Persona) RemoveItem(id ItemID) error {
 		return fmt.Errorf("%w: %s", ErrItemNotFound, id)
 	}
 
-	p.Items = slices.Delete(p.Items, i, i+1)
+	p.items = slices.Delete(p.items, i, i+1)
 
 	return nil
 }
 
 func (p *Persona) itemIndex(id ItemID) int {
-	return slices.IndexFunc(p.Items, func(item ItemDefinition) bool { return item.ID == id })
+	return slices.IndexFunc(p.items, func(item ItemDefinition) bool { return item.id == id })
+}
+
+func cloneItem(item ItemDefinition) ItemDefinition {
+	item.spec = cloneSpec(item.spec)
+
+	return item
 }

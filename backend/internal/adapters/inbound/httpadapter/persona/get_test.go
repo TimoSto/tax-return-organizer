@@ -12,6 +12,7 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 )
 
@@ -45,7 +46,7 @@ func TestGetPersona_OK(t *testing.T) {
 	rec := doGet(t, func(_ context.Context, id domain.PersonaID) (*domain.Persona, error) {
 		gotID = id
 
-		return &domain.Persona{ID: testID, CollectorID: testCollectorID, Name: "Employed", Description: "Has a job"}, nil
+		return domaintest.Persona(testID, testCollectorID, "Employed", "Has a job"), nil
 	}, http.MethodGet, testID.String())
 
 	if rec.Code != http.StatusOK {
@@ -97,26 +98,16 @@ func TestGetPersona_MethodNotAllowed(t *testing.T) {
 }
 
 func TestGetPersona_Items(t *testing.T) {
-	docID, dataID := domain.ItemID(uuid.New()), domain.ItemID(uuid.New())
+	docID, dataID := domaintest.ItemID(), domaintest.ItemID()
 
 	rec := doGet(t, func(context.Context, domain.PersonaID) (*domain.Persona, error) {
-		return &domain.Persona{
-			ID: testID, CollectorID: testCollectorID, Name: "Employed",
-			Items: []domain.ItemDefinition{
-				{
-					ID: docID, Title: "Payslip",
-					Recurrence: domain.RecurrenceMonthly,
-					Spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
-						{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
-					}},
-				},
-				{
-					ID: dataID, Title: "Commuting days",
-					Recurrence: domain.RecurrenceAnnually,
-					Spec:       domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days"},
-				},
-			},
-		}, nil
+		return domaintest.Persona(testID, testCollectorID, "Employed", "",
+			domaintest.Item(docID, "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{MetadataFields: []domain.MetadataField{
+				{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
+			}}),
+			domaintest.Item(dataID, "Commuting days", domain.RecurrenceAnnually,
+				domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days"}),
+		), nil
 	}, http.MethodGet, testID.String())
 
 	if rec.Code != http.StatusOK {

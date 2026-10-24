@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
@@ -29,47 +29,34 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 		bobID   domain.CollectorID = "bbbb"
 	)
 
-	payslip := domain.ItemDefinition{
-		ID: newItemID(), Title: "Payslip", Recurrence: domain.RecurrenceMonthly,
-		Spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
+	payslip := domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly,
+		domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 			{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
 			{Name: "Gross", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "EUR"}},
-		}},
-	}
-	notice := domain.ItemDefinition{
-		ID: newItemID(), Title: "Tax notice", Recurrence: domain.RecurrenceAnnually,
-		Spec: domain.DocumentSpec{},
-	}
-	days := domain.ItemDefinition{
-		ID: newItemID(), Title: "Commuting days", Recurrence: domain.RecurrenceQuarterly,
-		Spec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
-	}
+		}})
+	notice := domaintest.Item(domaintest.ItemID(), "Tax notice", domain.RecurrenceAnnually, domain.DocumentSpec{})
+	days := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly,
+		domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true})
 
 	employed := personaWithItems(aliceID, "Employed", "Has a job", payslip, notice, days)
-	employedRearranged := employed
-	employedRearranged.Name = "Employed (renamed)"
-	employedRearranged.Items = []domain.ItemDefinition{days, payslip}
-	employedReduced := employed
-	employedReduced.Items = []domain.ItemDefinition{notice}
-	employedCleared := employed
-	employedCleared.Items = nil
-	hijack := employed
-	hijack.CollectorID = bobID
-	hijack.Name = "Hijacked"
+	employedRearranged := variant(employed, "Employed (renamed)", aliceID, days, payslip)
+	employedReduced := variant(employed, "Employed", aliceID, notice)
+	employedCleared := variant(employed, "Employed", aliceID)
+	hijack := variant(employed, "Hijacked", bobID, payslip, notice, days)
 	letting := personaWithItems(aliceID, "Letting", "")
-	emptyFields := notice // explicit empty slice, which repositories may report as nil
-	emptyFields.ID = newItemID()
-	emptyFields.Spec = domain.DocumentSpec{MetadataFields: []domain.MetadataField{}}
+	// explicit empty slice, which repositories may report as nil
+	emptyFields := domaintest.Item(domaintest.ItemID(), "Tax notice", domain.RecurrenceAnnually,
+		domain.DocumentSpec{MetadataFields: []domain.MetadataField{}})
 	withEmptyFields := personaWithItems(aliceID, "Empty fields", "", emptyFields)
 	orphan := personaWithItems("zzzz", "Orphan", "")                    // no such collector
 	stolenItem := personaWithItems(aliceID, "Stolen item", "", payslip) // payslip belongs to employed
-	bobsDays := days
-	bobsDays.ID = newItemID() // item ids are unique across all personas
+	// item ids are unique across all personas
+	bobsDays := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly, days.Spec())
 	bobs := personaWithItems(bobID, "Self-employed", "Freelancer", bobsDays)
 
 	for _, tc := range []struct {
 		name         string
-		saves        []domain.Persona
+		saves        []*domain.Persona
 		getCollector domain.CollectorID
 		getID        domain.PersonaID
 		exp          *domain.Persona
@@ -78,73 +65,73 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 	}{
 		{
 			name:         "Get saved persona with its items in order",
-			saves:        []domain.Persona{employed},
+			saves:        []*domain.Persona{employed},
 			getCollector: aliceID,
-			getID:        employed.ID,
-			exp:          &employed,
+			getID:        employed.ID(),
+			exp:          employed,
 		},
 		{
 			name:         "A document spec with an empty list of metadata fields round-trips",
-			saves:        []domain.Persona{withEmptyFields},
+			saves:        []*domain.Persona{withEmptyFields},
 			getCollector: aliceID,
-			getID:        withEmptyFields.ID,
-			exp:          &withEmptyFields,
+			getID:        withEmptyFields.ID(),
+			exp:          withEmptyFields,
 		},
 		{
 			name:         "Get persona with empty description and no items",
-			saves:        []domain.Persona{letting},
+			saves:        []*domain.Persona{letting},
 			getCollector: aliceID,
-			getID:        letting.ID,
-			exp:          &letting,
+			getID:        letting.ID(),
+			exp:          letting,
 		},
 		{
 			name:         "Saving again replaces the persona, reorders items and keeps their ids",
-			saves:        []domain.Persona{employed, employedRearranged},
+			saves:        []*domain.Persona{employed, employedRearranged},
 			getCollector: aliceID,
-			getID:        employed.ID,
-			exp:          &employedRearranged,
+			getID:        employed.ID(),
+			exp:          employedRearranged,
 		},
 		{
 			name:         "Saving again deletes removed items",
-			saves:        []domain.Persona{employed, employedReduced},
+			saves:        []*domain.Persona{employed, employedReduced},
 			getCollector: aliceID,
-			getID:        employed.ID,
-			exp:          &employedReduced,
+			getID:        employed.ID(),
+			exp:          employedReduced,
 		},
 		{
 			name:         "Saving again without items deletes all items",
-			saves:        []domain.Persona{employed, employedCleared},
+			saves:        []*domain.Persona{employed, employedCleared},
 			getCollector: aliceID,
-			getID:        employed.ID,
-			exp:          &employedCleared,
+			getID:        employed.ID(),
+			exp:          employedCleared,
 		},
 		{
 			name:         "Saving a persona id of another collector is rejected and keeps the original",
-			saves:        []domain.Persona{employed, hijack},
+			saves:        []*domain.Persona{employed, hijack},
 			saveErr:      domain.ErrPersonaNotFound,
 			getCollector: aliceID,
-			getID:        employed.ID,
-			exp:          &employed,
+			getID:        employed.ID(),
+			exp:          employed,
 		},
 		{
 			name:         "Saving an item id used by another persona is rejected",
-			saves:        []domain.Persona{employed, stolenItem},
+			saves:        []*domain.Persona{employed, stolenItem},
 			saveErr:      domain.ErrItemIDTaken,
 			getCollector: aliceID,
-			getID:        stolenItem.ID,
+			getID:        stolenItem.ID(),
 			expErr:       domain.ErrPersonaNotFound,
 		},
 		{
 			name:         "Saving a persona for an unknown collector is rejected",
-			saves:        []domain.Persona{orphan},
+			saves:        []*domain.Persona{orphan},
 			saveErr:      domain.ErrUnknownCollector,
 			getCollector: "zzzz",
-			getID:        orphan.ID,
+			getID:        orphan.ID(),
 			expErr:       domain.ErrPersonaNotFound,
 		},
 		{
 			name:         "Get unknown persona",
-			saves:        []domain.Persona{employed},
+			saves:        []*domain.Persona{employed},
 			getCollector: aliceID,
 			getID:        newPersonaID(),
 			expErr:       domain.ErrPersonaNotFound,
@@ -152,29 +139,29 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 		{
 			name:         "Get from empty repository",
 			getCollector: aliceID,
-			getID:        employed.ID,
+			getID:        employed.ID(),
 			expErr:       domain.ErrPersonaNotFound,
 		},
 		{
 			name:         "Persona of another collector is not found",
-			saves:        []domain.Persona{employed, bobs},
+			saves:        []*domain.Persona{employed, bobs},
 			getCollector: bobID,
-			getID:        employed.ID,
+			getID:        employed.ID(),
 			expErr:       domain.ErrPersonaNotFound,
 		},
 		{
 			name:         "Other personas are left untouched",
-			saves:        []domain.Persona{employed, letting, bobs},
+			saves:        []*domain.Persona{employed, letting, bobs},
 			getCollector: bobID,
-			getID:        bobs.ID,
-			exp:          &bobs,
+			getID:        bobs.ID(),
+			exp:          bobs,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := newRepo(t, aliceID, bobID)
 
 			for _, p := range tc.saves {
-				if err := repo.SavePersona(ctx, &p); err != nil && !errors.Is(err, tc.saveErr) {
+				if err := repo.SavePersona(ctx, p); err != nil && !errors.Is(err, tc.saveErr) {
 					t.Fatalf("SavePersona() error = %v, want nil or %v", err, tc.saveErr)
 				}
 			}
@@ -185,7 +172,7 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 				t.Fatalf("GetPersona() error = %v, wantErr %v", err, tc.expErr)
 			}
 
-			if diff := cmp.Diff(tc.exp, got, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.exp, got, domaintest.CmpOptions()); diff != "" {
 				t.Errorf("GetPersona() mismatch (-want +got):\n%s", diff)
 			}
 		})
@@ -193,11 +180,15 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 }
 
 // personaWithItems returns a persona with the given items, or none.
-func personaWithItems(collectorID domain.CollectorID, name, description string, items ...domain.ItemDefinition) domain.Persona {
-	p := domain.Persona{ID: newPersonaID(), CollectorID: collectorID, Name: name, Description: description}
-	p.Items = slices.Clone(items)
+func personaWithItems(
+	collectorID domain.CollectorID, name, description string, items ...domain.ItemDefinition,
+) *domain.Persona {
+	return domaintest.Persona(domaintest.PersonaID(), collectorID, name, description, items...)
+}
 
-	return p
+// variant returns a persona with the id of p but another name, collector and items.
+func variant(p *domain.Persona, name string, collectorID domain.CollectorID, items ...domain.ItemDefinition) *domain.Persona {
+	return domaintest.Persona(p.ID(), collectorID, name, p.Description(), items...)
 }
 
 // TestPersonaRepositoryList runs the contract tests of ListPersonas against repositories created by newRepo.
@@ -212,18 +203,14 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 		noneID  domain.CollectorID = "cccc"
 	)
 
-	payslip := domain.ItemDefinition{
-		ID: newItemID(), Title: "Payslip", Recurrence: domain.RecurrenceMonthly,
-		Spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
+	payslip := domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly,
+		domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 			{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
-		}},
-	}
-	days := domain.ItemDefinition{
-		ID: newItemID(), Title: "Commuting days", Recurrence: domain.RecurrenceQuarterly,
-		Spec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
-	}
-	bobsDays := days
-	bobsDays.ID = newItemID() // item ids are unique across all personas
+		}})
+	days := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly,
+		domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true})
+	// item ids are unique across all personas
+	bobsDays := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly, days.Spec())
 
 	// Names are compared bytewise, so "Zeta" sorts before "alpha". Equal names fall back to the id.
 	zeta := personaWithItems(aliceID, "Zeta", "Last", payslip, days)
@@ -231,37 +218,37 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 	alpha2 := personaWithItems(aliceID, "alpha", "")
 	bobs := personaWithItems(bobID, "Self-employed", "Freelancer", bobsDays)
 
-	alphas := []domain.Persona{alpha1, alpha2}
-	slices.SortFunc(alphas, func(a, b domain.Persona) int { return bytes.Compare(a.ID[:], b.ID[:]) })
+	alphas := []*domain.Persona{alpha1, alpha2}
+	slices.SortFunc(alphas, func(a, b *domain.Persona) int { return compareIDs(a.ID(), b.ID()) })
 
 	for _, tc := range []struct {
 		name        string
-		saves       []domain.Persona
+		saves       []*domain.Persona
 		collectorID domain.CollectorID
 		exp         []*domain.Persona
 		expErr      error
 	}{
 		{
 			name:        "Lists personas with their items ordered by name and id",
-			saves:       []domain.Persona{alpha1, zeta, alpha2},
+			saves:       []*domain.Persona{alpha1, zeta, alpha2},
 			collectorID: aliceID,
-			exp:         []*domain.Persona{&zeta, &alphas[0], &alphas[1]},
+			exp:         []*domain.Persona{zeta, alphas[0], alphas[1]},
 		},
 		{
 			name:        "Personas of other collectors are not listed",
-			saves:       []domain.Persona{zeta, bobs},
+			saves:       []*domain.Persona{zeta, bobs},
 			collectorID: bobID,
-			exp:         []*domain.Persona{&bobs},
+			exp:         []*domain.Persona{bobs},
 		},
 		{
 			name:        "A collector without personas yields an empty list",
-			saves:       []domain.Persona{zeta},
+			saves:       []*domain.Persona{zeta},
 			collectorID: noneID,
 			exp:         []*domain.Persona{},
 		},
 		{
 			name:        "An unknown collector is not found",
-			saves:       []domain.Persona{zeta},
+			saves:       []*domain.Persona{zeta},
 			collectorID: "zzzz",
 			expErr:      domain.ErrCollectorNotFound,
 		},
@@ -270,7 +257,7 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 			repo := newRepo(t, aliceID, bobID, noneID)
 
 			for _, p := range tc.saves {
-				if err := repo.SavePersona(ctx, &p); err != nil {
+				if err := repo.SavePersona(ctx, p); err != nil {
 					t.Fatalf("SavePersona() error = %v", err)
 				}
 			}
@@ -281,27 +268,13 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 				t.Fatalf("ListPersonas() error = %v, wantErr %v", err, tc.expErr)
 			}
 
-			if diff := cmp.Diff(tc.exp, got, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.exp, got, domaintest.CmpOptions()); diff != "" {
 				t.Errorf("ListPersonas() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-func newPersonaID() domain.PersonaID {
-	id, err := domain.RandomIDs{}.NewPersonaID()
-	if err != nil {
-		panic(err)
-	}
+func newPersonaID() domain.PersonaID { return domaintest.PersonaID() }
 
-	return id
-}
-
-func newItemID() domain.ItemID {
-	id, err := domain.RandomIDs{}.NewItemID()
-	if err != nil {
-		panic(err)
-	}
-
-	return id
-}
+func compareIDs(a, b domain.PersonaID) int { return bytes.Compare(a[:], b[:]) }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 )
 
@@ -35,7 +36,7 @@ func doGet(t *testing.T, get getFunc, method string) *httptest.ResponseRecorder 
 
 func TestGetCollector_OK(t *testing.T) {
 	rec := doGet(t, func(context.Context) (*domain.Collector, error) {
-		return &domain.Collector{ID: testID, Name: "Jane", Email: "jane@example.com"}, nil
+		return domaintest.Collector(testID, "Jane", "jane@example.com"), nil
 	}, http.MethodGet)
 
 	if rec.Code != http.StatusOK {

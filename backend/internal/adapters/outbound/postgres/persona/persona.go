@@ -89,9 +89,9 @@ func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.Collec
 
 // SavePersona implements port.PersonaRepository. Persona and items are written in one transaction.
 func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) error {
-	items := make([]itemRow, 0, len(persona.Items))
+	items := make([]itemRow, 0, len(persona.Items()))
 
-	for _, item := range persona.Items {
+	for _, item := range persona.Items() {
 		row, err := newItemRow(item)
 		if err != nil {
 			return fmt.Errorf("save persona: %w", err)
@@ -110,7 +110,7 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 		return err
 	}
 
-	if err := saveItems(ctx, tx, uuid.UUID(persona.ID), items); err != nil {
+	if err := saveItems(ctx, tx, uuid.UUID(persona.ID()), items); err != nil {
 		return err
 	}
 
@@ -206,7 +206,26 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, bool, error) {
 	personas := make([]*domain.Persona, 0)
 	sawRow := false
 
-	var current *domain.Persona
+	var (
+		current *personaRow
+		items   []domain.ItemDefinition
+	)
+
+	// flush builds the persona collected so far. A persona is only complete once all its rows have been read.
+	flush := func() error {
+		if current == nil {
+			return nil
+		}
+
+		persona, err := current.toDomain(items)
+		if err != nil {
+			return err
+		}
+
+		personas = append(personas, persona)
+
+		return nil
+	}
 
 	for rows.Next() {
 		sawRow = true
@@ -225,9 +244,13 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, bool, error) {
 			continue
 		}
 
-		if current == nil || uuid.UUID(current.ID) != *p.ID {
-			current = p.toRow().toDomain()
-			personas = append(personas, current)
+		if current == nil || current.ID != *p.ID {
+			if err := flush(); err != nil {
+				return nil, false, err
+			}
+
+			row := p.toRow()
+			current, items = &row, nil
 		}
 
 		// A persona without items yields one row with NULL item columns.
@@ -240,11 +263,15 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, bool, error) {
 			return nil, false, err
 		}
 
-		current.Items = append(current.Items, domainItem)
+		items = append(items, domainItem)
 	}
 
 	if err := rows.Err(); err != nil {
 		return nil, false, fmt.Errorf("read rows: %w", err)
+	}
+
+	if err := flush(); err != nil {
+		return nil, false, err
 	}
 
 	return personas, sawRow, nil
@@ -272,14 +299,17 @@ type personaRow struct {
 }
 
 func newPersonaRow(p *domain.Persona) personaRow {
-	return personaRow{ID: uuid.UUID(p.ID), CollectorID: string(p.CollectorID), Name: p.Name, Description: p.Description}
+	return personaRow{
+		ID: uuid.UUID(p.ID()), CollectorID: string(p.CollectorID()), Name: p.Name(), Description: p.Description(),
+	}
 }
 
-func (r personaRow) toDomain() *domain.Persona {
-	return &domain.Persona{
-		ID:          domain.PersonaID(r.ID),
-		CollectorID: domain.CollectorID(r.CollectorID),
-		Name:        r.Name,
-		Description: r.Description,
+func (r personaRow) toDomain(items []domain.ItemDefinition) (*domain.Persona, error) {
+	p, err := domain.RehydratePersona(
+		domain.PersonaID(r.ID), domain.CollectorID(r.CollectorID), r.Name, r.Description, items)
+	if err != nil {
+		return nil, fmt.Errorf("stored persona %s: %w", r.ID, err)
 	}
+
+	return p, nil
 }

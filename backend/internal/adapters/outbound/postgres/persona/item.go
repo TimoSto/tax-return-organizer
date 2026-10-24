@@ -60,11 +60,13 @@ type documentSpecJSON struct {
 }
 
 func newItemRow(item domain.ItemDefinition) (itemRow, error) {
-	row := itemRow{ID: uuid.UUID(item.ID), Title: item.Title, Kind: string(item.Kind()), Recurrence: string(item.Recurrence)}
+	row := itemRow{
+		ID: uuid.UUID(item.ID()), Title: item.Title(), Kind: string(item.Kind()), Recurrence: string(item.Recurrence()),
+	}
 
 	var err error
 
-	switch spec := item.Spec.(type) {
+	switch spec := item.Spec().(type) {
 	case domain.DocumentSpec:
 		if row.DocumentSpec, err = json.Marshal(newDocumentSpecJSON(spec)); err != nil {
 			return itemRow{}, fmt.Errorf("encode document spec: %w", err)
@@ -74,7 +76,7 @@ func newItemRow(item domain.ItemDefinition) (itemRow, error) {
 			return itemRow{}, fmt.Errorf("encode value spec: %w", err)
 		}
 	default:
-		return itemRow{}, fmt.Errorf("item %s: %w: spec %T", item.ID, errUnknownValue, item.Spec)
+		return itemRow{}, fmt.Errorf("item %s: %w: spec %T", item.ID(), errUnknownValue, item.Spec())
 	}
 
 	return row, nil
@@ -84,17 +86,22 @@ func newItemRow(item domain.ItemDefinition) (itemRow, error) {
 // the kind to the spec columns, so unknown values and inconsistent rows are rejected here instead of being
 // passed on to the domain.
 func (r itemRow) toDomain() (domain.ItemDefinition, error) {
-	recurrence := domain.Recurrence(r.Recurrence)
-	if !recurrence.Valid() {
-		return domain.ItemDefinition{}, fmt.Errorf("item %s: %w: recurrence %q", r.ID, errUnknownValue, r.Recurrence)
-	}
-
 	spec, err := r.spec()
 	if err != nil {
 		return domain.ItemDefinition{}, err
 	}
 
-	return domain.ItemDefinition{ID: domain.ItemID(r.ID), Title: r.Title, Recurrence: recurrence, Spec: spec}, nil
+	recurrence := domain.Recurrence(r.Recurrence)
+	if !recurrence.Valid() {
+		return domain.ItemDefinition{}, fmt.Errorf("item %s: %w: recurrence %q", r.ID, errUnknownValue, r.Recurrence)
+	}
+
+	item, err := domain.RehydrateItemDefinition(domain.ItemID(r.ID), r.Title, recurrence, spec)
+	if err != nil {
+		return domain.ItemDefinition{}, fmt.Errorf("stored item %s: %w", r.ID, err)
+	}
+
+	return item, nil
 }
 
 // spec decodes the spec column that belongs to the row's kind. The other column must be empty.

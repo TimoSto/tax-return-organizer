@@ -40,11 +40,11 @@ func (r *Repository) SaveCollector(_ context.Context, collector *domain.Collecto
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, taken := r.collectors[collector.ID]; taken {
+	if _, taken := r.collectors[collector.ID()]; taken {
 		return domain.ErrCollectorIDTaken
 	}
 
-	r.collectors[collector.ID] = *collector
+	r.collectors[collector.ID()] = *collector
 
 	return nil
 }

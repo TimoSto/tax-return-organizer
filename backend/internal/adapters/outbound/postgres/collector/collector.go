@@ -42,7 +42,7 @@ func (r *Repository) GetCollector(ctx context.Context, id domain.CollectorID) (*
 		return nil, fmt.Errorf("get collector: %w", err)
 	}
 
-	return row.toDomain(), nil
+	return row.toDomain()
 }
 
 // SaveCollector implements port.CollectorRepository.
@@ -73,9 +73,14 @@ type collectorRow struct {
 }
 
 func newCollectorRow(c *domain.Collector) collectorRow {
-	return collectorRow{ID: string(c.ID), Name: c.Name, Email: string(c.Email)}
+	return collectorRow{ID: string(c.ID()), Name: c.Name(), Email: string(c.Email())}
 }
 
-func (r collectorRow) toDomain() *domain.Collector {
-	return &domain.Collector{ID: domain.CollectorID(r.ID), Name: r.Name, Email: domain.Email(r.Email)}
+func (r collectorRow) toDomain() (*domain.Collector, error) {
+	c, err := domain.RehydrateCollector(domain.CollectorID(r.ID), r.Name, domain.Email(r.Email))
+	if err != nil {
+		return nil, fmt.Errorf("stored collector %s: %w", r.ID, err)
+	}
+
+	return c, nil
 }
