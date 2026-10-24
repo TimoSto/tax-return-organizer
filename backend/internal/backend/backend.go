@@ -42,7 +42,7 @@ func wire(repos port.Repositories, tx port.Transactor) (http.Handler, error) {
 		CreateCollector: createcollector.New(tx, templates.New()),
 		GetCollector:    getcollector.New(repos.Collectors),
 		GetPersona:      getpersona.New(repos.Personas),
-		ListPersonas:    listpersonas.New(repos.Personas),
+		ListPersonas:    listpersonas.New(repos.Collectors, repos.Personas),
 	})
 }
 

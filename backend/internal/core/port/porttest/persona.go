@@ -15,7 +15,8 @@ import (
 )
 
 // PersonaRepositoryFactory returns an empty repository for the given test.
-// Implementations that enforce referential integrity must make sure the given collectors exist.
+// Implementations that enforce referential integrity (the foreign key to collectors) must make sure the given
+// collectors exist. The repository itself does not check collectors, callers do.
 type PersonaRepositoryFactory func(t *testing.T, collectors ...domain.CollectorID) port.PersonaRepository
 
 // TestPersonaRepository runs the contract tests against repositories created by newRepo.
@@ -48,7 +49,6 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 	emptyFields := domaintest.Item(domaintest.ItemID(), "Tax notice", domain.RecurrenceAnnually,
 		domain.DocumentSpec{MetadataFields: []domain.MetadataField{}})
 	withEmptyFields := personaWithItems(aliceID, "Empty fields", "", emptyFields)
-	orphan := personaWithItems("zzzz", "Orphan", "")                    // no such collector
 	stolenItem := personaWithItems(aliceID, "Stolen item", "", payslip) // payslip belongs to employed
 	// item ids are unique across all personas
 	bobsDays := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly, days.Spec())
@@ -119,14 +119,6 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			saveErr:      domain.ErrItemIDTaken,
 			getCollector: aliceID,
 			getID:        stolenItem.ID(),
-			expErr:       domain.ErrPersonaNotFound,
-		},
-		{
-			name:         "Saving a persona for an unknown collector is rejected",
-			saves:        []*domain.Persona{orphan},
-			saveErr:      domain.ErrUnknownCollector,
-			getCollector: "zzzz",
-			getID:        orphan.ID(),
 			expErr:       domain.ErrPersonaNotFound,
 		},
 		{
@@ -245,12 +237,6 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 			saves:       []*domain.Persona{zeta},
 			collectorID: noneID,
 			exp:         []*domain.Persona{},
-		},
-		{
-			name:        "An unknown collector is not found",
-			saves:       []*domain.Persona{zeta},
-			collectorID: "zzzz",
-			expErr:      domain.ErrCollectorNotFound,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

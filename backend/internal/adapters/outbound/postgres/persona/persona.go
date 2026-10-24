@@ -3,21 +3,14 @@ package persona
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
-)
-
-const (
-	foreignKeyViolation = "23503"
-	collectorFKName     = "personas_collector_id_fkey"
 )
 
 var _ port.PersonaRepository = (*Repository)(nil)
@@ -47,7 +40,7 @@ func (r *Repository) GetPersona(ctx context.Context, collectorID domain.Collecto
 	}
 	defer rows.Close()
 
-	personas, _, err := scanPersonas(rows)
+	personas, err := scanPersonas(rows)
 	if err != nil {
 		return nil, fmt.Errorf("get persona: %w", err)
 	}
@@ -60,28 +53,23 @@ func (r *Repository) GetPersona(ctx context.Context, collectorID domain.Collecto
 }
 
 // ListPersonas implements port.PersonaRepository.
-// Names sort bytewise (collation C), like the in-memory repository. The query starts at the collector, so an unknown collector (no rows) is told apart from one without personas.
+// Names sort bytewise (collation C), like the in-memory repository. An unknown collector yields an empty list, callers check the collector.
 func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
-		FROM collectors c
-		LEFT JOIN personas p ON p.collector_id = c.id
+		FROM personas p
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
-		WHERE c.id = $1
+		WHERE p.collector_id = $1
 		ORDER BY p.name COLLATE "C", p.id, i.position`, string(collectorID))
 	if err != nil {
 		return nil, fmt.Errorf("list personas: %w", err)
 	}
 	defer rows.Close()
 
-	personas, found, err := scanPersonas(rows)
+	personas, err := scanPersonas(rows)
 	if err != nil {
 		return nil, fmt.Errorf("list personas: %w", err)
-	}
-
-	if !found {
-		return nil, domain.ErrCollectorNotFound
 	}
 
 	return personas, nil
@@ -128,11 +116,6 @@ func savePersonaRow(ctx context.Context, tx pgx.Tx, row personaRow) error {
 		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description
 		WHERE personas.collector_id = EXCLUDED.collector_id`,
 		row.ID, row.CollectorID, row.Name, row.Description)
-
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation && pgErr.ConstraintName == collectorFKName {
-		return fmt.Errorf("save persona: %w", domain.ErrUnknownCollector)
-	}
 
 	if err != nil {
 		return fmt.Errorf("save persona: %w", err)
@@ -200,11 +183,9 @@ func saveItems(ctx context.Context, tx pgx.Tx, personaID uuid.UUID, items []item
 	return nil
 }
 
-// scanPersonas reads rows of persona and item columns ordered by persona. It reports whether there was any row
-// at all: a LEFT JOIN from collectors yields one row with NULL persona columns for a collector without personas.
-func scanPersonas(rows pgx.Rows) ([]*domain.Persona, bool, error) {
+// scanPersonas reads rows of persona and item columns ordered by persona.
+func scanPersonas(rows pgx.Rows) ([]*domain.Persona, error) {
 	personas := make([]*domain.Persona, 0)
-	sawRow := false
 
 	var (
 		current *personaRow
@@ -228,28 +209,22 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, bool, error) {
 	}
 
 	for rows.Next() {
-		sawRow = true
-
 		var (
-			p    nullablePersonaRow
+			p    personaRow
 			item nullableItemRow
 		)
 
 		if err := rows.Scan(&p.ID, &p.CollectorID, &p.Name, &p.Description,
 			&item.ID, &item.Title, &item.Kind, &item.Recurrence, &item.DocumentSpec, &item.ValueSpec); err != nil {
-			return nil, false, fmt.Errorf("scan: %w", err)
+			return nil, fmt.Errorf("scan: %w", err)
 		}
 
-		if p.ID == nil {
-			continue
-		}
-
-		if current == nil || current.ID != *p.ID {
+		if current == nil || current.ID != p.ID {
 			if err := flush(); err != nil {
-				return nil, false, err
+				return nil, err
 			}
 
-			row := p.toRow()
+			row := p
 			current, items = &row, nil
 		}
 
@@ -260,34 +235,21 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, bool, error) {
 
 		domainItem, err := item.toRow().toDomain()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 
 		items = append(items, domainItem)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, false, fmt.Errorf("read rows: %w", err)
+		return nil, fmt.Errorf("read rows: %w", err)
 	}
 
 	if err := flush(); err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
-	return personas, sawRow, nil
-}
-
-// nullablePersonaRow holds the persona columns of an outer join, which are NULL if there is no persona.
-// ID is nil in that case, the other fields are only valid if it is not.
-type nullablePersonaRow struct {
-	ID          *uuid.UUID
-	CollectorID *string
-	Name        *string
-	Description *string
-}
-
-func (r nullablePersonaRow) toRow() personaRow {
-	return personaRow{ID: *r.ID, CollectorID: *r.CollectorID, Name: *r.Name, Description: *r.Description}
+	return personas, nil
 }
 
 // personaRow mirrors the personas table and keeps SQL concerns out of the domain type.

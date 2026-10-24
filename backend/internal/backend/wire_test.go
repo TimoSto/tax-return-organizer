@@ -23,7 +23,7 @@ func newFakeRepositories() port.Repositories {
 		panic(err)
 	}
 
-	return port.Repositories{Collectors: collectors, Personas: fakepersona.NewRepositoryFor(collectors)}
+	return port.Repositories{Collectors: collectors, Personas: fakepersona.NewRepository()}
 }
 
 func wireFake(repos port.Repositories) http.Handler {

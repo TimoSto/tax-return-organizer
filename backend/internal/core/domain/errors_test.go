@@ -12,7 +12,7 @@ func TestSentinelsAreClassified(t *testing.T) {
 	for _, err := range []error{
 		domain.ErrCollectorNotFound, domain.ErrCollectorIDTaken, domain.ErrNameRequired, domain.ErrInvalidCollectorID, domain.ErrInvalidPersonaID,
 		domain.ErrInvalidEmail, domain.ErrInvalidLocale, domain.ErrPersonaNameRequired, domain.ErrPersonaNotFound,
-		domain.ErrItemNotFound, domain.ErrItemIDTaken, domain.ErrUnknownCollector, domain.ErrItemTitleRequired,
+		domain.ErrItemNotFound, domain.ErrItemIDTaken, domain.ErrItemTitleRequired,
 		domain.ErrInvalidRecurrence, domain.ErrSpecRequired, domain.ErrSpecMismatch, domain.ErrInvalidValueType,
 		domain.ErrMetadataFieldNameRequired, domain.ErrDuplicateMetadataField,
 	} {

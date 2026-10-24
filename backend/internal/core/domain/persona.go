@@ -15,8 +15,6 @@ var (
 	ErrItemNotFound = notFound("item definition not found")
 	// ErrItemIDTaken is returned when an item definition id is already used by another persona.
 	ErrItemIDTaken = conflict("item definition id already taken")
-	// ErrUnknownCollector is returned when a persona refers to a collector that does not exist.
-	ErrUnknownCollector = conflict("collector does not exist")
 )
 
 // Persona groups the items a client has to provide if they do something tax relevant, e.g. "Employed".

@@ -29,13 +29,12 @@ type PersonaRepository interface {
 	GetPersona(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error)
 	// ListPersonas returns all personas of the collector with their items, ordered by name and then id.
 	// A collector without personas yields an empty list.
-	// It returns domain.ErrCollectorNotFound if the collector does not exist.
 	ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error)
 	// SavePersona inserts the persona or, if its id exists already, replaces name, description and items.
 	// Items missing from persona.Items are deleted, the others keep their id.
 	// It returns domain.ErrPersonaNotFound if the id belongs to another collector,
-	// domain.ErrItemIDTaken if an item id is already used by another persona and
-	// domain.ErrUnknownCollector if the persona's collector does not exist. Nothing is changed then.
+	// domain.ErrItemIDTaken if an item id is already used by another persona. Nothing is changed then.
+	// The collector is not checked here, callers verify it exists through CollectorRepository.
 	//
 	// There is no concurrency control: SavePersona replaces the whole persona, so the last save wins. Two
 	// people editing the same persona from stale copies silently overwrite each other, and a stale save
