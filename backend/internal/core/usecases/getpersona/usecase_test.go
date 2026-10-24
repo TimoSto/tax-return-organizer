@@ -26,7 +26,7 @@ func (r failingRepo) GetPersona(context.Context, domain.CollectorID, domain.Pers
 }
 
 func TestExecute_Success(t *testing.T) {
-	repo := fakepersona.NewRepository("k7m2")
+	repo := fakepersona.NewRepository()
 	id := domaintest.PersonaID()
 	want := domaintest.Persona(id, "k7m2", "Employed", "Has a job",
 		domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}))
@@ -57,7 +57,7 @@ func TestExecute_NotFound(t *testing.T) {
 }
 
 func TestExecute_OtherCollector(t *testing.T) {
-	repo := fakepersona.NewRepository("k7m2")
+	repo := fakepersona.NewRepository()
 	p := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "")
 
 	if err := repo.SavePersona(context.Background(), p); err != nil {

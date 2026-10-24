@@ -2,6 +2,7 @@ package persona_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/porttest"
 )
@@ -82,5 +84,21 @@ func TestItemDefinitions_SpecsMustBeJSONObjects(t *testing.T) {
 				t.Errorf("insert error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+// The repository does not check collectors, callers do. A persona for a missing collector hits the foreign key and
+// comes back as an unclassified error (HTTP 500), not as a domain error.
+func TestSavePersona_MissingCollector(t *testing.T) {
+	repo := newRepo(postgrestest.RequirePool(t))(t)
+
+	err := repo.SavePersona(context.Background(), domaintest.Persona(domaintest.PersonaID(), "zzzz", "Orphan", ""))
+	if err == nil {
+		t.Fatal("SavePersona() error = nil, want a foreign key error")
+	}
+
+	var de *domain.Error
+	if errors.As(err, &de) {
+		t.Errorf("SavePersona() error = %v, want an unclassified error", err)
 	}
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
@@ -24,8 +25,23 @@ func (r failingRepo) ListPersonas(context.Context, domain.CollectorID) ([]*domai
 	return nil, r.err
 }
 
+// seededCollectors returns a collector repository that holds the collectors k7m2 and bbbb.
+func seededCollectors(t *testing.T) port.CollectorRepository {
+	t.Helper()
+
+	repo := fakecollector.NewRepository()
+
+	for _, id := range []domain.CollectorID{"k7m2", "bbbb"} {
+		if err := repo.SaveCollector(context.Background(), domaintest.Collector(id, "K", "k@example.com")); err != nil {
+			t.Fatalf("seed collector: %v", err)
+		}
+	}
+
+	return repo
+}
+
 func TestExecute_Success(t *testing.T) {
-	repo := fakepersona.NewRepository("k7m2", "bbbb")
+	collectors, repo := seededCollectors(t), fakepersona.NewRepository()
 	ctx := context.Background()
 	employed := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "Has a job")
 	letting := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Letting", "")
@@ -37,7 +53,7 @@ func TestExecute_Success(t *testing.T) {
 		}
 	}
 
-	got, err := listpersonas.New(repo).Execute(tenant.WithCollector(ctx, "k7m2"))
+	got, err := listpersonas.New(collectors, repo).Execute(tenant.WithCollector(ctx, "k7m2"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -48,7 +64,7 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_UnknownCollector(t *testing.T) {
-	got, err := listpersonas.New(fakepersona.NewRepository()).Execute(tenant.WithCollector(context.Background(), "k7m2"))
+	got, err := listpersonas.New(fakecollector.NewRepository(), fakepersona.NewRepository()).Execute(tenant.WithCollector(context.Background(), "k7m2"))
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
@@ -61,14 +77,14 @@ func TestExecute_UnknownCollector(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := listpersonas.New(failingRepo{err: boom}).Execute(tenant.WithCollector(context.Background(), "k7m2"))
+	_, err := listpersonas.New(seededCollectors(t), failingRepo{err: boom}).Execute(tenant.WithCollector(context.Background(), "k7m2"))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want wrapped %v", err, boom)
 	}
 }
 
 func TestExecute_NoTenant(t *testing.T) {
-	_, err := listpersonas.New(fakepersona.NewRepository()).Execute(context.Background())
+	_, err := listpersonas.New(fakecollector.NewRepository(), fakepersona.NewRepository()).Execute(context.Background())
 	if !errors.Is(err, tenant.ErrNoTenant) {
 		t.Errorf("err = %v, want %v", err, tenant.ErrNoTenant)
 	}

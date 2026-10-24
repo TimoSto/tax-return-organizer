@@ -28,7 +28,6 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrMetadataFieldNameRequired, http.StatusBadRequest},
 		{domain.ErrDuplicateMetadataField, http.StatusBadRequest},
 		{domain.ErrItemIDTaken, http.StatusConflict},
-		{domain.ErrUnknownCollector, http.StatusConflict},
 		{domain.ErrInvalidLocale, http.StatusBadRequest},
 		{domain.ErrCollectorIDTaken, http.StatusConflict},
 		{fmt.Errorf("wrapped: %w", domain.ErrSpecMismatch), http.StatusBadRequest},
