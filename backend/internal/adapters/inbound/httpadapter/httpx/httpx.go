@@ -38,6 +38,20 @@ func WriteJSON(w http.ResponseWriter, status int, body any) {
 	}
 }
 
+// ParsePathID parses the path value param with parse. On failure it answers 400 "invalid <what>" and returns false.
+func ParsePathID[T any](w http.ResponseWriter, r *http.Request, param string, parse func(string) (T, error), what string) (T, bool) {
+	id, err := parse(r.PathValue(param))
+	if err != nil {
+		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid " + what})
+
+		var zero T
+
+		return zero, false
+	}
+
+	return id, true
+}
+
 // WriteError maps err to an HTTP status. Domain errors are reported to the client with their own
 // message only (never the wrapped chain); everything else is logged and answered with a generic 500.
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {

@@ -2,7 +2,9 @@
 package httpadapter
 
 import (
+	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
@@ -21,8 +23,31 @@ type Deps struct {
 	ListPersonas    persona.Lister
 }
 
-// NewHandler registers all endpoints and wraps them in the middleware.
-func NewHandler(d Deps) http.Handler {
+// validate reports the fields of d that are nil, so a missing wiring fails at startup and not on the first request.
+func (d Deps) validate() error {
+	v := reflect.ValueOf(d)
+
+	var missing []string
+
+	for i := range v.NumField() {
+		if v.Field(i).IsNil() {
+			missing = append(missing, v.Type().Field(i).Name)
+		}
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing dependencies: %s", strings.Join(missing, ", "))
+	}
+
+	return nil
+}
+
+// NewHandler registers all endpoints and wraps them in the middleware. It fails if a dependency is nil.
+func NewHandler(d Deps) (http.Handler, error) {
+	if err := d.validate(); err != nil {
+		return nil, err
+	}
+
 	mux := http.NewServeMux()
 
 	for _, r := range []httpx.Route{
@@ -35,7 +60,7 @@ func NewHandler(d Deps) http.Handler {
 		mux.Handle(r.Pattern, tenantFromPath(r))
 	}
 
-	return Middleware(mux)
+	return Middleware(mux), nil
 }
 
 const collectorIDParam = "collectorId"
@@ -48,10 +73,8 @@ func tenantFromPath(r httpx.Route) http.Handler {
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		id, err := domain.ParseCollectorID(req.PathValue(collectorIDParam))
-		if err != nil {
-			httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid collector id"})
-
+		id, ok := httpx.ParsePathID(w, req, collectorIDParam, domain.ParseCollectorID, "collector id")
+		if !ok {
 			return
 		}
 
