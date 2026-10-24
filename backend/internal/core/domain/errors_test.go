@@ -13,7 +13,7 @@ func TestSentinelsAreClassified(t *testing.T) {
 		domain.ErrCollectorNotFound, domain.ErrCollectorIDTaken, domain.ErrNameRequired, domain.ErrInvalidCollectorID,
 		domain.ErrInvalidEmail, domain.ErrInvalidLocale, domain.ErrPersonaNameRequired, domain.ErrPersonaNotFound,
 		domain.ErrItemNotFound, domain.ErrItemIDTaken, domain.ErrUnknownCollector, domain.ErrItemTitleRequired,
-		domain.ErrInvalidKind, domain.ErrInvalidRecurrence, domain.ErrSpecMismatch, domain.ErrInvalidValueType,
+		domain.ErrInvalidRecurrence, domain.ErrSpecRequired, domain.ErrSpecMismatch, domain.ErrInvalidValueType,
 		domain.ErrMetadataFieldNameRequired, domain.ErrDuplicateMetadataField,
 	} {
 		var de *domain.Error

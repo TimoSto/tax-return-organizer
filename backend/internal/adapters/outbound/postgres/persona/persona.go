@@ -235,7 +235,7 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, bool, error) {
 			continue
 		}
 
-		domainItem, err := item.toRow().toDomain(current.ID)
+		domainItem, err := item.toRow().toDomain()
 		if err != nil {
 			return nil, false, err
 		}

@@ -31,23 +31,21 @@ func (t PersonaTemplate) Instantiate(collectorID CollectorID, l Locale) (*Person
 	}
 
 	for _, it := range t.Items {
-		var (
-			doc   *DocumentSpec
-			value *ValueSpec
-		)
+		var spec ItemSpec
 
 		switch it.Kind {
 		case KindDocument:
-			doc = &DocumentSpec{}
+			doc := DocumentSpec{}
 			for _, f := range it.MetadataFields {
 				doc.MetadataFields = append(doc.MetadataFields, MetadataField{Name: f.Name.For(l), ValueSpec: f.ValueSpec})
 			}
+
+			spec = doc
 		case KindData:
-			spec := *it.Value
-			value = &spec
+			spec = *it.Value
 		}
 
-		if _, err := p.AddItem(it.Title.For(l), it.Kind, it.Recurrence, doc, value); err != nil {
+		if _, err := p.AddItem(it.Title.For(l), it.Recurrence, spec); err != nil {
 			return nil, err
 		}
 	}

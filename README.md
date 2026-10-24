@@ -105,12 +105,16 @@ classDiagram
 
     class ItemDefinition {
         +UUID ID
-        +UUID PersonaID
         +string Title
-        +Kind Kind
         +Recurrence Recurrence
-        +DocumentSpec* DocumentSpec
-        +ValueSpec* ValueSpec
+        +ItemSpec Spec
+        +Kind() Kind
+    }
+
+    class ItemSpec {
+        <<sealed interface>>
+        +Kind() Kind
+        +Validate() error
     }
 
     class Kind {
@@ -198,8 +202,9 @@ classDiagram
     Persona "1" --> "*" ItemDefinition : asks for
     ItemDefinition ..> Kind
     ItemDefinition ..> Recurrence
-    ItemDefinition --> "0..1" DocumentSpec
-    ItemDefinition --> "0..1" ValueSpec
+    ItemDefinition --> "1" ItemSpec
+    ItemSpec <|.. DocumentSpec
+    ItemSpec <|.. ValueSpec
     DocumentSpec "1" --> "*" MetadataField
     MetadataField "1" --> "1" ValueSpec
     ValueSpec ..> ValueType
@@ -214,10 +219,11 @@ classDiagram
 
 Notes:
 - **Persona assignment is a live reference, generated items are snapshots.** A `ClientTaxYear` only references its `Persona`s, so renaming a persona or adding a definition shows up on the client immediately. `Generate()` expands each `ItemDefinition` of each assigned persona into `RequiredItem`s (12 for `monthly`, 4 `quarterly`, 2 `semiannually`, 1 `annually`, distinguished by `PeriodIndex`) and copies title, kind and spec into the item. Later edits to a persona therefore never silently change an existing list; `SyncItems()` is the explicit, optional way to pull in new definitions (it only adds items and leaves existing ones untouched).
-- **Persona is the aggregate root of its item definitions.** `ItemDefinition`s are only read and changed through their `Persona` and are loaded and saved together with it, so there is no separate item repository. The order of `Items` is the order the collector arranged. An item keeps its `ID` across edits (`RequiredItem.DefinitionID` points at it) and its `Kind` cannot change after creation; `UpdateItem` only replaces title, recurrence and spec.
+- **Persona is the aggregate root of its item definitions.** `ItemDefinition`s are only read and changed through their `Persona` and are loaded and saved together with it, so there is no separate item repository. The order of `Items` is the order the collector arranged. An item keeps its `ID` across edits (`RequiredItem.DefinitionID` points at it) and its kind cannot change after creation; `UpdateItem` only replaces title, recurrence and spec.
 - **The client never sees personas.** A `RequiredItem` carries everything needed to render it (title, kind, spec, state), so the client view works on items alone. `DefinitionID` is only a back-reference used by `SyncItems()`.
 - **Two kinds of items.** `document` items are satisfied by uploaded `Document`s, `data` items by a single `DataEntry` whose `Value` has the type given by `ValueSpec.Type`. `Unit` is an optional free-text display label set by the collector (e.g. *EUR*, *days*, *km*) and is purely descriptive: the backend does no conversion, so EUR is a `number` with unit `EUR` stored as e.g. `12.50`, not cents. `Done()` is derived, there is no separate flag: documents → at least one `Document`; data → a `DataEntry` exists, or the spec is not `Required`. A `bool` entry of `false` still counts as entered; only a missing entry is outstanding.
-- **Shared `ValueSpec`.** `ItemDefinition.ValueSpec` (data items only) and `MetadataField.ValueSpec` are the same type (`Type`, `Unit`, `Required`), so type, unit and required-ness are defined in one place. `Type` is one of `text`, `number`, `date`, `bool`; a `Value` is a string, decimal (arbitrary precision, no floats), ISO-8601 date or boolean accordingly. `Unit` mostly makes sense for `number`.
+- **The spec decides the kind.** `ItemDefinition.Spec` is a sealed sum type: exactly a `DocumentSpec` (document item) or a `ValueSpec` (data item). `Kind()` is derived from it, so an item with the wrong or both specs cannot be built, and `UpdateItem` rejects a spec of the other kind with `ErrSpecMismatch`.
+- **Shared `ValueSpec`.** The `ValueSpec` of a data item (`ItemDefinition.Spec`) and `MetadataField.ValueSpec` are the same type (`Type`, `Unit`, `Required`), so type, unit and required-ness are defined in one place. `Type` is one of `text`, `number`, `date`, `bool`; a `Value` is a string, decimal (arbitrary precision, no floats), ISO-8601 date or boolean accordingly. `Unit` mostly makes sense for `number`.
 - **Validation.** `EnterValue` creates or replaces the item's `DataEntry` (at most one per item) after checking the value against `ValueSpec.Type`. `SetMetadata` checks the map against `DocumentSpec.MetadataFields` (known fields, `ValueSpec.Type`, `ValueSpec.Required`); a violation returns `ErrInvalidValue`. There are no value rules yet (planned, see "Not in the first MVP" above). Metadata lives on the `Document`, so it can only be set after the upload.
 - **Multiple files per item.** An item can hold any number of documents; documents can be deleted and downloaded individually.
 - **Closing.** `Close()` is a collector action and is blocked while any `RequiredItem` is not `Done()`: it fails with `ErrItemsOutstanding`. Once `Status` is `closed`, `SyncItems`, `EnterValue`, `AddDocument`, `RemoveDocument` and `SetMetadata` fail with `ErrTaxYearClosed`.

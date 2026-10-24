@@ -30,8 +30,8 @@ func TestExecute_Success(t *testing.T) {
 	want := &domain.Persona{
 		ID: id, CollectorID: "k7m2", Name: "Employed", Description: "Has a job",
 		Items: []domain.ItemDefinition{{
-			ID: uuid.New(), PersonaID: id, Title: "Payslip", Kind: domain.KindDocument,
-			Recurrence: domain.RecurrenceMonthly, DocumentSpec: &domain.DocumentSpec{},
+			ID: uuid.New(), Title: "Payslip",
+			Recurrence: domain.RecurrenceMonthly, Spec: domain.DocumentSpec{},
 		}},
 	}
 

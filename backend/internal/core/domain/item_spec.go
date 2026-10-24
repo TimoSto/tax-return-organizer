@@ -35,7 +35,18 @@ func (t ValueType) Valid() bool {
 	}
 }
 
-// ValueSpec describes a single value the client has to provide.
+// ItemSpec says what an item asks for. It is a sum type that only DocumentSpec (a document item) and ValueSpec
+// (a data item) implement; use a type switch to tell them apart.
+type ItemSpec interface {
+	// Kind is the kind of item the spec belongs to.
+	Kind() Kind
+	// Validate checks that the spec is well-formed.
+	Validate() error
+
+	isItemSpec()
+}
+
+// ValueSpec describes a single value the client has to provide. As an ItemSpec it makes a data item.
 type ValueSpec struct {
 	Type ValueType
 	// Unit is an optional display label (e.g. "EUR", "days"). It is never interpreted.
@@ -52,27 +63,27 @@ func (s ValueSpec) Validate() error {
 	return nil
 }
 
+// Kind is KindData.
+func (ValueSpec) Kind() Kind { return KindData }
+
+func (ValueSpec) isItemSpec() {}
+
 // MetadataField is a value the client enters for an uploaded document.
 type MetadataField struct {
 	Name      string
 	ValueSpec ValueSpec
 }
 
-// DocumentSpec describes what is asked for a document item.
+// DocumentSpec describes what is asked for a document item. As an ItemSpec it makes a document item.
 type DocumentSpec struct {
-	// MetadataFields is nil, never empty, if the document has none: item definitions and repositories
-	// normalise it, so values compare equal after a round trip.
+	// MetadataFields may be nil or empty if the document has none.
 	MetadataFields []MetadataField
 }
 
-// normalized returns a copy whose empty MetadataFields is nil.
-func (s DocumentSpec) normalized() DocumentSpec {
-	if len(s.MetadataFields) == 0 {
-		s.MetadataFields = nil
-	}
+// Kind is KindDocument.
+func (DocumentSpec) Kind() Kind { return KindDocument }
 
-	return s
-}
+func (DocumentSpec) isItemSpec() {}
 
 // Validate checks that all metadata fields have a unique, non-blank name and a valid spec.
 func (s DocumentSpec) Validate() error {

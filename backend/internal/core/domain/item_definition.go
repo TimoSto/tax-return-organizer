@@ -10,11 +10,11 @@ import (
 var (
 	// ErrItemTitleRequired is returned for a blank item title.
 	ErrItemTitleRequired = invalid("item title is required")
-	// ErrInvalidKind is returned for an item kind that is not one of the known ones.
-	ErrInvalidKind = invalid("invalid item kind")
 	// ErrInvalidRecurrence is returned for a recurrence that is not one of the known ones.
 	ErrInvalidRecurrence = invalid("invalid recurrence")
-	// ErrSpecMismatch is returned when an item does not carry exactly the spec that its kind requires.
+	// ErrSpecRequired is returned for an item without a spec.
+	ErrSpecRequired = invalid("item spec is required")
+	// ErrSpecMismatch is returned when an update gives an item a spec of another kind.
 	ErrSpecMismatch = invalid("spec does not match item kind")
 )
 
@@ -60,83 +60,42 @@ func (r Recurrence) Periods() int {
 	}
 }
 
-// ItemDefinition is something a persona asks the client to provide.
-// A document item carries a DocumentSpec, a data item a ValueSpec, never both.
+// ItemDefinition is something a persona asks the client to provide. What exactly is asked for, and with it the
+// kind of the item, is given by its Spec.
 type ItemDefinition struct {
-	ID           uuid.UUID
-	PersonaID    uuid.UUID
-	Title        string
-	Kind         Kind
-	Recurrence   Recurrence
-	DocumentSpec *DocumentSpec
-	ValueSpec    *ValueSpec
+	ID         uuid.UUID
+	Title      string
+	Recurrence Recurrence
+	Spec       ItemSpec
 }
 
+// Kind tells whether the item is satisfied by uploaded documents or by an entered value.
+func (i ItemDefinition) Kind() Kind { return i.Spec.Kind() }
+
 // NewItemDefinition validates the input and returns an item definition with a fresh id.
-// The spec matching kind must be set, the other one must be nil.
-func NewItemDefinition(
-	personaID uuid.UUID,
-	title string,
-	kind Kind,
-	recurrence Recurrence,
-	documentSpec *DocumentSpec,
-	dataSpec *ValueSpec,
-) (*ItemDefinition, error) {
-	return buildItemDefinition(uuid.New(), personaID, title, kind, recurrence, documentSpec, dataSpec)
+func NewItemDefinition(title string, recurrence Recurrence, spec ItemSpec) (*ItemDefinition, error) {
+	return buildItemDefinition(uuid.New(), title, recurrence, spec)
 }
 
 // buildItemDefinition validates the input and returns an item definition with the given id.
-func buildItemDefinition(
-	id, personaID uuid.UUID,
-	title string,
-	kind Kind,
-	recurrence Recurrence,
-	documentSpec *DocumentSpec,
-	dataSpec *ValueSpec,
-) (*ItemDefinition, error) {
+func buildItemDefinition(id uuid.UUID, title string, recurrence Recurrence, spec ItemSpec) (*ItemDefinition, error) {
 	title = strings.TrimSpace(title)
 
 	if title == "" {
 		return nil, ErrItemTitleRequired
 	}
 
-	if !kind.Valid() {
-		return nil, fmt.Errorf("%w: %q", ErrInvalidKind, kind)
-	}
-
 	if !recurrence.Valid() {
 		return nil, fmt.Errorf("%w: %q", ErrInvalidRecurrence, recurrence)
 	}
 
-	switch kind {
-	case KindDocument:
-		if documentSpec == nil || dataSpec != nil {
-			return nil, fmt.Errorf("%w: a document item needs a document spec and no data spec", ErrSpecMismatch)
-		}
-
-		if err := documentSpec.Validate(); err != nil {
-			return nil, err
-		}
-
-		normalized := documentSpec.normalized()
-		documentSpec = &normalized
-	case KindData:
-		if dataSpec == nil || documentSpec != nil {
-			return nil, fmt.Errorf("%w: a data item needs a data spec and no document spec", ErrSpecMismatch)
-		}
-
-		if err := dataSpec.Validate(); err != nil {
-			return nil, err
-		}
+	if spec == nil {
+		return nil, ErrSpecRequired
 	}
 
-	return &ItemDefinition{
-		ID:           id,
-		PersonaID:    personaID,
-		Title:        title,
-		Kind:         kind,
-		Recurrence:   recurrence,
-		DocumentSpec: documentSpec,
-		ValueSpec:    dataSpec,
-	}, nil
+	if err := spec.Validate(); err != nil {
+		return nil, err
+	}
+
+	return &ItemDefinition{ID: id, Title: title, Recurrence: recurrence, Spec: spec}, nil
 }

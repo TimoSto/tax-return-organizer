@@ -45,14 +45,8 @@ func NewPersona(collectorID CollectorID, name, description string) (*Persona, er
 
 // AddItem validates the input, appends a new item definition and returns a copy of it.
 // Changes to the copy do not affect the persona, use UpdateItem for that.
-func (p *Persona) AddItem(
-	title string,
-	kind Kind,
-	recurrence Recurrence,
-	documentSpec *DocumentSpec,
-	valueSpec *ValueSpec,
-) (ItemDefinition, error) {
-	item, err := NewItemDefinition(p.ID, title, kind, recurrence, documentSpec, valueSpec)
+func (p *Persona) AddItem(title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
+	item, err := NewItemDefinition(title, recurrence, spec)
 	if err != nil {
 		return ItemDefinition{}, err
 	}
@@ -63,20 +57,18 @@ func (p *Persona) AddItem(
 }
 
 // UpdateItem replaces title, recurrence and spec of an item. The id and the kind stay the same,
-// so the spec has to match the item's kind.
-func (p *Persona) UpdateItem(
-	id uuid.UUID,
-	title string,
-	recurrence Recurrence,
-	documentSpec *DocumentSpec,
-	valueSpec *ValueSpec,
-) error {
+// so the spec has to be of the item's kind.
+func (p *Persona) UpdateItem(id uuid.UUID, title string, recurrence Recurrence, spec ItemSpec) error {
 	i := p.itemIndex(id)
 	if i < 0 {
 		return fmt.Errorf("%w: %s", ErrItemNotFound, id)
 	}
 
-	updated, err := buildItemDefinition(id, p.ID, title, p.Items[i].Kind, recurrence, documentSpec, valueSpec)
+	if spec != nil && spec.Kind() != p.Items[i].Kind() {
+		return fmt.Errorf("%w: a %s item cannot get a %s spec", ErrSpecMismatch, p.Items[i].Kind(), spec.Kind())
+	}
+
+	updated, err := buildItemDefinition(id, title, recurrence, spec)
 	if err != nil {
 		return err
 	}
