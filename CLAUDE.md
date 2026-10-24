@@ -28,6 +28,8 @@ go build -o bin/docker ./cmd/docker
 
 ## Backend architecture (hexagonal)
 
+The layering is enforced by the depguard rules in `backend/.golangci.yml` (the domain may only import an allow-list of packages, the core must not know HTTP/SQL, use cases and adapter resource packages must not import each other, production code must not import fakes or test helpers). A new `httpadapter/<x>` or `postgres/<x>` resource package needs a line in the matching `*-isolated` rules; a new import in `internal/core/domain` needs an entry in `domain-allowlist`.
+
 - `internal/core/domain` — entities and validation (`Collector`, `CollectorID`, `Email`), plus sentinel errors (`ErrCollectorNotFound`, `ErrCollectorIDTaken`). Collector IDs are short strings, not UUIDs (see the baseline migration), unlike the README diagram.
 - `internal/core/port` — outbound ports (repository interfaces, `Transactor`) owned by the core. `port/porttest` holds shared contract tests that every repository implementation (fake and postgres) runs. There are no inbound port types: `httpadapter` resource packages declare the small interfaces (e.g. `collector.Creator`) the use cases must satisfy, and `backend.wire` assigns the use cases to them.
 - `internal/core/usecases/<name>` — one package per use case (`New(repo).Execute`).
