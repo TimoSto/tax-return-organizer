@@ -16,6 +16,7 @@ import (
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
@@ -38,7 +39,7 @@ func postgresRepositories(db pgdb.DBTX) port.Repositories {
 // Reads use repos directly, writes that span several repositories go through tx.
 func wire(repos port.Repositories, tx port.Transactor) http.Handler {
 	return httpadapter.NewHandler(httpadapter.Deps{
-		CreateCollector: createcollector.New(tx),
+		CreateCollector: createcollector.New(tx, templates.New()),
 		GetCollector:    getcollector.New(repos.Collectors),
 		GetPersona:      getpersona.New(repos.Personas),
 		ListPersonas:    listpersonas.New(repos.Personas),
