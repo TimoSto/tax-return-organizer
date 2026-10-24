@@ -34,14 +34,14 @@ func NewRepository(db pgdb.DBTX) *Repository {
 
 // GetPersona implements port.PersonaRepository.
 // Persona and items are read in one statement, so a concurrent SavePersona can never show up half-applied.
-func (r *Repository) GetPersona(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error) {
+func (r *Repository) GetPersona(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
 		FROM personas p
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
 		WHERE p.id = $1 AND p.collector_id = $2
-		ORDER BY i.position`, id, string(collectorID))
+		ORDER BY i.position`, uuid.UUID(id), string(collectorID))
 	if err != nil {
 		return nil, fmt.Errorf("get persona: %w", err)
 	}
@@ -110,7 +110,7 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 		return err
 	}
 
-	if err := saveItems(ctx, tx, persona.ID, items); err != nil {
+	if err := saveItems(ctx, tx, uuid.UUID(persona.ID), items); err != nil {
 		return err
 	}
 
@@ -225,7 +225,7 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, bool, error) {
 			continue
 		}
 
-		if current == nil || current.ID != *p.ID {
+		if current == nil || uuid.UUID(current.ID) != *p.ID {
 			current = p.toRow().toDomain()
 			personas = append(personas, current)
 		}
@@ -272,12 +272,12 @@ type personaRow struct {
 }
 
 func newPersonaRow(p *domain.Persona) personaRow {
-	return personaRow{ID: p.ID, CollectorID: string(p.CollectorID), Name: p.Name, Description: p.Description}
+	return personaRow{ID: uuid.UUID(p.ID), CollectorID: string(p.CollectorID), Name: p.Name, Description: p.Description}
 }
 
 func (r personaRow) toDomain() *domain.Persona {
 	return &domain.Persona{
-		ID:          r.ID,
+		ID:          domain.PersonaID(r.ID),
 		CollectorID: domain.CollectorID(r.CollectorID),
 		Name:        r.Name,
 		Description: r.Description,

@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
@@ -31,18 +30,18 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 	)
 
 	payslip := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Payslip", Recurrence: domain.RecurrenceMonthly,
+		ID: newItemID(), Title: "Payslip", Recurrence: domain.RecurrenceMonthly,
 		Spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 			{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
 			{Name: "Gross", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "EUR"}},
 		}},
 	}
 	notice := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Tax notice", Recurrence: domain.RecurrenceAnnually,
+		ID: newItemID(), Title: "Tax notice", Recurrence: domain.RecurrenceAnnually,
 		Spec: domain.DocumentSpec{},
 	}
 	days := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Commuting days", Recurrence: domain.RecurrenceQuarterly,
+		ID: newItemID(), Title: "Commuting days", Recurrence: domain.RecurrenceQuarterly,
 		Spec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
 	}
 
@@ -59,20 +58,20 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 	hijack.Name = "Hijacked"
 	letting := personaWithItems(aliceID, "Letting", "")
 	emptyFields := notice // explicit empty slice, which repositories may report as nil
-	emptyFields.ID = uuid.New()
+	emptyFields.ID = newItemID()
 	emptyFields.Spec = domain.DocumentSpec{MetadataFields: []domain.MetadataField{}}
 	withEmptyFields := personaWithItems(aliceID, "Empty fields", "", emptyFields)
 	orphan := personaWithItems("zzzz", "Orphan", "")                    // no such collector
 	stolenItem := personaWithItems(aliceID, "Stolen item", "", payslip) // payslip belongs to employed
 	bobsDays := days
-	bobsDays.ID = uuid.New() // item ids are unique across all personas
+	bobsDays.ID = newItemID() // item ids are unique across all personas
 	bobs := personaWithItems(bobID, "Self-employed", "Freelancer", bobsDays)
 
 	for _, tc := range []struct {
 		name         string
 		saves        []domain.Persona
 		getCollector domain.CollectorID
-		getID        uuid.UUID
+		getID        domain.PersonaID
 		exp          *domain.Persona
 		saveErr      error
 		expErr       error
@@ -147,7 +146,7 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			name:         "Get unknown persona",
 			saves:        []domain.Persona{employed},
 			getCollector: aliceID,
-			getID:        uuid.New(),
+			getID:        newPersonaID(),
 			expErr:       domain.ErrPersonaNotFound,
 		},
 		{
@@ -195,7 +194,7 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 
 // personaWithItems returns a persona with the given items, or none.
 func personaWithItems(collectorID domain.CollectorID, name, description string, items ...domain.ItemDefinition) domain.Persona {
-	p := domain.Persona{ID: uuid.New(), CollectorID: collectorID, Name: name, Description: description}
+	p := domain.Persona{ID: newPersonaID(), CollectorID: collectorID, Name: name, Description: description}
 	p.Items = slices.Clone(items)
 
 	return p
@@ -214,17 +213,17 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 	)
 
 	payslip := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Payslip", Recurrence: domain.RecurrenceMonthly,
+		ID: newItemID(), Title: "Payslip", Recurrence: domain.RecurrenceMonthly,
 		Spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 			{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
 		}},
 	}
 	days := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Commuting days", Recurrence: domain.RecurrenceQuarterly,
+		ID: newItemID(), Title: "Commuting days", Recurrence: domain.RecurrenceQuarterly,
 		Spec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
 	}
 	bobsDays := days
-	bobsDays.ID = uuid.New() // item ids are unique across all personas
+	bobsDays.ID = newItemID() // item ids are unique across all personas
 
 	// Names are compared bytewise, so "Zeta" sorts before "alpha". Equal names fall back to the id.
 	zeta := personaWithItems(aliceID, "Zeta", "Last", payslip, days)
@@ -287,4 +286,22 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 			}
 		})
 	}
+}
+
+func newPersonaID() domain.PersonaID {
+	id, err := domain.RandomIDs{}.NewPersonaID()
+	if err != nil {
+		panic(err)
+	}
+
+	return id
+}
+
+func newItemID() domain.ItemID {
+	id, err := domain.RandomIDs{}.NewItemID()
+	if err != nil {
+		panic(err)
+	}
+
+	return id
 }

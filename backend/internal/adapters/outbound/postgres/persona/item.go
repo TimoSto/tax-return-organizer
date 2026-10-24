@@ -60,7 +60,7 @@ type documentSpecJSON struct {
 }
 
 func newItemRow(item domain.ItemDefinition) (itemRow, error) {
-	row := itemRow{ID: item.ID, Title: item.Title, Kind: string(item.Kind()), Recurrence: string(item.Recurrence)}
+	row := itemRow{ID: uuid.UUID(item.ID), Title: item.Title, Kind: string(item.Kind()), Recurrence: string(item.Recurrence)}
 
 	var err error
 
@@ -94,7 +94,7 @@ func (r itemRow) toDomain() (domain.ItemDefinition, error) {
 		return domain.ItemDefinition{}, err
 	}
 
-	return domain.ItemDefinition{ID: r.ID, Title: r.Title, Recurrence: recurrence, Spec: spec}, nil
+	return domain.ItemDefinition{ID: domain.ItemID(r.ID), Title: r.Title, Recurrence: recurrence, Spec: spec}, nil
 }
 
 // spec decodes the spec column that belongs to the row's kind. The other column must be empty.

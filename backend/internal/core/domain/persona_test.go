@@ -25,7 +25,7 @@ func TestNewPersona(t *testing.T) {
 		{name: "Blank name", pName: "  \t", expErr: domain.ErrPersonaNameRequired},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p, err := domain.NewPersona("aaaa", tc.pName, tc.description)
+			p, err := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", tc.pName, tc.description)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("err = %v, want %v", err, tc.expErr)
@@ -47,8 +47,8 @@ func TestNewPersona(t *testing.T) {
 }
 
 func TestNewPersona_GeneratesUniqueIDs(t *testing.T) {
-	a, _ := domain.NewPersona("aaaa", "A", "")
-	b, _ := domain.NewPersona("aaaa", "A", "")
+	a, _ := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", "A", "")
+	b, _ := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", "A", "")
 
 	if a.ID == b.ID {
 		t.Error("two personas share an id")
@@ -58,17 +58,17 @@ func TestNewPersona_GeneratesUniqueIDs(t *testing.T) {
 func newPersonaWithItems(t *testing.T) (*domain.Persona, domain.ItemDefinition, domain.ItemDefinition) {
 	t.Helper()
 
-	p, err := domain.NewPersona("aaaa", "Employed", "")
+	p, err := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", "Employed", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	payslip, err := p.AddItem("Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{})
+	payslip, err := p.AddItem(domain.ItemID(uuid.New()), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	days, err := p.AddItem("Commuting days", domain.RecurrenceAnnually,
+	days, err := p.AddItem(domain.ItemID(uuid.New()), "Commuting days", domain.RecurrenceAnnually,
 		domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days"})
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +84,7 @@ func TestPersona_AddItem(t *testing.T) {
 		t.Fatalf("items = %+v, want payslip then days in order", p.Items)
 	}
 
-	if _, err := p.AddItem(" ", domain.RecurrenceMonthly, domain.DocumentSpec{}); !errors.Is(err, domain.ErrItemTitleRequired) {
+	if _, err := p.AddItem(domain.ItemID(uuid.New()), " ", domain.RecurrenceMonthly, domain.DocumentSpec{}); !errors.Is(err, domain.ErrItemTitleRequired) {
 		t.Errorf("err = %v, want %v", err, domain.ErrItemTitleRequired)
 	}
 
@@ -105,12 +105,12 @@ func TestPersona_UpdateItem(t *testing.T) {
 
 	for _, tc := range []struct {
 		name   string
-		id     uuid.UUID
+		id     domain.ItemID
 		title  string
 		spec   domain.ItemSpec
 		expErr error
 	}{
-		{name: "Unknown item", id: uuid.New(), title: "X", spec: domain.DocumentSpec{}, expErr: domain.ErrItemNotFound},
+		{name: "Unknown item", id: domain.ItemID(uuid.New()), title: "X", spec: domain.DocumentSpec{}, expErr: domain.ErrItemNotFound},
 		{name: "Spec of other kind", id: days.ID, title: "X", spec: domain.DocumentSpec{}, expErr: domain.ErrSpecMismatch},
 		{name: "Blank title", id: payslip.ID, title: "", spec: domain.DocumentSpec{}, expErr: domain.ErrItemTitleRequired},
 		{name: "No spec", id: payslip.ID, title: "X", expErr: domain.ErrSpecRequired},
@@ -139,7 +139,7 @@ func TestPersona_UpdateItem(t *testing.T) {
 func TestPersona_RemoveItem(t *testing.T) {
 	p, payslip, days := newPersonaWithItems(t)
 
-	if err := p.RemoveItem(uuid.New()); !errors.Is(err, domain.ErrItemNotFound) {
+	if err := p.RemoveItem(domain.ItemID(uuid.New())); !errors.Is(err, domain.ErrItemNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrItemNotFound)
 	}
 

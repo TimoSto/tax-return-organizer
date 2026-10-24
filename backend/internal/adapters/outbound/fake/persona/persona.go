@@ -8,8 +8,6 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/google/uuid"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
@@ -20,7 +18,7 @@ var _ port.PersonaRepository = (*Repository)(nil)
 type Repository struct {
 	mu              sync.RWMutex
 	collectorExists func(context.Context, domain.CollectorID) bool
-	personas        map[uuid.UUID]domain.Persona
+	personas        map[domain.PersonaID]domain.Persona
 }
 
 // NewRepository returns an empty repository. Personas can only be saved for the given collectors,
@@ -28,7 +26,7 @@ type Repository struct {
 func NewRepository(collectors ...domain.CollectorID) *Repository {
 	return &Repository{
 		collectorExists: func(_ context.Context, id domain.CollectorID) bool { return slices.Contains(collectors, id) },
-		personas:        make(map[uuid.UUID]domain.Persona),
+		personas:        make(map[domain.PersonaID]domain.Persona),
 	}
 }
 
@@ -40,12 +38,12 @@ func NewRepositoryFor(collectors port.CollectorRepository) *Repository {
 
 			return err == nil
 		},
-		personas: make(map[uuid.UUID]domain.Persona),
+		personas: make(map[domain.PersonaID]domain.Persona),
 	}
 }
 
 // GetPersona implements port.PersonaRepository.
-func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error) {
+func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

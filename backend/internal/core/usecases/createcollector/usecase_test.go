@@ -206,7 +206,7 @@ func TestExecute_RetriesInFreshTransaction(t *testing.T) {
 
 func TestExecute_WithIDGenerator(t *testing.T) {
 	repo := fakecollector.NewRepository()
-	uc := createcollector.New(newTransactor(repo, &personaRecorder{}), createcollector.WithIDGenerator(func() (domain.CollectorID, error) { return "aaaa", nil }))
+	uc := createcollector.New(newTransactor(repo, &personaRecorder{}), createcollector.WithIDGenerator(fixedCollectorID{}))
 
 	id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
@@ -217,3 +217,7 @@ func TestExecute_WithIDGenerator(t *testing.T) {
 		t.Errorf("id = %q, want aaaa", id)
 	}
 }
+
+type fixedCollectorID struct{ domain.RandomIDs }
+
+func (fixedCollectorID) NewCollectorID() (domain.CollectorID, error) { return "aaaa", nil }

@@ -18,20 +18,21 @@ var (
 type Collector struct {
 	ID    CollectorID
 	Name  string
-	Email string
+	Email Email
 }
 
 // NewCollector validates the input and returns a collector with the given id.
 func NewCollector(id CollectorID, name, email string) (*Collector, error) {
-	name, email = strings.TrimSpace(name), strings.TrimSpace(email)
+	name = strings.TrimSpace(name)
 
 	if name == "" {
 		return nil, ErrNameRequired
 	}
 
-	if err := ValidateEmail(email); err != nil {
+	addr, err := ParseEmail(strings.TrimSpace(email))
+	if err != nil {
 		return nil, err
 	}
 
-	return &Collector{ID: id, Name: name, Email: email}, nil
+	return &Collector{ID: id, Name: name, Email: addr}, nil
 }

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
@@ -41,12 +43,12 @@ func TestSaveCollector_RolledBackWhenPersonaSaveFails(t *testing.T) {
 		t.Fatalf("seed collector: %v", err)
 	}
 
-	existing, err := domain.NewPersona("bbbb", "Employed", "")
+	existing, err := domain.NewPersona(domain.PersonaID(uuid.New()), "bbbb", "Employed", "")
 	if err != nil {
 		t.Fatalf("new persona: %v", err)
 	}
 
-	item, err := existing.AddItem("Days", domain.RecurrenceAnnually, domain.ValueSpec{Type: domain.ValueTypeNumber})
+	item, err := existing.AddItem(domain.ItemID(uuid.New()), "Days", domain.RecurrenceAnnually, domain.ValueSpec{Type: domain.ValueTypeNumber})
 	if err != nil {
 		t.Fatalf("add item: %v", err)
 	}
@@ -55,7 +57,7 @@ func TestSaveCollector_RolledBackWhenPersonaSaveFails(t *testing.T) {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	clashing, err := domain.NewPersona("aaaa", "Employed", "")
+	clashing, err := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", "Employed", "")
 	if err != nil {
 		t.Fatalf("new persona: %v", err)
 	}

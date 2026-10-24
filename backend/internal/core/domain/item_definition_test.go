@@ -93,7 +93,7 @@ func TestNewItemDefinition(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			item, err := domain.NewItemDefinition(tc.title, tc.recurrence, tc.spec)
+			item, err := domain.NewItemDefinition(domain.ItemID(uuid.New()), tc.title, tc.recurrence, tc.spec)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("err = %v, want %v", err, tc.expErr)
@@ -107,7 +107,7 @@ func TestNewItemDefinition(t *testing.T) {
 				t.Errorf("unexpected item %+v", item)
 			}
 
-			if item.ID == uuid.Nil {
+			if item.ID == (domain.ItemID{}) {
 				t.Error("item has no id")
 			}
 		})

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 var (
@@ -24,7 +22,7 @@ var (
 // Persona groups the items a client has to provide if they do something tax relevant, e.g. "Employed".
 // It is the aggregate root of its item definitions: they are only read and changed through the persona.
 type Persona struct {
-	ID          uuid.UUID
+	ID          PersonaID
 	CollectorID CollectorID
 	Name        string
 	Description string
@@ -32,21 +30,21 @@ type Persona struct {
 	Items []ItemDefinition
 }
 
-// NewPersona validates the input and returns a persona with a fresh id.
-func NewPersona(collectorID CollectorID, name, description string) (*Persona, error) {
+// NewPersona validates the input and returns a persona with the given id.
+func NewPersona(id PersonaID, collectorID CollectorID, name, description string) (*Persona, error) {
 	name, description = strings.TrimSpace(name), strings.TrimSpace(description)
 
 	if name == "" {
 		return nil, ErrPersonaNameRequired
 	}
 
-	return &Persona{ID: uuid.New(), CollectorID: collectorID, Name: name, Description: description}, nil
+	return &Persona{ID: id, CollectorID: collectorID, Name: name, Description: description}, nil
 }
 
 // AddItem validates the input, appends a new item definition and returns a copy of it.
 // Changes to the copy do not affect the persona, use UpdateItem for that.
-func (p *Persona) AddItem(title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
-	item, err := NewItemDefinition(title, recurrence, spec)
+func (p *Persona) AddItem(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
+	item, err := NewItemDefinition(id, title, recurrence, spec)
 	if err != nil {
 		return ItemDefinition{}, err
 	}
@@ -58,7 +56,7 @@ func (p *Persona) AddItem(title string, recurrence Recurrence, spec ItemSpec) (I
 
 // UpdateItem replaces title, recurrence and spec of an item. The id and the kind stay the same,
 // so the spec has to be of the item's kind.
-func (p *Persona) UpdateItem(id uuid.UUID, title string, recurrence Recurrence, spec ItemSpec) error {
+func (p *Persona) UpdateItem(id ItemID, title string, recurrence Recurrence, spec ItemSpec) error {
 	i := p.itemIndex(id)
 	if i < 0 {
 		return fmt.Errorf("%w: %s", ErrItemNotFound, id)
@@ -79,7 +77,7 @@ func (p *Persona) UpdateItem(id uuid.UUID, title string, recurrence Recurrence, 
 }
 
 // RemoveItem deletes an item definition.
-func (p *Persona) RemoveItem(id uuid.UUID) error {
+func (p *Persona) RemoveItem(id ItemID) error {
 	i := p.itemIndex(id)
 	if i < 0 {
 		return fmt.Errorf("%w: %s", ErrItemNotFound, id)
@@ -90,6 +88,6 @@ func (p *Persona) RemoveItem(id uuid.UUID) error {
 	return nil
 }
 
-func (p *Persona) itemIndex(id uuid.UUID) int {
+func (p *Persona) itemIndex(id ItemID) int {
 	return slices.IndexFunc(p.Items, func(item ItemDefinition) bool { return item.ID == id })
 }

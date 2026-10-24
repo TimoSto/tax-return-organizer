@@ -23,21 +23,21 @@ const maxIDAttempts = 5
 
 // Usecase is the createcollector use case.
 type Usecase struct {
-	tx    port.Transactor
-	newID func() (domain.CollectorID, error)
+	tx  port.Transactor
+	ids domain.IDGenerator
 }
 
 // Option customizes a Usecase.
 type Option func(*Usecase)
 
-// WithIDGenerator replaces the random collector id generation, e.g. to seed a collector with a well-known id.
-func WithIDGenerator(newID func() (domain.CollectorID, error)) Option {
-	return func(u *Usecase) { u.newID = newID }
+// WithIDGenerator replaces the random id generation, e.g. to seed a collector with a well-known id.
+func WithIDGenerator(ids domain.IDGenerator) Option {
+	return func(u *Usecase) { u.ids = ids }
 }
 
 // New returns a use case that stores collectors, together with their predefined personas, through tx.
 func New(tx port.Transactor, opts ...Option) *Usecase {
-	u := &Usecase{tx: tx, newID: domain.NewCollectorID}
+	u := &Usecase{tx: tx, ids: domain.RandomIDs{}}
 
 	for _, opt := range opts {
 		opt(u)
@@ -56,7 +56,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd Command) (domain.CollectorID,
 
 	// One transaction per attempt: a taken id is a unique violation, which aborts the transaction in Postgres.
 	for range maxIDAttempts {
-		id, err := u.newID()
+		id, err := u.ids.NewCollectorID()
 		if err != nil {
 			return "", err
 		}
@@ -66,7 +66,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd Command) (domain.CollectorID,
 			return "", err
 		}
 
-		personas, err := predefinedPersonas(id, locale)
+		personas, err := predefinedPersonas(u.ids, id, locale)
 		if err != nil {
 			return "", err
 		}
@@ -103,12 +103,12 @@ func save(ctx context.Context, repos port.Repositories, c *domain.Collector, per
 }
 
 // predefinedPersonas instantiates a persona per template for the collector.
-func predefinedPersonas(id domain.CollectorID, locale domain.Locale) ([]*domain.Persona, error) {
+func predefinedPersonas(ids domain.IDGenerator, id domain.CollectorID, locale domain.Locale) ([]*domain.Persona, error) {
 	templates := domain.PersonaTemplates()
 	personas := make([]*domain.Persona, 0, len(templates))
 
 	for _, tmpl := range templates {
-		p, err := tmpl.Instantiate(id, locale)
+		p, err := tmpl.Instantiate(ids, id, locale)
 		if err != nil {
 			return nil, fmt.Errorf("instantiate persona %q: %w", tmpl.Name.For(domain.DefaultLocale), err)
 		}

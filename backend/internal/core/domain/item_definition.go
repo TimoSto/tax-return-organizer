@@ -3,8 +3,6 @@ package domain
 import (
 	"fmt"
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 var (
@@ -63,7 +61,7 @@ func (r Recurrence) Periods() int {
 // ItemDefinition is something a persona asks the client to provide. What exactly is asked for, and with it the
 // kind of the item, is given by its Spec.
 type ItemDefinition struct {
-	ID         uuid.UUID
+	ID         ItemID
 	Title      string
 	Recurrence Recurrence
 	Spec       ItemSpec
@@ -72,13 +70,13 @@ type ItemDefinition struct {
 // Kind tells whether the item is satisfied by uploaded documents or by an entered value.
 func (i ItemDefinition) Kind() Kind { return i.Spec.Kind() }
 
-// NewItemDefinition validates the input and returns an item definition with a fresh id.
-func NewItemDefinition(title string, recurrence Recurrence, spec ItemSpec) (*ItemDefinition, error) {
-	return buildItemDefinition(uuid.New(), title, recurrence, spec)
+// NewItemDefinition validates the input and returns an item definition with the given id.
+func NewItemDefinition(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (*ItemDefinition, error) {
+	return buildItemDefinition(id, title, recurrence, spec)
 }
 
 // buildItemDefinition validates the input and returns an item definition with the given id.
-func buildItemDefinition(id uuid.UUID, title string, recurrence Recurrence, spec ItemSpec) (*ItemDefinition, error) {
+func buildItemDefinition(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (*ItemDefinition, error) {
 	title = strings.TrimSpace(title)
 
 	if title == "" {
