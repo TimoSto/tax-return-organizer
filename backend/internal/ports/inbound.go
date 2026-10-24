@@ -13,6 +13,8 @@ import (
 type CreateCollectorCmd struct {
 	Name  string
 	Email string
+	// Locale is the language of the predefined personas, empty for the default.
+	Locale string
 }
 
 // CreateCollectorPort creates a collector and returns its id.

@@ -60,6 +60,7 @@ func isInvalidInput(err error) bool {
 		domain.ErrPersonaNameRequired, domain.ErrItemTitleRequired, domain.ErrInvalidKind, domain.ErrInvalidRecurrence,
 		domain.ErrSpecMismatch, domain.ErrInvalidValueType, domain.ErrMetadataFieldNameRequired,
 		domain.ErrDuplicateMetadataField, domain.ErrItemIDTaken, domain.ErrUnknownCollector,
+		domain.ErrInvalidLocale,
 	} {
 		if errors.Is(err, target) {
 			return true

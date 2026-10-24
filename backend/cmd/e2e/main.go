@@ -19,9 +19,12 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
+	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 // defaultCollectorID is the id of the collector seeded on every run, so e2e tests can reference it.
@@ -77,7 +80,8 @@ func runWithContext(ctx context.Context, getenv func(string) string) error {
 	return backend.Run(ctx, cfg)
 }
 
-// seed migrates the database and inserts the default collector.
+// seed migrates the database and creates the default collector, with its predefined personas, through the
+// create-collector use case so the seed follows any change to how collectors are created.
 // backend.Run migrates again afterwards, which is a no-op.
 func seed(ctx context.Context, dsn string) error {
 	if err := postgres.Migrate(ctx, dsn); err != nil {
@@ -90,13 +94,14 @@ func seed(ctx context.Context, dsn string) error {
 	}
 	defer pool.Close()
 
-	c, err := domain.NewCollector(defaultCollectorID, "E2E Collector", "e2e@example.com")
-	if err != nil {
-		return fmt.Errorf("new collector: %w", err)
-	}
+	create := createcollector.New(
+		pgcollector.NewRepository(pool),
+		pgpersona.NewRepository(pool),
+		createcollector.WithIDGenerator(func() (domain.CollectorID, error) { return defaultCollectorID, nil }),
+	)
 
-	if err := pgcollector.NewRepository(pool).SaveCollector(ctx, c); err != nil {
-		return fmt.Errorf("save collector: %w", err)
+	if _, err := create.Execute(ctx, ports.CreateCollectorCmd{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
+		return fmt.Errorf("create collector: %w", err)
 	}
 
 	return nil

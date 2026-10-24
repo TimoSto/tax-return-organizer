@@ -40,7 +40,7 @@ func postgresRepositories(pool *pgxpool.Pool) repositories {
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
 func wire(repos repositories) http.Handler {
 	return httpadapter.NewHandler(httpadapter.Deps{
-		CreateCollector: createcollector.New(repos.collectors).Execute,
+		CreateCollector: createcollector.New(repos.collectors, repos.personas).Execute,
 		GetCollector:    getcollector.New(repos.collectors).Execute,
 		GetPersona:      getpersona.New(repos.personas).Execute,
 	})

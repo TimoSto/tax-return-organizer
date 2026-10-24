@@ -12,6 +12,8 @@ import (
 type createRequest struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
+	// Locale is optional.
+	Locale string `json:"locale"`
 }
 
 type createResponse struct {
@@ -34,7 +36,7 @@ func Create(create ports.CreateCollectorPort) httpx.Route {
 				return
 			}
 
-			id, err := create(r.Context(), ports.CreateCollectorCmd{Name: req.Name, Email: req.Email})
+			id, err := create(r.Context(), ports.CreateCollectorCmd{Name: req.Name, Email: req.Email, Locale: req.Locale})
 			if err != nil {
 				httpx.WriteError(w, r, err)
 
