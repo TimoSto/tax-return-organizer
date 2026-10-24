@@ -7,7 +7,8 @@ import (
 
 const (
 	collectorIDLength = 4
-	// collectorIDAlphabet has 32 characters, so one random byte maps onto it without bias.
+	// collectorIDAlphabet has 31 characters. Random bytes are mapped onto it by rejection
+	// sampling (see NewCollectorID) to avoid modulo bias.
 	// It leaves out 0, 1, i, l and o, which are easily mistaken for each other.
 	collectorIDAlphabet = "23456789abcdefghjkmnpqrstuvwxyz"
 )
@@ -20,16 +21,31 @@ type CollectorID string
 
 // NewCollectorID returns a random collector id. It is not guaranteed to be unused.
 func NewCollectorID() (CollectorID, error) {
-	buf := make([]byte, collectorIDLength)
-	if _, err := rand.Read(buf); err != nil {
-		return "", fmt.Errorf("generate collector id: %w", err)
+	// Bytes at or above this limit are rejected, so the remaining range is a multiple of the
+	// alphabet size and every symbol is equally likely.
+	const limit = 256 - 256%len(collectorIDAlphabet)
+
+	id := make([]byte, 0, collectorIDLength)
+	buf := make([]byte, collectorIDLength*2)
+
+	for len(id) < collectorIDLength {
+		if _, err := rand.Read(buf); err != nil {
+			return "", fmt.Errorf("generate collector id: %w", err)
+		}
+
+		for _, b := range buf {
+			if int(b) >= limit {
+				continue
+			}
+
+			id = append(id, collectorIDAlphabet[int(b)%len(collectorIDAlphabet)])
+			if len(id) == collectorIDLength {
+				break
+			}
+		}
 	}
 
-	for i, b := range buf {
-		buf[i] = collectorIDAlphabet[int(b)%len(collectorIDAlphabet)]
-	}
-
-	return CollectorID(buf), nil
+	return CollectorID(id), nil
 }
 
 // ParseCollectorID validates s and returns it as a CollectorID.
