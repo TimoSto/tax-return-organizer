@@ -3,8 +3,6 @@ package createcollector_test
 import (
 	"context"
 	"errors"
-	"io"
-	"log/slog"
 	"testing"
 
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
@@ -31,7 +29,7 @@ func (r *personaRecorder) SavePersona(_ context.Context, p *domain.Persona) erro
 }
 
 func newUsecase(repo ports.CollectorRepository) *createcollector.Usecase {
-	return createcollector.New(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, &personaRecorder{})
+	return createcollector.New(repo, &personaRecorder{})
 }
 
 type failingRepo struct {
@@ -143,7 +141,7 @@ func TestExecute_AddsPredefinedPersonas(t *testing.T) {
 	for locale, wantName := range map[string]string{"": "Employed", "en": "Employed", "de": "Angestellt"} {
 		t.Run("locale "+locale, func(t *testing.T) {
 			personas := &personaRecorder{}
-			uc := createcollector.New(slog.New(slog.NewTextHandler(io.Discard, nil)), fakecollector.NewRepository(), personas)
+			uc := createcollector.New(fakecollector.NewRepository(), personas)
 
 			id, err := uc.Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com", Locale: locale})
 			if err != nil {
@@ -176,7 +174,7 @@ func TestExecute_InvalidLocale(t *testing.T) {
 
 func TestExecute_PersonaFailureKeepsCollector(t *testing.T) {
 	repo := fakecollector.NewRepository()
-	uc := createcollector.New(slog.New(slog.NewTextHandler(io.Discard, nil)), repo, &personaRecorder{err: errors.New("boom")})
+	uc := createcollector.New(repo, &personaRecorder{err: errors.New("boom")})
 
 	id, err := uc.Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {

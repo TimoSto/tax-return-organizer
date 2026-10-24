@@ -3,7 +3,6 @@ package persona_test
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -26,7 +25,7 @@ func doGet(t *testing.T, get ports.GetPersonaPort, method, collectorID, id strin
 	req := httptest.NewRequest(method, "/collectors/"+collectorID+"/personas/"+id, nil)
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
-	route := persona.Get(slog.New(slog.DiscardHandler), get)
+	route := persona.Get(get)
 	mux.Handle(route.Pattern, route.Handler)
 	mux.ServeHTTP(rec, req)
 

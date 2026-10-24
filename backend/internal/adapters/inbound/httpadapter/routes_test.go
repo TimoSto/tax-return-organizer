@@ -1,7 +1,6 @@
 package httpadapter_test
 
 import (
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,7 +9,7 @@ import (
 )
 
 func TestNewHandler(t *testing.T) {
-	h := httpadapter.NewHandler(slog.New(slog.DiscardHandler), httpadapter.Deps{})
+	h := httpadapter.NewHandler(httpadapter.Deps{})
 
 	for _, tt := range []struct {
 		method, path string

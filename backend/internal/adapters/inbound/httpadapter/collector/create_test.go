@@ -3,7 +3,6 @@ package collector_test
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,7 +21,7 @@ func do(t *testing.T, create ports.CreateCollectorPort, method, body string) *ht
 	req := httptest.NewRequest(method, "/collectors", strings.NewReader(body))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
-	route := collector.Create(slog.New(slog.DiscardHandler), create)
+	route := collector.Create(create)
 	mux.Handle(route.Pattern, route.Handler)
 	mux.ServeHTTP(rec, req)
 

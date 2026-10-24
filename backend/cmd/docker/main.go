@@ -9,9 +9,12 @@ import (
 	"syscall"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
 )
 
 func main() {
+	logging.Setup(os.Stderr, slog.LevelInfo)
+
 	if err := run(); err != nil {
 		slog.Error("backend stopped", "error", err)
 		os.Exit(1)

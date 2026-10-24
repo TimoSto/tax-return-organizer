@@ -18,14 +18,13 @@ const maxIDAttempts = 5
 
 // Usecase implements ports.CreateCollector.
 type Usecase struct {
-	log      *slog.Logger
 	repo     ports.CollectorRepository
 	personas ports.PersonaRepository
 }
 
 // New returns a use case that stores collectors in repo and gives each the predefined personas in personas.
-func New(log *slog.Logger, repo ports.CollectorRepository, personas ports.PersonaRepository) *Usecase {
-	return &Usecase{log: log, repo: repo, personas: personas}
+func New(repo ports.CollectorRepository, personas ports.PersonaRepository) *Usecase {
+	return &Usecase{repo: repo, personas: personas}
 }
 
 // Execute creates and persists a collector with the predefined personas in the requested locale and returns its id.
@@ -74,7 +73,7 @@ func (u *Usecase) addPredefinedPersonas(ctx context.Context, id domain.Collector
 		}
 
 		if err != nil {
-			u.log.ErrorContext(ctx, "add predefined persona", "collector_id", id, "persona", tmpl.Name.For(domain.DefaultLocale), "error", err)
+			slog.ErrorContext(ctx, "add predefined persona", "collector_id", id, "persona", tmpl.Name.For(domain.DefaultLocale), "error", err)
 		}
 	}
 }

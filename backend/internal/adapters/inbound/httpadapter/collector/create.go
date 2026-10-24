@@ -3,7 +3,6 @@ package collector
 
 import (
 	"encoding/json"
-	"log/slog"
 	"net/http"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
@@ -22,7 +21,7 @@ type createResponse struct {
 }
 
 // Create is POST /collectors.
-func Create(log *slog.Logger, create ports.CreateCollectorPort) httpx.Route {
+func Create(create ports.CreateCollectorPort) httpx.Route {
 	return httpx.Route{
 		Pattern: "POST /collectors",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,20 +31,20 @@ func Create(log *slog.Logger, create ports.CreateCollectorPort) httpx.Route {
 			dec.DisallowUnknownFields()
 
 			if err := dec.Decode(&req); err != nil {
-				httpx.WriteJSON(log, w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid request body"})
+				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid request body"})
 
 				return
 			}
 
 			id, err := create(r.Context(), ports.CreateCollectorCmd{Name: req.Name, Email: req.Email, Locale: req.Locale})
 			if err != nil {
-				httpx.WriteError(log, w, r, err)
+				httpx.WriteError(w, r, err)
 
 				return
 			}
 
 			w.Header().Set("Location", "/collectors/"+id.String())
-			httpx.WriteJSON(log, w, http.StatusCreated, createResponse{ID: id.String()})
+			httpx.WriteJSON(w, http.StatusCreated, createResponse{ID: id.String()})
 		}),
 	}
 }

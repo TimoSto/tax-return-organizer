@@ -3,7 +3,6 @@ package httpx_test
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -40,7 +39,7 @@ func TestWriteError_Status(t *testing.T) {
 		t.Run(tc.err.Error(), func(t *testing.T) {
 			rec := httptest.NewRecorder()
 
-			httpx.WriteError(slog.New(slog.DiscardHandler), rec, httptest.NewRequest(http.MethodGet, "/", nil), tc.err)
+			httpx.WriteError(rec, httptest.NewRequest(http.MethodGet, "/", nil), tc.err)
 
 			if rec.Code != tc.want {
 				t.Errorf("status = %d, want %d", rec.Code, tc.want)
