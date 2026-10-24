@@ -42,6 +42,17 @@ func (d Deps) validate() error {
 	return nil
 }
 
+// Routes lists all endpoints. A new endpoint is added here and described in api/openapi.yaml.
+func Routes(d Deps) []httpx.Route {
+	return []httpx.Route{
+		health.Liveness(),
+		collector.Create(d.CreateCollector),
+		collector.Get(d.GetCollector),
+		persona.Get(d.GetPersona),
+		persona.List(d.ListPersonas),
+	}
+}
+
 // NewHandler registers all endpoints and wraps them in the middleware. It fails if a dependency is nil.
 func NewHandler(d Deps) (http.Handler, error) {
 	if err := d.validate(); err != nil {
@@ -50,13 +61,7 @@ func NewHandler(d Deps) (http.Handler, error) {
 
 	mux := http.NewServeMux()
 
-	for _, r := range []httpx.Route{
-		health.Liveness(),
-		collector.Create(d.CreateCollector),
-		collector.Get(d.GetCollector),
-		persona.Get(d.GetPersona),
-		persona.List(d.ListPersonas),
-	} {
+	for _, r := range Routes(d) {
 		mux.Handle(r.Pattern, tenantFromPath(r))
 	}
 
