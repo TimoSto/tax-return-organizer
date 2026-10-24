@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -11,15 +10,15 @@ import (
 
 var (
 	// ErrPersonaNameRequired is returned for a blank persona name.
-	ErrPersonaNameRequired = errors.New("persona name is required")
+	ErrPersonaNameRequired = invalid("persona name is required")
 	// ErrPersonaNotFound is returned when a collector has no persona with the requested id.
-	ErrPersonaNotFound = errors.New("persona not found")
+	ErrPersonaNotFound = notFound("persona not found")
 	// ErrItemNotFound is returned when a persona has no item definition with the requested id.
-	ErrItemNotFound = errors.New("item definition not found")
+	ErrItemNotFound = notFound("item definition not found")
 	// ErrItemIDTaken is returned when an item definition id is already used by another persona.
-	ErrItemIDTaken = errors.New("item definition id already taken")
+	ErrItemIDTaken = conflict("item definition id already taken")
 	// ErrUnknownCollector is returned when a persona refers to a collector that does not exist.
-	ErrUnknownCollector = errors.New("collector does not exist")
+	ErrUnknownCollector = conflict("collector does not exist")
 )
 
 // Persona groups the items a client has to provide if they do something tax relevant, e.g. "Employed".

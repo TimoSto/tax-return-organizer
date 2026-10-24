@@ -2,7 +2,6 @@ package domain
 
 import (
 	"crypto/rand"
-	"errors"
 	"fmt"
 )
 
@@ -14,7 +13,7 @@ const (
 )
 
 // ErrInvalidCollectorID is returned for an id that is not a well-formed collector id.
-var ErrInvalidCollectorID = errors.New("invalid collector id")
+var ErrInvalidCollectorID = invalid("invalid collector id")
 
 // CollectorID identifies a collector. It is short so it can be used in URLs.
 type CollectorID string
