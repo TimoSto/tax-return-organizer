@@ -18,6 +18,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getpersona"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/listpersonas"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
@@ -43,6 +44,7 @@ func wire(repos repositories) http.Handler {
 		CreateCollector: createcollector.New(repos.collectors, repos.personas).Execute,
 		GetCollector:    getcollector.New(repos.collectors).Execute,
 		GetPersona:      getpersona.New(repos.personas).Execute,
+		ListPersonas:    listpersonas.New(repos.personas).Execute,
 	})
 }
 

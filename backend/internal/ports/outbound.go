@@ -22,6 +22,10 @@ type PersonaRepository interface {
 	// It returns domain.ErrPersonaNotFound if the collector has no persona with the given id,
 	// which includes personas that belong to another collector.
 	GetPersona(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error)
+	// ListPersonas returns all personas of the collector with their items, ordered by name and then id.
+	// A collector without personas yields an empty list.
+	// It returns domain.ErrCollectorNotFound if the collector does not exist.
+	ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error)
 	// SavePersona inserts the persona or, if its id exists already, replaces name, description and items.
 	// Items missing from persona.Items are deleted, the others keep their id.
 	// It returns domain.ErrPersonaNotFound if the id belongs to another collector,
