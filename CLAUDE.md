@@ -8,7 +8,7 @@ Multi-tenant (SaaS-style) tool for organizing tax return documents. A *Collector
 
 Monorepo with two independent projects (each has its own CI workflow, triggered by path):
 
-- `backend/` — Go REST API (Postgres). Contract: `backend/api/openapi.yaml` (hand-maintained; update it when endpoints change).
+- `backend/` — Go REST API (Postgres). Contract: `backend/api/openapi.yaml` (hand-maintained; update it when endpoints change, using the `sync-openapi` skill — a hook reminds Claude after handler edits, and `TestOpenAPI_Routes` fails if routes and spec diverge).
 - `bff/` — SvelteKit (Svelte, adapter-node) backend-for-frontend with Paraglide i18n (`messages/{de,en}.json`). Still mostly scaffold/demo code.
 - `docker-compose.yml` — local Postgres only (db/user/password all `tax`, port 5432).
 
