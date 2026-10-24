@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -59,41 +60,74 @@ func (r Recurrence) Periods() int {
 }
 
 // ItemDefinition is something a persona asks the client to provide. What exactly is asked for, and with it the
-// kind of the item, is given by its Spec.
+// kind of the item, is given by its spec. Instances are immutable and always valid; create them with
+// NewItemDefinition or RehydrateItemDefinition.
 type ItemDefinition struct {
-	ID         ItemID
-	Title      string
-	Recurrence Recurrence
-	Spec       ItemSpec
+	id         ItemID
+	title      string
+	recurrence Recurrence
+	spec       ItemSpec
 }
-
-// Kind tells whether the item is satisfied by uploaded documents or by an entered value.
-func (i ItemDefinition) Kind() Kind { return i.Spec.Kind() }
 
 // NewItemDefinition validates the input and returns an item definition with the given id.
-func NewItemDefinition(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (*ItemDefinition, error) {
-	return buildItemDefinition(id, title, recurrence, spec)
-}
-
-// buildItemDefinition validates the input and returns an item definition with the given id.
-func buildItemDefinition(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (*ItemDefinition, error) {
+func NewItemDefinition(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
 	title = strings.TrimSpace(title)
 
 	if title == "" {
-		return nil, ErrItemTitleRequired
+		return ItemDefinition{}, ErrItemTitleRequired
 	}
 
 	if !recurrence.Valid() {
-		return nil, fmt.Errorf("%w: %q", ErrInvalidRecurrence, recurrence)
+		return ItemDefinition{}, fmt.Errorf("%w: %q", ErrInvalidRecurrence, recurrence)
 	}
 
 	if spec == nil {
-		return nil, ErrSpecRequired
+		return ItemDefinition{}, ErrSpecRequired
 	}
 
 	if err := spec.Validate(); err != nil {
-		return nil, err
+		return ItemDefinition{}, err
 	}
 
-	return &ItemDefinition{ID: id, Title: title, Recurrence: recurrence, Spec: spec}, nil
+	return ItemDefinition{id: id, title: title, recurrence: recurrence, spec: cloneSpec(spec)}, nil
+}
+
+// RehydrateItemDefinition rebuilds an item definition that was stored earlier, e.g. when a repository loads it.
+// It applies the same rules as NewItemDefinition, so corrupt stored data is reported instead of becoming an invalid
+// item.
+func RehydrateItemDefinition(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
+	return NewItemDefinition(id, title, recurrence, spec)
+}
+
+// ID returns the id of the item.
+func (i ItemDefinition) ID() ItemID { return i.id }
+
+// Title returns the title of the item.
+func (i ItemDefinition) Title() string { return i.title }
+
+// Recurrence returns how often the item is due within a tax year.
+func (i ItemDefinition) Recurrence() Recurrence { return i.recurrence }
+
+// Spec returns what the item asks for. The result is a copy: changing it does not change the item.
+func (i ItemDefinition) Spec() ItemSpec { return cloneSpec(i.spec) }
+
+// Kind tells whether the item is satisfied by uploaded documents or by an entered value.
+// It is empty for the zero ItemDefinition, which is not a valid item.
+func (i ItemDefinition) Kind() Kind {
+	if i.spec == nil {
+		return ""
+	}
+
+	return i.spec.Kind()
+}
+
+// cloneSpec copies the parts of a spec that reference memory, so specs are never shared between items and callers.
+func cloneSpec(s ItemSpec) ItemSpec {
+	if d, ok := s.(DocumentSpec); ok {
+		d.MetadataFields = slices.Clone(d.MetadataFields)
+
+		return d
+	}
+
+	return s
 }

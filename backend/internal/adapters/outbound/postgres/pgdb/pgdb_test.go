@@ -13,6 +13,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 )
@@ -49,7 +50,7 @@ func TestInTx_CommitsOnSuccess(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
 	err := tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
-		return r.Collectors.SaveCollector(ctx, &domain.Collector{ID: "aaaa", Name: "A", Email: "a@example.com"})
+		return r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com"))
 	})
 	if err != nil {
 		t.Fatalf("InTx: %v", err)
@@ -65,7 +66,7 @@ func TestInTx_RollsBackOnError(t *testing.T) {
 	boom := errors.New("boom")
 
 	err := tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
-		if err := r.Collectors.SaveCollector(ctx, &domain.Collector{ID: "aaaa", Name: "A", Email: "a@example.com"}); err != nil {
+		if err := r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
 			return err
 		}
 
@@ -87,7 +88,7 @@ func TestInTx_RollsBackOnPanic(t *testing.T) {
 		defer func() { _ = recover() }()
 
 		_ = tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
-			if err := r.Collectors.SaveCollector(ctx, &domain.Collector{ID: "aaaa", Name: "A", Email: "a@example.com"}); err != nil {
+			if err := r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
 				return err
 			}
 
@@ -106,7 +107,7 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 	boom := errors.New("boom")
 
 	err := tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
-		if err := r.Collectors.SaveCollector(ctx, &domain.Collector{ID: "aaaa", Name: "A", Email: "a@example.com"}); err != nil {
+		if err := r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
 			return err
 		}
 

@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/listpersonas"
@@ -27,9 +27,9 @@ func (r failingRepo) ListPersonas(context.Context, domain.CollectorID) ([]*domai
 func TestExecute_Success(t *testing.T) {
 	repo := fakepersona.NewRepository("k7m2", "bbbb")
 	ctx := context.Background()
-	employed := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "k7m2", Name: "Employed", Description: "Has a job"}
-	letting := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "k7m2", Name: "Letting"}
-	other := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "bbbb", Name: "Other"}
+	employed := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "Has a job")
+	letting := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Letting", "")
+	other := domaintest.Persona(domaintest.PersonaID(), "bbbb", "Other", "")
 
 	for _, p := range []*domain.Persona{letting, other, employed} {
 		if err := repo.SavePersona(ctx, p); err != nil {
@@ -42,7 +42,7 @@ func TestExecute_Success(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if diff := cmp.Diff([]*domain.Persona{employed, letting}, got); diff != "" {
+	if diff := cmp.Diff([]*domain.Persona{employed, letting}, got, domaintest.CmpOptions()); diff != "" {
 		t.Errorf("personas mismatch (-want +got):\n%s", diff)
 	}
 }

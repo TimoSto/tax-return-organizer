@@ -10,6 +10,7 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 )
 
@@ -35,7 +36,7 @@ func doList(t *testing.T, list listFunc, method string) *httptest.ResponseRecord
 
 func TestListPersonas_OK(t *testing.T) {
 	rec := doList(t, func(context.Context) ([]*domain.Persona, error) {
-		return []*domain.Persona{{ID: testID, CollectorID: testCollectorID, Name: "Employed", Description: "Has a job"}}, nil
+		return []*domain.Persona{domaintest.Persona(testID, testCollectorID, "Employed", "Has a job")}, nil
 	}, http.MethodGet)
 
 	if rec.Code != http.StatusOK {

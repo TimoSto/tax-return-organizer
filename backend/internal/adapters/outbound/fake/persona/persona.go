@@ -48,7 +48,7 @@ func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorI
 	defer r.mu.RUnlock()
 
 	p, ok := r.personas[id]
-	if !ok || p.CollectorID != collectorID {
+	if !ok || p.CollectorID() != collectorID {
 		return nil, domain.ErrPersonaNotFound
 	}
 
@@ -67,13 +67,13 @@ func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.Collec
 	personas := make([]*domain.Persona, 0)
 
 	for _, p := range r.personas {
-		if p.CollectorID == collectorID {
+		if p.CollectorID() == collectorID {
 			personas = append(personas, clone(&p))
 		}
 	}
 
 	slices.SortFunc(personas, func(a, b *domain.Persona) int {
-		return cmp.Or(cmp.Compare(a.Name, b.Name), bytes.Compare(a.ID[:], b.ID[:]))
+		return cmp.Or(cmp.Compare(a.Name(), b.Name()), compareIDs(a.ID(), b.ID()))
 	})
 
 	return personas, nil
@@ -84,43 +84,41 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if !r.collectorExists(ctx, persona.CollectorID) {
+	if !r.collectorExists(ctx, persona.CollectorID()) {
 		return domain.ErrUnknownCollector
 	}
 
-	if existing, ok := r.personas[persona.ID]; ok && existing.CollectorID != persona.CollectorID {
+	if existing, ok := r.personas[persona.ID()]; ok && existing.CollectorID() != persona.CollectorID() {
 		return domain.ErrPersonaNotFound
 	}
 
 	for id, other := range r.personas {
-		if id == persona.ID {
+		if id == persona.ID() {
 			continue
 		}
 
-		for _, item := range persona.Items {
-			if slices.ContainsFunc(other.Items, func(o domain.ItemDefinition) bool { return o.ID == item.ID }) {
+		for _, item := range persona.Items() {
+			if slices.ContainsFunc(other.Items(), func(o domain.ItemDefinition) bool { return o.ID() == item.ID() }) {
 				return domain.ErrItemIDTaken
 			}
 		}
 	}
 
-	r.personas[persona.ID] = *clone(persona)
+	r.personas[persona.ID()] = *clone(persona)
 
 	return nil
 }
 
-// clone copies p deeply, so callers and the repository never share items or specs.
+// clone copies p deeply, so callers and the repository never share items or specs. Persona.Items and
+// RehydratePersona copy the items, so a round trip through them is a deep copy.
 func clone(p *domain.Persona) *domain.Persona {
-	c := *p
-	c.Items = slices.Clone(p.Items)
-
-	for i := range c.Items {
-		// ValueSpec holds no references; only a DocumentSpec shares its metadata fields.
-		if spec, ok := c.Items[i].Spec.(domain.DocumentSpec); ok {
-			spec.MetadataFields = slices.Clone(spec.MetadataFields)
-			c.Items[i].Spec = spec
-		}
+	c, err := domain.RehydratePersona(p.ID(), p.CollectorID(), p.Name(), p.Description(), p.Items())
+	if err != nil {
+		// p was valid, so its copy is valid too.
+		panic(err)
 	}
 
-	return &c
+	return c
 }
+
+func compareIDs(a, b domain.PersonaID) int { return bytes.Compare(a[:], b[:]) }

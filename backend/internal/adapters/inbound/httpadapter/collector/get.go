@@ -31,7 +31,7 @@ func Get(getter Getter) httpx.Route {
 				return
 			}
 
-			httpx.WriteJSON(w, http.StatusOK, getResponse{ID: c.ID.String(), Name: c.Name, Email: c.Email.String()})
+			httpx.WriteJSON(w, http.StatusOK, getResponse{ID: c.ID().String(), Name: c.Name(), Email: c.Email().String()})
 		}),
 	}
 }

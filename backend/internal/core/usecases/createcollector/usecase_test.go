@@ -57,7 +57,7 @@ func TestExecute_Success(t *testing.T) {
 		t.Fatalf("collector not saved: %v", err)
 	}
 
-	if got.Name != "Jane" || got.Email != "jane@example.com" {
+	if got.Name() != "Jane" || got.Email() != "jane@example.com" {
 		t.Errorf("unexpected collector: %+v", got)
 	}
 }
@@ -157,8 +157,8 @@ func TestExecute_AddsPredefinedPersonas(t *testing.T) {
 				t.Fatalf("saved %d personas, want %d", len(personas.saved), len(domain.PersonaTemplates()))
 			}
 
-			if got := personas.saved[0]; got.Name != wantName || got.CollectorID != id {
-				t.Errorf("first persona = %q of %q, want %q of %q", got.Name, got.CollectorID, wantName, id)
+			if got := personas.saved[0]; got.Name() != wantName || got.CollectorID() != id {
+				t.Errorf("first persona = %q of %q, want %q of %q", got.Name(), got.CollectorID(), wantName, id)
 			}
 		})
 	}

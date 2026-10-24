@@ -82,7 +82,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd Command) (domain.CollectorID,
 			return "", err
 		}
 
-		return c.ID, nil
+		return c.ID(), nil
 	}
 
 	return "", fmt.Errorf("save collector: no free id after %d attempts", maxIDAttempts)
@@ -95,7 +95,7 @@ func save(ctx context.Context, repos port.Repositories, c *domain.Collector, per
 
 	for _, p := range personas {
 		if err := repos.Personas.SavePersona(ctx, p); err != nil {
-			return fmt.Errorf("save persona %q: %w", p.Name, err)
+			return fmt.Errorf("save persona %q: %w", p.Name(), err)
 		}
 	}
 
