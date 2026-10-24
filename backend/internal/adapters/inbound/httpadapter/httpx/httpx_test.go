@@ -85,3 +85,28 @@ func TestWriteError_InternalErrorIsGeneric(t *testing.T) {
 		t.Errorf("error = %q, want generic message", body.Error)
 	}
 }
+
+func TestParsePathID(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /c/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id, ok := httpx.ParsePathID(w, r, "id", domain.ParseCollectorID, "collector id")
+		if ok {
+			_, _ = w.Write([]byte(id.String()))
+		}
+	})
+
+	for _, tc := range []struct {
+		path, body string
+		want       int
+	}{
+		{"/c/k7m2", "k7m2", http.StatusOK},
+		{"/c/!", `{"error":"invalid collector id"}` + "\n", http.StatusBadRequest},
+	} {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
+
+		if rec.Code != tc.want || rec.Body.String() != tc.body {
+			t.Errorf("%s = %d %q, want %d %q", tc.path, rec.Code, rec.Body.String(), tc.want, tc.body)
+		}
+	}
+}

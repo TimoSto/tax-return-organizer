@@ -37,7 +37,7 @@ func postgresRepositories(db pgdb.DBTX) port.Repositories {
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
 // Reads use repos directly, writes that span several repositories go through tx.
-func wire(repos port.Repositories, tx port.Transactor) http.Handler {
+func wire(repos port.Repositories, tx port.Transactor) (http.Handler, error) {
 	return httpadapter.NewHandler(httpadapter.Deps{
 		CreateCollector: createcollector.New(tx, templates.New()),
 		GetCollector:    getcollector.New(repos.Collectors),
@@ -62,7 +62,12 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer pool.Close()
 
-	return serve(ctx, newServer(cfg.HTTPAddr, wire(postgresRepositories(pool), pgdb.NewTransactor(pool, postgresRepositories))))
+	handler, err := wire(postgresRepositories(pool), pgdb.NewTransactor(pool, postgresRepositories))
+	if err != nil {
+		return fmt.Errorf("wire: %w", err)
+	}
+
+	return serve(ctx, newServer(cfg.HTTPAddr, handler))
 }
 
 func newServer(addr string, handler http.Handler) *http.Server {

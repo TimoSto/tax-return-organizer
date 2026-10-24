@@ -52,10 +52,8 @@ func Get(getter Getter) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas/{id}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			id, err := domain.ParsePersonaID(r.PathValue("id"))
-			if err != nil {
-				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid persona id"})
-
+			id, ok := httpx.ParsePathID(w, r, "id", domain.ParsePersonaID, "persona id")
+			if !ok {
 				return
 			}
 

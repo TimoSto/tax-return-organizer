@@ -27,7 +27,12 @@ func newFakeRepositories() port.Repositories {
 }
 
 func wireFake(repos port.Repositories) http.Handler {
-	return wire(repos, faketransactor.New(repos))
+	h, err := wire(repos, faketransactor.New(repos))
+	if err != nil {
+		panic(err)
+	}
+
+	return h
 }
 
 func TestWire_CreateCollector(t *testing.T) {
