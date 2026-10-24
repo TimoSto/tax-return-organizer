@@ -279,7 +279,7 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 
 	t.Run("A repository bound to another collector cannot get a persona by its id", func(t *testing.T) {
 		store := newStore(t, aliceID, bobID)
-		mustSave(t, store.For(aliceID), alices)
+		mustSave(ctx, t, store.For(aliceID), alices)
 
 		if _, err := store.For(bobID).GetPersona(ctx, alices.ID()); !errors.Is(err, domain.ErrPersonaNotFound) {
 			t.Errorf("GetPersona() error = %v, want %v", err, domain.ErrPersonaNotFound)
@@ -288,8 +288,8 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 
 	t.Run("A repository bound to another collector does not list the persona", func(t *testing.T) {
 		store := newStore(t, aliceID, bobID)
-		mustSave(t, store.For(aliceID), alices)
-		mustSave(t, store.For(bobID), bobs)
+		mustSave(ctx, t, store.For(aliceID), alices)
+		mustSave(ctx, t, store.For(bobID), bobs)
 
 		got, err := store.For(bobID).ListPersonas(ctx)
 		if err != nil {
@@ -317,10 +317,10 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 	})
 }
 
-func mustSave(t *testing.T, repo port.PersonaRepository, p *domain.Persona) {
+func mustSave(ctx context.Context, t *testing.T, repo port.PersonaRepository, p *domain.Persona) {
 	t.Helper()
 
-	if err := repo.SavePersona(context.Background(), p); err != nil {
+	if err := repo.SavePersona(ctx, p); err != nil {
 		t.Fatalf("SavePersona() error = %v", err)
 	}
 }
