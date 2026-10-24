@@ -12,8 +12,8 @@ import (
 )
 
 // Middleware wraps h with request-ID assignment, request logging and panic recovery.
-func Middleware(log *slog.Logger, h http.Handler) http.Handler {
-	return requestID(requestLog(log, recoverPanic(log, h)))
+func Middleware(h http.Handler) http.Handler {
+	return requestID(requestLog(recoverPanic(h)))
 }
 
 func requestID(next http.Handler) http.Handler {
@@ -23,14 +23,14 @@ func requestID(next http.Handler) http.Handler {
 	})
 }
 
-func requestLog(log *slog.Logger, next http.Handler) http.Handler {
+func requestLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
 
 		next.ServeHTTP(sw, r)
 
-		log.InfoContext(r.Context(), "request",
+		slog.InfoContext(r.Context(), "request",
 			"request_id", w.Header().Get(httpx.RequestIDHeader),
 			"method", r.Method,
 			"path", r.URL.Path,
@@ -40,7 +40,7 @@ func requestLog(log *slog.Logger, next http.Handler) http.Handler {
 	})
 }
 
-func recoverPanic(log *slog.Logger, next http.Handler) http.Handler {
+func recoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if v := recover(); v != nil {
@@ -48,8 +48,8 @@ func recoverPanic(log *slog.Logger, next http.Handler) http.Handler {
 					panic(v)
 				}
 
-				log.ErrorContext(r.Context(), "panic", "value", v, "request_id", w.Header().Get(httpx.RequestIDHeader))
-				httpx.WriteJSON(log, w, http.StatusInternalServerError, httpx.ErrorResponse{Error: "internal error"})
+				slog.ErrorContext(r.Context(), "panic", "value", v, "request_id", w.Header().Get(httpx.RequestIDHeader))
+				httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{Error: "internal error"})
 			}
 		}()
 

@@ -1,7 +1,6 @@
 package health_test
 
 import (
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestLiveness(t *testing.T) {
-	route := health.Liveness(slog.New(slog.DiscardHandler))
+	route := health.Liveness()
 
 	mux := http.NewServeMux()
 	mux.Handle(route.Pattern, route.Handler)

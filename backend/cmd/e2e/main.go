@@ -21,12 +21,15 @@ import (
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
 )
 
 // defaultCollectorID is the id of the collector seeded on every run, so e2e tests can reference it.
 var defaultCollectorID = domain.CollectorID("aaaa")
 
 func main() {
+	logging.Setup(os.Stderr, slog.LevelInfo)
+
 	if err := run(); err != nil {
 		slog.Error("e2e stopped", "error", err)
 		os.Exit(1)

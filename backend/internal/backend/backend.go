@@ -38,8 +38,8 @@ func postgresRepositories(pool *pgxpool.Pool) repositories {
 }
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
-func wire(log *slog.Logger, repos repositories) http.Handler {
-	return httpadapter.NewHandler(log, httpadapter.Deps{
+func wire(repos repositories) http.Handler {
+	return httpadapter.NewHandler(httpadapter.Deps{
 		CreateCollector: createcollector.New(repos.collectors).Execute,
 		GetCollector:    getcollector.New(repos.collectors).Execute,
 		GetPersona:      getpersona.New(repos.personas).Execute,
@@ -62,7 +62,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer pool.Close()
 
-	return serve(ctx, newServer(cfg.HTTPAddr, wire(slog.Default(), postgresRepositories(pool))))
+	return serve(ctx, newServer(cfg.HTTPAddr, wire(postgresRepositories(pool))))
 }
 
 func newServer(addr string, handler http.Handler) *http.Server {

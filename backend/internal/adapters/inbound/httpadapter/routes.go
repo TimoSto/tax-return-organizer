@@ -2,7 +2,6 @@
 package httpadapter
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
@@ -20,17 +19,17 @@ type Deps struct {
 }
 
 // NewHandler registers all endpoints and wraps them in the middleware.
-func NewHandler(log *slog.Logger, d Deps) http.Handler {
+func NewHandler(d Deps) http.Handler {
 	mux := http.NewServeMux()
 
 	for _, r := range []httpx.Route{
-		health.Liveness(log),
-		collector.Create(log, d.CreateCollector),
-		collector.Get(log, d.GetCollector),
-		persona.Get(log, d.GetPersona),
+		health.Liveness(),
+		collector.Create(d.CreateCollector),
+		collector.Get(d.GetCollector),
+		persona.Get(d.GetPersona),
 	} {
 		mux.Handle(r.Pattern, r.Handler)
 	}
 
-	return Middleware(log, mux)
+	return Middleware(mux)
 }
