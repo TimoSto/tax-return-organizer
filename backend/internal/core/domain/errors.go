@@ -24,3 +24,6 @@ func (e *Error) Error() string { return e.msg }
 func invalid(msg string) *Error  { return &Error{Kind: ErrorInvalid, msg: msg} }
 func notFound(msg string) *Error { return &Error{Kind: ErrorNotFound, msg: msg} }
 func conflict(msg string) *Error { return &Error{Kind: ErrorConflict, msg: msg} }
+
+// ErrInvalidLocale is returned for a locale that is not one of the known ones.
+var ErrInvalidLocale = invalid("invalid locale")

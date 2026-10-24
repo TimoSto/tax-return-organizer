@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
@@ -23,8 +24,9 @@ const maxIDAttempts = 5
 
 // Usecase is the createcollector use case.
 type Usecase struct {
-	tx  port.Transactor
-	ids domain.IDGenerator
+	tx      port.Transactor
+	catalog port.PersonaTemplateCatalog
+	ids     domain.IDGenerator
 }
 
 // Option customizes a Usecase.
@@ -35,9 +37,9 @@ func WithIDGenerator(ids domain.IDGenerator) Option {
 	return func(u *Usecase) { u.ids = ids }
 }
 
-// New returns a use case that stores collectors, together with their predefined personas, through tx.
-func New(tx port.Transactor, opts ...Option) *Usecase {
-	u := &Usecase{tx: tx, ids: domain.RandomIDs{}}
+// New returns a use case that stores collectors, together with the predefined personas from catalog, through tx.
+func New(tx port.Transactor, catalog port.PersonaTemplateCatalog, opts ...Option) *Usecase {
+	u := &Usecase{tx: tx, catalog: catalog, ids: domain.RandomIDs{}}
 
 	for _, opt := range opts {
 		opt(u)
@@ -49,7 +51,7 @@ func New(tx port.Transactor, opts ...Option) *Usecase {
 // Execute creates and persists a collector with the predefined personas in the requested locale and returns its id.
 // The collector and its personas are saved in one transaction: on an error nothing is stored, so a retry is safe.
 func (u *Usecase) Execute(ctx context.Context, cmd Command) (domain.CollectorID, error) {
-	locale, err := domain.ParseLocale(cmd.Locale)
+	locale, err := personatemplate.ParseLocale(cmd.Locale)
 	if err != nil {
 		return "", err
 	}
@@ -66,7 +68,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd Command) (domain.CollectorID,
 			return "", err
 		}
 
-		personas, err := predefinedPersonas(u.ids, id, locale)
+		personas, err := predefinedPersonas(u.catalog, u.ids, id, locale)
 		if err != nil {
 			return "", err
 		}
@@ -103,14 +105,14 @@ func save(ctx context.Context, repos port.Repositories, c *domain.Collector, per
 }
 
 // predefinedPersonas instantiates a persona per template for the collector.
-func predefinedPersonas(ids domain.IDGenerator, id domain.CollectorID, locale domain.Locale) ([]*domain.Persona, error) {
-	templates := domain.PersonaTemplates()
+func predefinedPersonas(catalog port.PersonaTemplateCatalog, ids domain.IDGenerator, id domain.CollectorID, locale personatemplate.Locale) ([]*domain.Persona, error) {
+	templates := catalog.PersonaTemplates()
 	personas := make([]*domain.Persona, 0, len(templates))
 
 	for _, tmpl := range templates {
 		p, err := tmpl.Instantiate(ids, id, locale)
 		if err != nil {
-			return nil, fmt.Errorf("instantiate persona %q: %w", tmpl.Name.For(domain.DefaultLocale), err)
+			return nil, fmt.Errorf("instantiate persona %q: %w", tmpl.Name.For(personatemplate.DefaultLocale), err)
 		}
 
 		personas = append(personas, p)

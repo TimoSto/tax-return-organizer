@@ -12,6 +12,7 @@ import (
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
@@ -162,7 +163,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 		return r
 	})
 
-	_, err := createcollector.New(tx).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
+	_, err := createcollector.New(tx, templates.New()).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -184,7 +185,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
-	id, err := createcollector.New(tx).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
+	id, err := createcollector.New(tx, templates.New()).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
@@ -194,8 +195,8 @@ func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
 		t.Fatalf("ListPersonas: %v", err)
 	}
 
-	if len(personas) != len(domain.PersonaTemplates()) {
-		t.Errorf("personas = %d, want %d", len(personas), len(domain.PersonaTemplates()))
+	if len(personas) != len(templates.New().PersonaTemplates()) {
+		t.Errorf("personas = %d, want %d", len(personas), len(templates.New().PersonaTemplates()))
 	}
 }
 
@@ -208,7 +209,7 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 	}
 
 	ids := []domain.CollectorID{"aaaa", "bbbb"}
-	uc := createcollector.New(tx, createcollector.WithIDGenerator(&sequenceIDs{ids: ids}))
+	uc := createcollector.New(tx, templates.New(), createcollector.WithIDGenerator(&sequenceIDs{ids: ids}))
 
 	id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {

@@ -21,6 +21,7 @@ import (
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
@@ -99,6 +100,7 @@ func seed(ctx context.Context, dsn string) error {
 		pgdb.NewTransactor(pool, func(db pgdb.DBTX) port.Repositories {
 			return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewRepository(db)}
 		}),
+		templates.New(),
 		createcollector.WithIDGenerator(fixedCollectorID{}),
 	)
 
