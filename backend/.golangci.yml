@@ -4,25 +4,48 @@ linters:
   default: standard
   enable:
     - bodyclose
+    - contextcheck
     - depguard
     - errorlint
+    - exhaustive
     - gocritic
+    - gosec
     - misspell
     - nilerr
     - noctx
     - revive
+    - sloglint
     - unconvert
     - wrapcheck
   settings:
     depguard:
       # Enforces the hexagonal layering. Test files are exempt: they may wire real adapters into the core.
+      # Layers, from the inside: domain <- personatemplate, tenant <- port <- usecases. Adapters (inbound, outbound)
+      # depend on the core only and never on each other; internal/backend and cmd/ are the composition root.
+      # Go's import cycles already rule out the opposite direction (e.g. port -> usecases, pgdb -> a resource).
+      # A new resource package (an httpadapter/<x> or postgres/<x> directory) needs a line in the *-isolated rules.
       rules:
-        domain:
+        domain-allowlist:
+          # Strict: the domain may only import what is listed, so a new import needs a deliberate edit here.
+          list-mode: strict
           files:
             - "**/internal/core/domain/**"
-          deny:
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal
-              desc: the domain must not import other packages of the module
+          allow:
+            - errors
+            - fmt
+            - strings
+            - bytes
+            - slices
+            - maps
+            - cmp
+            - sort
+            - time
+            - unicode
+            - unicode/utf8
+            - net/mail
+            # TODO: drop crypto/rand once id generation moves out of the domain.
+            - crypto/rand
+            - github.com/google/uuid
         core:
           files:
             - "**/internal/core/**"
@@ -67,6 +90,90 @@ linters:
           deny:
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases
               desc: shared HTTP helpers must not know use cases
+        core-no-infra:
+          files:
+            - "**/internal/core/**"
+          deny:
+            - pkg: net/http
+              desc: the core must not know HTTP
+            - pkg: database/sql
+              desc: the core must not know SQL
+            - pkg: github.com/jackc
+              desc: the core must not know pgx
+            - pkg: github.com/golang-migrate
+              desc: the core must not know the migration tool
+            - pkg: github.com/testcontainers
+              desc: the core must not know testcontainers
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/logging
+              desc: the core returns errors, it does not log
+        usecases-independent:
+          files:
+            - "**/internal/core/usecases/**"
+          deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases
+              desc: use cases must not call each other, share logic through the domain
+        no-test-helpers-in-prod:
+          files:
+            - "$all"
+            - "!$test"
+            - "!**/porttest/**"
+            - "!**/postgrestest/**"
+          deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake
+              desc: fakes are for tests
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest
+              desc: test helper
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/port/porttest
+              desc: test helper
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest
+              desc: test helper
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/testutil
+              desc: test helper
+        http-no-ports:
+          files:
+            - "**/internal/adapters/inbound/**"
+          deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/port
+              desc: handlers talk to use cases, not to repositories
+        http-collector-isolated:
+          files:
+            - "**/httpadapter/collector/**"
+          deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona
+              desc: resource packages must not import each other
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health
+              desc: resource packages must not import each other
+        http-persona-isolated:
+          files:
+            - "**/httpadapter/persona/**"
+          deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector
+              desc: resource packages must not import each other
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health
+              desc: resource packages must not import each other
+        http-health-isolated:
+          files:
+            - "**/httpadapter/health/**"
+          deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector
+              desc: resource packages must not import each other
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona
+              desc: resource packages must not import each other
+        pg-collector-isolated:
+          files:
+            - "**/outbound/postgres/collector/**"
+          deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona
+              desc: repositories of different resources must not import each other
+        pg-persona-isolated:
+          files:
+            - "**/outbound/postgres/persona/**"
+          deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector
+              desc: repositories of different resources must not import each other
+    sloglint:
+      # Log calls that have a context in scope must use the *Context variants, so the request id is attached.
+      context: scope
     wrapcheck:
       # Errors from within the module are already wrapped or are sentinels.
       ignore-package-globs:
@@ -78,6 +185,8 @@ linters:
           - wrapcheck
           - gocritic
           - depguard
+          - gosec
+          - contextcheck
 
 formatters:
   enable:
