@@ -18,15 +18,30 @@ var _ ports.PersonaRepository = (*Repository)(nil)
 
 // Repository is an in-memory ports.PersonaRepository. A persona is stored as one object including its items.
 type Repository struct {
-	mu         sync.RWMutex
-	collectors []domain.CollectorID
-	personas   map[uuid.UUID]domain.Persona
+	mu              sync.RWMutex
+	collectorExists func(context.Context, domain.CollectorID) bool
+	personas        map[uuid.UUID]domain.Persona
 }
 
 // NewRepository returns an empty repository. Personas can only be saved for the given collectors,
 // as a foreign key does in a relational store.
 func NewRepository(collectors ...domain.CollectorID) *Repository {
-	return &Repository{collectors: collectors, personas: make(map[uuid.UUID]domain.Persona)}
+	return &Repository{
+		collectorExists: func(_ context.Context, id domain.CollectorID) bool { return slices.Contains(collectors, id) },
+		personas:        make(map[uuid.UUID]domain.Persona),
+	}
+}
+
+// NewRepositoryFor returns an empty repository that accepts personas of the collectors stored in collectors.
+func NewRepositoryFor(collectors ports.CollectorRepository) *Repository {
+	return &Repository{
+		collectorExists: func(ctx context.Context, id domain.CollectorID) bool {
+			_, err := collectors.GetCollector(ctx, id)
+
+			return err == nil
+		},
+		personas: make(map[uuid.UUID]domain.Persona),
+	}
 }
 
 // GetPersona implements ports.PersonaRepository.
@@ -43,11 +58,11 @@ func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorI
 }
 
 // ListPersonas implements ports.PersonaRepository.
-func (r *Repository) ListPersonas(_ context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
+func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	if !slices.Contains(r.collectors, collectorID) {
+	if !r.collectorExists(ctx, collectorID) {
 		return nil, domain.ErrCollectorNotFound
 	}
 
@@ -67,11 +82,11 @@ func (r *Repository) ListPersonas(_ context.Context, collectorID domain.Collecto
 }
 
 // SavePersona implements ports.PersonaRepository.
-func (r *Repository) SavePersona(_ context.Context, persona *domain.Persona) error {
+func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if !slices.Contains(r.collectors, persona.CollectorID) {
+	if !r.collectorExists(ctx, persona.CollectorID) {
 		return domain.ErrUnknownCollector
 	}
 

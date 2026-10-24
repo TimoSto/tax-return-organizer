@@ -12,19 +12,28 @@ import (
 
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
+	faketransactor "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/transactor"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-// newFakeRepositories returns in-memory repositories. The persona repository accepts personas of collector k7m2.
-func newFakeRepositories() repositories {
-	return repositories{
-		collectors: fakecollector.NewRepository(),
-		personas:   fakepersona.NewRepository("k7m2"),
+// newFakeRepositories returns in-memory repositories. The persona repository accepts personas of the stored
+// collectors, and of collector k7m2, which is stored up front.
+func newFakeRepositories() ports.Repositories {
+	collectors := fakecollector.NewRepository()
+	if err := collectors.SaveCollector(context.Background(), &domain.Collector{ID: "k7m2", Name: "K", Email: "k@example.com"}); err != nil {
+		panic(err)
 	}
+
+	return ports.Repositories{Collectors: collectors, Personas: fakepersona.NewRepositoryFor(collectors)}
+}
+
+func wireFake(repos ports.Repositories) http.Handler {
+	return wire(repos, faketransactor.New(repos))
 }
 
 func TestWire_CreateCollector(t *testing.T) {
-	h := wire(newFakeRepositories())
+	h := wireFake(newFakeRepositories())
 
 	req := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
 	rec := httptest.NewRecorder()
@@ -36,7 +45,7 @@ func TestWire_CreateCollector(t *testing.T) {
 }
 
 func TestWire_Healthz(t *testing.T) {
-	h := wire(newFakeRepositories())
+	h := wireFake(newFakeRepositories())
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
@@ -51,7 +60,7 @@ func TestWire_Healthz(t *testing.T) {
 }
 
 func TestWire_GetCollector(t *testing.T) {
-	h := wire(newFakeRepositories())
+	h := wireFake(newFakeRepositories())
 
 	create := httptest.NewRecorder()
 	h.ServeHTTP(create, httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`)))
@@ -72,10 +81,10 @@ func TestWire_GetCollector(t *testing.T) {
 }
 
 func TestWire_GetCollector_NotFound(t *testing.T) {
-	h := wire(newFakeRepositories())
+	h := wireFake(newFakeRepositories())
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/k7m2", nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/zzzz", nil))
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
@@ -86,11 +95,11 @@ func TestWire_GetPersona(t *testing.T) {
 	repos := newFakeRepositories()
 	p := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Employed"}
 
-	if err := repos.personas.SavePersona(context.Background(), p); err != nil {
+	if err := repos.Personas.SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	h := wire(repos)
+	h := wireFake(repos)
 
 	for _, tc := range []struct {
 		name, path string
@@ -112,11 +121,11 @@ func TestWire_ListPersonas(t *testing.T) {
 	repos := newFakeRepositories()
 	p := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Employed"}
 
-	if err := repos.personas.SavePersona(context.Background(), p); err != nil {
+	if err := repos.Personas.SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	h := wire(repos)
+	h := wireFake(repos)
 
 	for _, tc := range []struct {
 		name, path string

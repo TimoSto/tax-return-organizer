@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
@@ -18,9 +17,8 @@ const maxIDAttempts = 5
 
 // Usecase implements ports.CreateCollector.
 type Usecase struct {
-	repo     ports.CollectorRepository
-	personas ports.PersonaRepository
-	newID    func() (domain.CollectorID, error)
+	tx    ports.Transactor
+	newID func() (domain.CollectorID, error)
 }
 
 // Option customizes a Usecase.
@@ -31,9 +29,9 @@ func WithIDGenerator(newID func() (domain.CollectorID, error)) Option {
 	return func(u *Usecase) { u.newID = newID }
 }
 
-// New returns a use case that stores collectors in repo and gives each the predefined personas in personas.
-func New(repo ports.CollectorRepository, personas ports.PersonaRepository, opts ...Option) *Usecase {
-	u := &Usecase{repo: repo, personas: personas, newID: domain.NewCollectorID}
+// New returns a use case that stores collectors, together with their predefined personas, through tx.
+func New(tx ports.Transactor, opts ...Option) *Usecase {
+	u := &Usecase{tx: tx, newID: domain.NewCollectorID}
 
 	for _, opt := range opts {
 		opt(u)
@@ -43,12 +41,14 @@ func New(repo ports.CollectorRepository, personas ports.PersonaRepository, opts 
 }
 
 // Execute creates and persists a collector with the predefined personas in the requested locale and returns its id.
+// The collector and its personas are saved in one transaction: on an error nothing is stored, so a retry is safe.
 func (u *Usecase) Execute(ctx context.Context, cmd ports.CreateCollectorCmd) (domain.CollectorID, error) {
 	locale, err := domain.ParseLocale(cmd.Locale)
 	if err != nil {
 		return "", err
 	}
 
+	// One transaction per attempt: a taken id is a unique violation, which aborts the transaction in Postgres.
 	for range maxIDAttempts {
 		id, err := u.newID()
 		if err != nil {
@@ -60,16 +60,21 @@ func (u *Usecase) Execute(ctx context.Context, cmd ports.CreateCollectorCmd) (do
 			return "", err
 		}
 
-		err = u.repo.SaveCollector(ctx, c)
+		personas, err := predefinedPersonas(id, locale)
+		if err != nil {
+			return "", err
+		}
+
+		err = u.tx.InTx(ctx, func(ctx context.Context, repos ports.Repositories) error {
+			return save(ctx, repos, c, personas)
+		})
 		if errors.Is(err, domain.ErrCollectorIDTaken) {
 			continue
 		}
 
 		if err != nil {
-			return "", fmt.Errorf("save collector: %w", err)
+			return "", err
 		}
-
-		u.addPredefinedPersonas(ctx, c.ID, locale)
 
 		return c.ID, nil
 	}
@@ -77,18 +82,33 @@ func (u *Usecase) Execute(ctx context.Context, cmd ports.CreateCollectorCmd) (do
 	return "", fmt.Errorf("save collector: no free id after %d attempts", maxIDAttempts)
 }
 
-// addPredefinedPersonas gives the collector a persona per template. The collector and its personas are saved
-// separately, so a failure here is logged and not returned: the collector exists and can add personas itself,
-// while failing the request would make a retry create a second collector.
-func (u *Usecase) addPredefinedPersonas(ctx context.Context, id domain.CollectorID, locale domain.Locale) {
-	for _, tmpl := range domain.PersonaTemplates() {
-		p, err := tmpl.Instantiate(id, locale)
-		if err == nil {
-			err = u.personas.SavePersona(ctx, p)
-		}
+func save(ctx context.Context, repos ports.Repositories, c *domain.Collector, personas []*domain.Persona) error {
+	if err := repos.Collectors.SaveCollector(ctx, c); err != nil {
+		return fmt.Errorf("save collector: %w", err)
+	}
 
-		if err != nil {
-			slog.ErrorContext(ctx, "add predefined persona", "collector_id", id, "persona", tmpl.Name.For(domain.DefaultLocale), "error", err)
+	for _, p := range personas {
+		if err := repos.Personas.SavePersona(ctx, p); err != nil {
+			return fmt.Errorf("save persona %q: %w", p.Name, err)
 		}
 	}
+
+	return nil
+}
+
+// predefinedPersonas instantiates a persona per template for the collector.
+func predefinedPersonas(id domain.CollectorID, locale domain.Locale) ([]*domain.Persona, error) {
+	templates := domain.PersonaTemplates()
+	personas := make([]*domain.Persona, 0, len(templates))
+
+	for _, tmpl := range templates {
+		p, err := tmpl.Instantiate(id, locale)
+		if err != nil {
+			return nil, fmt.Errorf("instantiate persona %q: %w", tmpl.Name.For(domain.DefaultLocale), err)
+		}
+
+		personas = append(personas, p)
+	}
+
+	return personas, nil
 }
