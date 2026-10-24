@@ -21,6 +21,8 @@ type Deps struct {
 	GetCollector    collector.Getter
 	GetPersona      persona.Getter
 	ListPersonas    persona.Lister
+	// Readiness is checked by GET /readyz, normally the database pool.
+	Readiness health.Pinger
 }
 
 // validate reports the fields of d that are nil, so a missing wiring fails at startup and not on the first request.
@@ -46,6 +48,7 @@ func (d Deps) validate() error {
 func Routes(d Deps) []httpx.Route {
 	return []httpx.Route{
 		health.Liveness(),
+		health.Readiness(d.Readiness),
 		collector.Create(d.CreateCollector),
 		collector.Get(d.GetCollector),
 		persona.Get(d.GetPersona),

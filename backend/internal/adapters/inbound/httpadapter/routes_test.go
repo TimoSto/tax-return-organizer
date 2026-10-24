@@ -32,12 +32,17 @@ type stubListPersonas struct{}
 
 func (stubListPersonas) Execute(context.Context) ([]*domain.Persona, error) { return nil, nil }
 
+type stubPinger struct{}
+
+func (stubPinger) Ping(context.Context) error { return nil }
+
 func fullDeps() httpadapter.Deps {
 	return httpadapter.Deps{
 		CreateCollector: stubDeps{},
 		GetCollector:    stubGetCollector{},
 		GetPersona:      stubGetPersona{},
 		ListPersonas:    stubListPersonas{},
+		Readiness:       stubPinger{},
 	}
 }
 
@@ -54,8 +59,8 @@ func newHandler(t *testing.T) http.Handler {
 
 func TestNewHandler_RejectsMissingDeps(t *testing.T) {
 	if _, err := httpadapter.NewHandler(httpadapter.Deps{}); err == nil ||
-		!strings.Contains(err.Error(), "CreateCollector, GetCollector, GetPersona, ListPersonas") {
-		t.Errorf("err = %v, want all four fields named", err)
+		!strings.Contains(err.Error(), "CreateCollector, GetCollector, GetPersona, ListPersonas, Readiness") {
+		t.Errorf("err = %v, want all five fields named", err)
 	}
 
 	d := fullDeps()
@@ -74,6 +79,7 @@ func TestNewHandler(t *testing.T) {
 		want         int
 	}{
 		{http.MethodGet, "/healthz", http.StatusOK},
+		{http.MethodGet, "/readyz", http.StatusOK},
 		{http.MethodGet, "/collectors", http.StatusMethodNotAllowed},
 		{http.MethodGet, "/nope", http.StatusNotFound},
 	} {

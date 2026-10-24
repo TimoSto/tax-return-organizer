@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
@@ -36,13 +37,14 @@ func postgresRepositories(db pgdb.DBTX) port.Repositories {
 }
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
-// Reads use repos directly, writes that span several repositories go through tx.
-func wire(repos port.Repositories, tx port.Transactor) (http.Handler, error) {
+// Reads use repos directly, writes that span several repositories go through tx. ready backs /readyz.
+func wire(repos port.Repositories, tx port.Transactor, ready health.Pinger) (http.Handler, error) {
 	return httpadapter.NewHandler(httpadapter.Deps{
 		CreateCollector: createcollector.New(tx, templates.New()),
 		GetCollector:    getcollector.New(repos.Collectors),
 		GetPersona:      getpersona.New(repos.Personas),
 		ListPersonas:    listpersonas.New(repos.Collectors, repos.Personas),
+		Readiness:       ready,
 	})
 }
 
@@ -62,7 +64,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer pool.Close()
 
-	handler, err := wire(postgresRepositories(pool), pgdb.NewTransactor(pool, postgresRepositories))
+	handler, err := wire(postgresRepositories(pool), pgdb.NewTransactor(pool, postgresRepositories), pool)
 	if err != nil {
 		return fmt.Errorf("wire: %w", err)
 	}

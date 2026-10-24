@@ -21,6 +21,40 @@ paths:
                   status:
                     type: string
                     enum: [ok]
+  /readyz:
+    get:
+      operationId: getReadiness
+      summary: Readiness probe
+      description: Checks that the database responds, with a 2 second limit. Use it to decide whether to route traffic here.
+      responses:
+        "200":
+          description: The service and its database are ready.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+        "503":
+          description: The database does not respond. The cause is only logged.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [unavailable]
   /collectors:
     post:
       operationId: createCollector
