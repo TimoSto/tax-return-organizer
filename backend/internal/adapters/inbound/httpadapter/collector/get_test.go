@@ -10,10 +10,15 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-func doGet(t *testing.T, get ports.GetCollectorPort, method, id string) *httptest.ResponseRecorder {
+type getFunc func(context.Context, domain.CollectorID) (*domain.Collector, error)
+
+func (f getFunc) Execute(ctx context.Context, id domain.CollectorID) (*domain.Collector, error) {
+	return f(ctx, id)
+}
+
+func doGet(t *testing.T, get getFunc, method, id string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors/"+id, nil)

@@ -10,12 +10,12 @@ import (
 
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/listpersonas"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 type failingRepo struct {
-	ports.PersonaRepository
+	port.PersonaRepository
 	err error
 }
 

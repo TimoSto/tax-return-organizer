@@ -8,18 +8,16 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
-var _ ports.GetPersonaPort = (*Usecase)(nil).Execute
-
-// Usecase implements ports.GetPersonaPort.
+// Usecase is the getpersona use case.
 type Usecase struct {
-	repo ports.PersonaRepository
+	repo port.PersonaRepository
 }
 
 // New returns a use case that gets personas from repo.
-func New(repo ports.PersonaRepository) *Usecase {
+func New(repo port.PersonaRepository) *Usecase {
 	return &Usecase{repo: repo}
 }
 

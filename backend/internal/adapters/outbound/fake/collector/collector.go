@@ -6,12 +6,12 @@ import (
 	"sync"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
-var _ ports.CollectorRepository = (*Repository)(nil)
+var _ port.CollectorRepository = (*Repository)(nil)
 
-// Repository is an in-memory ports.CollectorRepository.
+// Repository is an in-memory port.CollectorRepository.
 type Repository struct {
 	mu         sync.RWMutex
 	collectors map[domain.CollectorID]domain.Collector
@@ -22,7 +22,7 @@ func NewRepository() *Repository {
 	return &Repository{collectors: make(map[domain.CollectorID]domain.Collector)}
 }
 
-// GetCollector implements ports.CollectorRepository.
+// GetCollector implements port.CollectorRepository.
 func (r *Repository) GetCollector(_ context.Context, id domain.CollectorID) (*domain.Collector, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -35,7 +35,7 @@ func (r *Repository) GetCollector(_ context.Context, id domain.CollectorID) (*do
 	return &c, nil
 }
 
-// SaveCollector implements ports.CollectorRepository.
+// SaveCollector implements port.CollectorRepository.
 func (r *Repository) SaveCollector(_ context.Context, collector *domain.Collector) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

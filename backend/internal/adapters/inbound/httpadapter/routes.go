@@ -1,4 +1,4 @@
-// Package httpadapter exposes the inbound ports over HTTP.
+// Package httpadapter exposes the use cases over HTTP.
 package httpadapter
 
 import (
@@ -8,15 +8,14 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-// Deps are the inbound ports the endpoints call.
+// Deps are the use cases the endpoints call.
 type Deps struct {
-	CreateCollector ports.CreateCollectorPort
-	GetCollector    ports.GetCollectorPort
-	GetPersona      ports.GetPersonaPort
-	ListPersonas    ports.ListPersonasPort
+	CreateCollector collector.Creator
+	GetCollector    collector.Getter
+	GetPersona      persona.Getter
+	ListPersonas    persona.Lister
 }
 
 // NewHandler registers all endpoints and wraps them in the middleware.

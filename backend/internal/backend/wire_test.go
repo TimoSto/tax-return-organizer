@@ -14,21 +14,21 @@ import (
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	faketransactor "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/transactor"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
 // newFakeRepositories returns in-memory repositories. The persona repository accepts personas of the stored
 // collectors, and of collector k7m2, which is stored up front.
-func newFakeRepositories() ports.Repositories {
+func newFakeRepositories() port.Repositories {
 	collectors := fakecollector.NewRepository()
 	if err := collectors.SaveCollector(context.Background(), &domain.Collector{ID: "k7m2", Name: "K", Email: "k@example.com"}); err != nil {
 		panic(err)
 	}
 
-	return ports.Repositories{Collectors: collectors, Personas: fakepersona.NewRepositoryFor(collectors)}
+	return port.Repositories{Collectors: collectors, Personas: fakepersona.NewRepositoryFor(collectors)}
 }
 
-func wireFake(repos ports.Repositories) http.Handler {
+func wireFake(repos port.Repositories) http.Handler {
 	return wire(repos, faketransactor.New(repos))
 }
 

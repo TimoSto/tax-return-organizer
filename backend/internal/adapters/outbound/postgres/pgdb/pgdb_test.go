@@ -12,16 +12,16 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
-func repositories(db pgdb.DBTX) ports.Repositories {
-	return ports.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewRepository(db)}
+func repositories(db pgdb.DBTX) port.Repositories {
+	return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewRepository(db)}
 }
 
 // newTransactor returns a transactor on an emptied database.
-func newTransactor(t *testing.T, build func(pgdb.DBTX) ports.Repositories) (*pgdb.Transactor, *pgxpool.Pool) {
+func newTransactor(t *testing.T, build func(pgdb.DBTX) port.Repositories) (*pgdb.Transactor, *pgxpool.Pool) {
 	t.Helper()
 
 	pool := postgrestest.RequirePool(t)
@@ -47,7 +47,7 @@ func countCollectors(t *testing.T, pool *pgxpool.Pool) int {
 func TestInTx_CommitsOnSuccess(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
-	err := tx.InTx(context.Background(), func(ctx context.Context, r ports.Repositories) error {
+	err := tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
 		return r.Collectors.SaveCollector(ctx, &domain.Collector{ID: "aaaa", Name: "A", Email: "a@example.com"})
 	})
 	if err != nil {
@@ -63,7 +63,7 @@ func TestInTx_RollsBackOnError(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 	boom := errors.New("boom")
 
-	err := tx.InTx(context.Background(), func(ctx context.Context, r ports.Repositories) error {
+	err := tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
 		if err := r.Collectors.SaveCollector(ctx, &domain.Collector{ID: "aaaa", Name: "A", Email: "a@example.com"}); err != nil {
 			return err
 		}
@@ -85,7 +85,7 @@ func TestInTx_RollsBackOnPanic(t *testing.T) {
 	func() {
 		defer func() { _ = recover() }()
 
-		_ = tx.InTx(context.Background(), func(ctx context.Context, r ports.Repositories) error {
+		_ = tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
 			if err := r.Collectors.SaveCollector(ctx, &domain.Collector{ID: "aaaa", Name: "A", Email: "a@example.com"}); err != nil {
 				return err
 			}
@@ -104,7 +104,7 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 	boom := errors.New("boom")
 
-	err := tx.InTx(context.Background(), func(ctx context.Context, r ports.Repositories) error {
+	err := tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
 		if err := r.Collectors.SaveCollector(ctx, &domain.Collector{ID: "aaaa", Name: "A", Email: "a@example.com"}); err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 
 // failingPersonas fails the n-th SavePersona, like a database error in the middle of creating a collector.
 type failingPersonas struct {
-	ports.PersonaRepository
+	port.PersonaRepository
 	failAt, calls int
 }
 
@@ -152,7 +152,7 @@ func (r *failingPersonas) SavePersona(ctx context.Context, p *domain.Persona) er
 // Regression test: a persona failing after the collector was saved must not leave the collector behind.
 func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 	failing := &failingPersonas{failAt: 2}
-	tx, pool := newTransactor(t, func(db pgdb.DBTX) ports.Repositories {
+	tx, pool := newTransactor(t, func(db pgdb.DBTX) port.Repositories {
 		r := repositories(db)
 		failing.PersonaRepository = r.Personas
 		r.Personas = failing
@@ -160,7 +160,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 		return r
 	})
 
-	_, err := createcollector.New(tx).Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com"})
+	_, err := createcollector.New(tx).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -182,7 +182,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
-	id, err := createcollector.New(tx).Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com"})
+	id, err := createcollector.New(tx).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 		return id, nil
 	}))
 
-	id, err := uc.Execute(context.Background(), ports.CreateCollectorCmd{Name: "Jane", Email: "jane@example.com"})
+	id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}

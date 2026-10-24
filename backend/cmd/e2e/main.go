@@ -23,9 +23,9 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 // defaultCollectorID is the id of the collector seeded on every run, so e2e tests can reference it.
@@ -96,13 +96,13 @@ func seed(ctx context.Context, dsn string) error {
 	defer pool.Close()
 
 	create := createcollector.New(
-		pgdb.NewTransactor(pool, func(db pgdb.DBTX) ports.Repositories {
-			return ports.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewRepository(db)}
+		pgdb.NewTransactor(pool, func(db pgdb.DBTX) port.Repositories {
+			return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewRepository(db)}
 		}),
 		createcollector.WithIDGenerator(func() (domain.CollectorID, error) { return defaultCollectorID, nil }),
 	)
 
-	if _, err := create.Execute(ctx, ports.CreateCollectorCmd{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
+	if _, err := create.Execute(ctx, createcollector.Command{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
 		return fmt.Errorf("create collector: %w", err)
 	}
 

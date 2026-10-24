@@ -1,19 +1,24 @@
 package persona
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 type listResponse struct {
 	Personas []getResponse `json:"personas"`
 }
 
+// Lister retrieves all personas of a collector.
+type Lister interface {
+	Execute(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error)
+}
+
 // List is GET /collectors/{collectorId}/personas.
-func List(list ports.ListPersonasPort) httpx.Route {
+func List(lister Lister) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +29,7 @@ func List(list ports.ListPersonasPort) httpx.Route {
 				return
 			}
 
-			personas, err := list(r.Context(), collectorID)
+			personas, err := lister.Execute(r.Context(), collectorID)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

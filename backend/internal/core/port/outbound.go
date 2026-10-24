@@ -1,4 +1,5 @@
-package ports
+// Package port defines the interfaces the core needs from its adapters: repositories and the transactor.
+package port
 
 import (
 	"context"

@@ -11,12 +11,12 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
-var _ ports.PersonaRepository = (*Repository)(nil)
+var _ port.PersonaRepository = (*Repository)(nil)
 
-// Repository is an in-memory ports.PersonaRepository. A persona is stored as one object including its items.
+// Repository is an in-memory port.PersonaRepository. A persona is stored as one object including its items.
 type Repository struct {
 	mu              sync.RWMutex
 	collectorExists func(context.Context, domain.CollectorID) bool
@@ -33,7 +33,7 @@ func NewRepository(collectors ...domain.CollectorID) *Repository {
 }
 
 // NewRepositoryFor returns an empty repository that accepts personas of the collectors stored in collectors.
-func NewRepositoryFor(collectors ports.CollectorRepository) *Repository {
+func NewRepositoryFor(collectors port.CollectorRepository) *Repository {
 	return &Repository{
 		collectorExists: func(ctx context.Context, id domain.CollectorID) bool {
 			_, err := collectors.GetCollector(ctx, id)
@@ -44,7 +44,7 @@ func NewRepositoryFor(collectors ports.CollectorRepository) *Repository {
 	}
 }
 
-// GetPersona implements ports.PersonaRepository.
+// GetPersona implements port.PersonaRepository.
 func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -57,7 +57,7 @@ func (r *Repository) GetPersona(_ context.Context, collectorID domain.CollectorI
 	return clone(&p), nil
 }
 
-// ListPersonas implements ports.PersonaRepository.
+// ListPersonas implements port.PersonaRepository.
 func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -81,7 +81,7 @@ func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.Collec
 	return personas, nil
 }
 
-// SavePersona implements ports.PersonaRepository.
+// SavePersona implements port.PersonaRepository.
 func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

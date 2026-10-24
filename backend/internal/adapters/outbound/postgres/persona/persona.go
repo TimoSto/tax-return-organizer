@@ -12,7 +12,7 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
 const (
@@ -20,9 +20,9 @@ const (
 	collectorFKName     = "personas_collector_id_fkey"
 )
 
-var _ ports.PersonaRepository = (*Repository)(nil)
+var _ port.PersonaRepository = (*Repository)(nil)
 
-// Repository is the Postgres implementation of ports.PersonaRepository.
+// Repository is the Postgres implementation of port.PersonaRepository.
 type Repository struct {
 	db pgdb.DBTX
 }
@@ -32,7 +32,7 @@ func NewRepository(db pgdb.DBTX) *Repository {
 	return &Repository{db: db}
 }
 
-// GetPersona implements ports.PersonaRepository.
+// GetPersona implements port.PersonaRepository.
 // Persona and items are read in one statement, so a concurrent SavePersona can never show up half-applied.
 func (r *Repository) GetPersona(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
@@ -59,7 +59,7 @@ func (r *Repository) GetPersona(ctx context.Context, collectorID domain.Collecto
 	return personas[0], nil
 }
 
-// ListPersonas implements ports.PersonaRepository.
+// ListPersonas implements port.PersonaRepository.
 // Names sort bytewise (collation C), like the in-memory repository. The query starts at the collector, so an unknown collector (no rows) is told apart from one without personas.
 func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
@@ -87,7 +87,7 @@ func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.Collec
 	return personas, nil
 }
 
-// SavePersona implements ports.PersonaRepository. Persona and items are written in one transaction.
+// SavePersona implements port.PersonaRepository. Persona and items are written in one transaction.
 func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) error {
 	items := make([]itemRow, 0, len(persona.Items))
 

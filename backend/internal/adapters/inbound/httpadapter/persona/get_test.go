@@ -12,14 +12,19 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
 
 const testCollectorID domain.CollectorID = "k7m2"
 
 var testID = uuid.MustParse("3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b")
 
-func doGet(t *testing.T, get ports.GetPersonaPort, method, collectorID, id string) *httptest.ResponseRecorder {
+type getFunc func(context.Context, domain.CollectorID, uuid.UUID) (*domain.Persona, error)
+
+func (f getFunc) Execute(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error) {
+	return f(ctx, collectorID, id)
+}
+
+func doGet(t *testing.T, get getFunc, method, collectorID, id string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors/"+collectorID+"/personas/"+id, nil)
