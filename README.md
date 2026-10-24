@@ -89,22 +89,22 @@ classDiagram
         +UUID ID
         +CollectorID CollectorID
         +string Title
-        +string Email
+        +Email Email
     }
 
     class Persona {
-        +UUID ID
+        +PersonaID ID
         +CollectorID CollectorID
         +string Name
         +string Description
         +ItemDefinition[] Items
         +AddItem(...) ItemDefinition
-        +UpdateItem(UUID, ...) error
-        +RemoveItem(UUID) error
+        +UpdateItem(ItemID, ...) error
+        +RemoveItem(ItemID) error
     }
 
     class ItemDefinition {
-        +UUID ID
+        +ItemID ID
         +string Title
         +Recurrence Recurrence
         +ItemSpec Spec

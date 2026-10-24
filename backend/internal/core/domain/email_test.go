@@ -7,7 +7,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
-func TestValidateEmail(t *testing.T) {
+func TestParseEmail(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		email  string
@@ -70,10 +70,14 @@ func TestValidateEmail(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := domain.ValidateEmail(tc.email)
+			got, err := domain.ParseEmail(tc.email)
 
 			if !errors.Is(err, tc.expErr) {
-				t.Errorf("ValidateEmail(%q) error = %v, wantErr %v", tc.email, err, tc.expErr)
+				t.Errorf("ParseEmail(%q) error = %v, wantErr %v", tc.email, err, tc.expErr)
+			}
+
+			if err == nil && got.String() != tc.email {
+				t.Errorf("ParseEmail(%q) = %q", tc.email, got)
 			}
 		})
 	}

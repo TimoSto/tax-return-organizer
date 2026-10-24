@@ -93,7 +93,7 @@ func TestWire_GetCollector_NotFound(t *testing.T) {
 
 func TestWire_GetPersona(t *testing.T) {
 	repos := newFakeRepositories()
-	p := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Employed"}
+	p := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "k7m2", Name: "Employed"}
 
 	if err := repos.Personas.SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
@@ -119,7 +119,7 @@ func TestWire_GetPersona(t *testing.T) {
 
 func TestWire_ListPersonas(t *testing.T) {
 	repos := newFakeRepositories()
-	p := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Employed"}
+	p := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "k7m2", Name: "Employed"}
 
 	if err := repos.Personas.SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)

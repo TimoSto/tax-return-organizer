@@ -9,7 +9,7 @@ import (
 func TestPersonaTemplates_InstantiateInEveryLocale(t *testing.T) {
 	for _, l := range domain.Locales() {
 		for _, tmpl := range domain.PersonaTemplates() {
-			p, err := tmpl.Instantiate("k7m2", l)
+			p, err := tmpl.Instantiate(domain.RandomIDs{}, "k7m2", l)
 			if err != nil {
 				t.Errorf("%s/%s: %v", l, tmpl.Name.For(domain.DefaultLocale), err)
 
@@ -47,7 +47,7 @@ func TestPersonaTemplates_AllTextsTranslated(t *testing.T) {
 }
 
 func TestPersonaTemplate_InstantiateUsesLocale(t *testing.T) {
-	p, err := domain.PersonaTemplates()[0].Instantiate("k7m2", domain.LocaleDE)
+	p, err := domain.PersonaTemplates()[0].Instantiate(domain.RandomIDs{}, "k7m2", domain.LocaleDE)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,8 +60,8 @@ func TestPersonaTemplate_InstantiateUsesLocale(t *testing.T) {
 func TestPersonaTemplate_InstantiateCreatesFreshIDs(t *testing.T) {
 	tmpl := domain.PersonaTemplates()[0]
 
-	a, _ := tmpl.Instantiate("k7m2", domain.LocaleEN)
-	b, _ := tmpl.Instantiate("k7m2", domain.LocaleEN)
+	a, _ := tmpl.Instantiate(domain.RandomIDs{}, "k7m2", domain.LocaleEN)
+	b, _ := tmpl.Instantiate(domain.RandomIDs{}, "k7m2", domain.LocaleEN)
 
 	if a.ID == b.ID || a.Items[0].ID == b.Items[0].ID {
 		t.Error("two instances share ids")

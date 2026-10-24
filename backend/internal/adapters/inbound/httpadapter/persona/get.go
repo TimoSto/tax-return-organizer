@@ -5,8 +5,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/google/uuid"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
@@ -46,7 +44,7 @@ type valueSpecResponse struct {
 
 // Getter retrieves a persona of the collector the request acts for by its id.
 type Getter interface {
-	Execute(ctx context.Context, id uuid.UUID) (*domain.Persona, error)
+	Execute(ctx context.Context, id domain.PersonaID) (*domain.Persona, error)
 }
 
 // Get is GET /collectors/{collectorId}/personas/{id}.
@@ -54,7 +52,7 @@ func Get(getter Getter) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas/{id}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			id, err := uuid.Parse(r.PathValue("id"))
+			id, err := domain.ParsePersonaID(r.PathValue("id"))
 			if err != nil {
 				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid persona id"})
 

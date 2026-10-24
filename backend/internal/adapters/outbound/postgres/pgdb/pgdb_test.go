@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
@@ -109,7 +110,7 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 			return err
 		}
 
-		p, err := domain.NewPersona("aaaa", "Employed", "")
+		p, err := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", "Employed", "")
 		if err != nil {
 			return err
 		}
@@ -206,12 +207,7 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 	}
 
 	ids := []domain.CollectorID{"aaaa", "bbbb"}
-	uc := createcollector.New(tx, createcollector.WithIDGenerator(func() (domain.CollectorID, error) {
-		id := ids[0]
-		ids = ids[1:]
-
-		return id, nil
-	}))
+	uc := createcollector.New(tx, createcollector.WithIDGenerator(&sequenceIDs{ids: ids}))
 
 	id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
@@ -225,4 +221,18 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 	if n := countCollectors(t, pool); n != 2 {
 		t.Errorf("collectors = %d, want 2", n)
 	}
+}
+
+// sequenceIDs hands out the given collector ids in order and random ids otherwise.
+type sequenceIDs struct {
+	domain.RandomIDs
+
+	ids []domain.CollectorID
+}
+
+func (s *sequenceIDs) NewCollectorID() (domain.CollectorID, error) {
+	id := s.ids[0]
+	s.ids = s.ids[1:]
+
+	return id, nil
 }

@@ -4,8 +4,6 @@ package port
 import (
 	"context"
 
-	"github.com/google/uuid"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
@@ -22,7 +20,7 @@ type PersonaRepository interface {
 	// GetPersona returns the persona with all its items in their stored order.
 	// It returns domain.ErrPersonaNotFound if the collector has no persona with the given id,
 	// which includes personas that belong to another collector.
-	GetPersona(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error)
+	GetPersona(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error)
 	// ListPersonas returns all personas of the collector with their items, ordered by name and then id.
 	// A collector without personas yields an empty list.
 	// It returns domain.ErrCollectorNotFound if the collector does not exist.

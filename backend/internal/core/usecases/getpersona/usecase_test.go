@@ -20,17 +20,17 @@ type failingRepo struct {
 	err error
 }
 
-func (r failingRepo) GetPersona(context.Context, domain.CollectorID, uuid.UUID) (*domain.Persona, error) {
+func (r failingRepo) GetPersona(context.Context, domain.CollectorID, domain.PersonaID) (*domain.Persona, error) {
 	return nil, r.err
 }
 
 func TestExecute_Success(t *testing.T) {
 	repo := fakepersona.NewRepository("k7m2")
-	id := uuid.New()
+	id := domain.PersonaID(uuid.New())
 	want := &domain.Persona{
 		ID: id, CollectorID: "k7m2", Name: "Employed", Description: "Has a job",
 		Items: []domain.ItemDefinition{{
-			ID: uuid.New(), Title: "Payslip",
+			ID: domain.ItemID(uuid.New()), Title: "Payslip",
 			Recurrence: domain.RecurrenceMonthly, Spec: domain.DocumentSpec{},
 		}},
 	}
@@ -50,7 +50,7 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_NotFound(t *testing.T) {
-	got, err := getpersona.New(fakepersona.NewRepository()).Execute(tenant.WithCollector(context.Background(), "k7m2"), uuid.New())
+	got, err := getpersona.New(fakepersona.NewRepository()).Execute(tenant.WithCollector(context.Background(), "k7m2"), domain.PersonaID(uuid.New()))
 	if !errors.Is(err, domain.ErrPersonaNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrPersonaNotFound)
 	}
@@ -62,7 +62,7 @@ func TestExecute_NotFound(t *testing.T) {
 
 func TestExecute_OtherCollector(t *testing.T) {
 	repo := fakepersona.NewRepository("k7m2")
-	p := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Employed"}
+	p := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "k7m2", Name: "Employed"}
 
 	if err := repo.SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
@@ -77,14 +77,14 @@ func TestExecute_OtherCollector(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := getpersona.New(failingRepo{err: boom}).Execute(tenant.WithCollector(context.Background(), "k7m2"), uuid.New())
+	_, err := getpersona.New(failingRepo{err: boom}).Execute(tenant.WithCollector(context.Background(), "k7m2"), domain.PersonaID(uuid.New()))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want it to wrap %v", err, boom)
 	}
 }
 
 func TestExecute_NoTenant(t *testing.T) {
-	_, err := getpersona.New(fakepersona.NewRepository()).Execute(context.Background(), uuid.New())
+	_, err := getpersona.New(fakepersona.NewRepository()).Execute(context.Background(), domain.PersonaID(uuid.New()))
 	if !errors.Is(err, tenant.ErrNoTenant) {
 		t.Errorf("err = %v, want %v", err, tenant.ErrNoTenant)
 	}

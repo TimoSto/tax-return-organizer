@@ -73,9 +73,9 @@ type collectorRow struct {
 }
 
 func newCollectorRow(c *domain.Collector) collectorRow {
-	return collectorRow{ID: string(c.ID), Name: c.Name, Email: c.Email}
+	return collectorRow{ID: string(c.ID), Name: c.Name, Email: string(c.Email)}
 }
 
 func (r collectorRow) toDomain() *domain.Collector {
-	return &domain.Collector{ID: domain.CollectorID(r.ID), Name: r.Name, Email: r.Email}
+	return &domain.Collector{ID: domain.CollectorID(r.ID), Name: r.Name, Email: domain.Email(r.Email)}
 }

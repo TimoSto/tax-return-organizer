@@ -10,7 +10,7 @@ import (
 // Every sentinel must be a classified *domain.Error, otherwise adapters would answer it with a 500.
 func TestSentinelsAreClassified(t *testing.T) {
 	for _, err := range []error{
-		domain.ErrCollectorNotFound, domain.ErrCollectorIDTaken, domain.ErrNameRequired, domain.ErrInvalidCollectorID,
+		domain.ErrCollectorNotFound, domain.ErrCollectorIDTaken, domain.ErrNameRequired, domain.ErrInvalidCollectorID, domain.ErrInvalidPersonaID,
 		domain.ErrInvalidEmail, domain.ErrInvalidLocale, domain.ErrPersonaNameRequired, domain.ErrPersonaNotFound,
 		domain.ErrItemNotFound, domain.ErrItemIDTaken, domain.ErrUnknownCollector, domain.ErrItemTitleRequired,
 		domain.ErrInvalidRecurrence, domain.ErrSpecRequired, domain.ErrSpecMismatch, domain.ErrInvalidValueType,

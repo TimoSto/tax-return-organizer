@@ -23,9 +23,14 @@ type MetadataFieldTemplate struct {
 	ValueSpec ValueSpec
 }
 
-// Instantiate creates a persona of the collector from the template, with all texts in locale l.
-func (t PersonaTemplate) Instantiate(collectorID CollectorID, l Locale) (*Persona, error) {
-	p, err := NewPersona(collectorID, t.Name.For(l), t.Description.For(l))
+// Instantiate creates a persona of the collector from the template, with all texts in locale l and ids from ids.
+func (t PersonaTemplate) Instantiate(ids IDGenerator, collectorID CollectorID, l Locale) (*Persona, error) {
+	personaID, err := ids.NewPersonaID()
+	if err != nil {
+		return nil, err
+	}
+
+	p, err := NewPersona(personaID, collectorID, t.Name.For(l), t.Description.For(l))
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +50,12 @@ func (t PersonaTemplate) Instantiate(collectorID CollectorID, l Locale) (*Person
 			spec = *it.Value
 		}
 
-		if _, err := p.AddItem(it.Title.For(l), it.Recurrence, spec); err != nil {
+		itemID, err := ids.NewItemID()
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := p.AddItem(itemID, it.Title.For(l), it.Recurrence, spec); err != nil {
 			return nil, err
 		}
 	}

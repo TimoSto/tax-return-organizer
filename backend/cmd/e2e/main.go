@@ -99,7 +99,7 @@ func seed(ctx context.Context, dsn string) error {
 		pgdb.NewTransactor(pool, func(db pgdb.DBTX) port.Repositories {
 			return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewRepository(db)}
 		}),
-		createcollector.WithIDGenerator(func() (domain.CollectorID, error) { return defaultCollectorID, nil }),
+		createcollector.WithIDGenerator(fixedCollectorID{}),
 	)
 
 	if _, err := create.Execute(ctx, createcollector.Command{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
@@ -108,3 +108,8 @@ func seed(ctx context.Context, dsn string) error {
 
 	return nil
 }
+
+// fixedCollectorID draws the well-known collector id, everything else is random.
+type fixedCollectorID struct{ domain.RandomIDs }
+
+func (fixedCollectorID) NewCollectorID() (domain.CollectorID, error) { return defaultCollectorID, nil }

@@ -27,9 +27,9 @@ func (r failingRepo) ListPersonas(context.Context, domain.CollectorID) ([]*domai
 func TestExecute_Success(t *testing.T) {
 	repo := fakepersona.NewRepository("k7m2", "bbbb")
 	ctx := context.Background()
-	employed := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Employed", Description: "Has a job"}
-	letting := &domain.Persona{ID: uuid.New(), CollectorID: "k7m2", Name: "Letting"}
-	other := &domain.Persona{ID: uuid.New(), CollectorID: "bbbb", Name: "Other"}
+	employed := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "k7m2", Name: "Employed", Description: "Has a job"}
+	letting := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "k7m2", Name: "Letting"}
+	other := &domain.Persona{ID: domain.PersonaID(uuid.New()), CollectorID: "bbbb", Name: "Other"}
 
 	for _, p := range []*domain.Persona{letting, other, employed} {
 		if err := repo.SavePersona(ctx, p); err != nil {
