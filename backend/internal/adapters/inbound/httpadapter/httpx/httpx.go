@@ -38,34 +38,29 @@ func WriteJSON(w http.ResponseWriter, status int, body any) {
 	}
 }
 
-// WriteError maps err to an HTTP status. Domain errors are reported to the client;
-// everything else is logged and answered with a generic 500.
+// WriteError maps err to an HTTP status. Domain errors are reported to the client with their own
+// message only (never the wrapped chain); everything else is logged and answered with a generic 500.
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
-	switch {
-	case isInvalidInput(err):
-		WriteJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	case errors.Is(err, domain.ErrCollectorNotFound), errors.Is(err, domain.ErrPersonaNotFound),
-		errors.Is(err, domain.ErrItemNotFound):
-		WriteJSON(w, http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	default:
-		slog.ErrorContext(r.Context(), "request failed", "error", err, "request_id", w.Header().Get(RequestIDHeader))
-		WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
+	var de *domain.Error
+	if errors.As(err, &de) {
+		WriteJSON(w, statusFor(de.Kind), ErrorResponse{Error: de.Error()})
+
+		return
 	}
+
+	slog.ErrorContext(r.Context(), "request failed", "error", err, "request_id", w.Header().Get(RequestIDHeader))
+	WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
 }
 
-// isInvalidInput reports whether err says the request itself is wrong, as opposed to a server fault.
-func isInvalidInput(err error) bool {
-	for _, target := range []error{
-		domain.ErrNameRequired, domain.ErrInvalidEmail, domain.ErrInvalidCollectorID,
-		domain.ErrPersonaNameRequired, domain.ErrItemTitleRequired, domain.ErrInvalidKind, domain.ErrInvalidRecurrence,
-		domain.ErrSpecMismatch, domain.ErrInvalidValueType, domain.ErrMetadataFieldNameRequired,
-		domain.ErrDuplicateMetadataField, domain.ErrItemIDTaken, domain.ErrUnknownCollector,
-		domain.ErrInvalidLocale,
-	} {
-		if errors.Is(err, target) {
-			return true
-		}
+func statusFor(k domain.ErrorKind) int {
+	switch k {
+	case domain.ErrorInvalid:
+		return http.StatusBadRequest
+	case domain.ErrorNotFound:
+		return http.StatusNotFound
+	case domain.ErrorConflict:
+		return http.StatusConflict
+	default:
+		return http.StatusInternalServerError
 	}
-
-	return false
 }

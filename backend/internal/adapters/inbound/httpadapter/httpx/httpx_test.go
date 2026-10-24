@@ -1,6 +1,7 @@
 package httpx_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -27,9 +28,10 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrInvalidValueType, http.StatusBadRequest},
 		{domain.ErrMetadataFieldNameRequired, http.StatusBadRequest},
 		{domain.ErrDuplicateMetadataField, http.StatusBadRequest},
-		{domain.ErrItemIDTaken, http.StatusBadRequest},
-		{domain.ErrUnknownCollector, http.StatusBadRequest},
+		{domain.ErrItemIDTaken, http.StatusConflict},
+		{domain.ErrUnknownCollector, http.StatusConflict},
 		{domain.ErrInvalidLocale, http.StatusBadRequest},
+		{domain.ErrCollectorIDTaken, http.StatusConflict},
 		{fmt.Errorf("wrapped: %w", domain.ErrSpecMismatch), http.StatusBadRequest},
 		{domain.ErrCollectorNotFound, http.StatusNotFound},
 		{domain.ErrPersonaNotFound, http.StatusNotFound},
@@ -45,5 +47,42 @@ func TestWriteError_Status(t *testing.T) {
 				t.Errorf("status = %d, want %d", rec.Code, tc.want)
 			}
 		})
+	}
+}
+
+func TestWriteError_BodyHasOnlyDomainMessage(t *testing.T) {
+	for name, err := range map[string]error{
+		"wrapped": fmt.Errorf("save persona: %w", domain.ErrInvalidEmail),
+		"joined":  errors.Join(domain.ErrInvalidEmail, errors.New("secret detail")),
+	} {
+		t.Run(name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+
+			httpx.WriteError(rec, httptest.NewRequest(http.MethodGet, "/", nil), err)
+
+			var body httpx.ErrorResponse
+			if e := json.NewDecoder(rec.Body).Decode(&body); e != nil {
+				t.Fatal(e)
+			}
+
+			if body.Error != domain.ErrInvalidEmail.Error() {
+				t.Errorf("error = %q, want %q", body.Error, domain.ErrInvalidEmail.Error())
+			}
+		})
+	}
+}
+
+func TestWriteError_InternalErrorIsGeneric(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	httpx.WriteError(rec, httptest.NewRequest(http.MethodGet, "/", nil), errors.New("database down"))
+
+	var body httpx.ErrorResponse
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+
+	if body.Error != "internal error" {
+		t.Errorf("error = %q, want generic message", body.Error)
 	}
 }

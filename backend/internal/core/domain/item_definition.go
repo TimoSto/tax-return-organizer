@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -10,13 +9,13 @@ import (
 
 var (
 	// ErrItemTitleRequired is returned for a blank item title.
-	ErrItemTitleRequired = errors.New("item title is required")
+	ErrItemTitleRequired = invalid("item title is required")
 	// ErrInvalidKind is returned for an item kind that is not one of the known ones.
-	ErrInvalidKind = errors.New("invalid item kind")
+	ErrInvalidKind = invalid("invalid item kind")
 	// ErrInvalidRecurrence is returned for a recurrence that is not one of the known ones.
-	ErrInvalidRecurrence = errors.New("invalid recurrence")
+	ErrInvalidRecurrence = invalid("invalid recurrence")
 	// ErrSpecMismatch is returned when an item does not carry exactly the spec that its kind requires.
-	ErrSpecMismatch = errors.New("spec does not match item kind")
+	ErrSpecMismatch = invalid("spec does not match item kind")
 )
 
 // Kind tells whether an item is satisfied by uploaded documents or by an entered value.

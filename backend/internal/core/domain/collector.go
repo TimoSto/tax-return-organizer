@@ -2,17 +2,16 @@
 package domain
 
 import (
-	"errors"
 	"strings"
 )
 
 var (
 	// ErrCollectorNotFound is returned when a collector does not exist.
-	ErrCollectorNotFound = errors.New("collector not found")
+	ErrCollectorNotFound = notFound("collector not found")
 	// ErrCollectorIDTaken is returned when saving a collector whose id is already in use.
-	ErrCollectorIDTaken = errors.New("collector id already taken")
+	ErrCollectorIDTaken = conflict("collector id already taken")
 	// ErrNameRequired is returned for a blank collector name.
-	ErrNameRequired = errors.New("collector name is required")
+	ErrNameRequired = invalid("collector name is required")
 )
 
 // Collector is a person who collects documents for a tax return.

@@ -1,12 +1,11 @@
 package domain
 
 import (
-	"errors"
 	"fmt"
 )
 
 // ErrInvalidLocale is returned for a locale that is not one of the known ones.
-var ErrInvalidLocale = errors.New("invalid locale")
+var ErrInvalidLocale = invalid("invalid locale")
 
 // Locale is a language that predefined content is available in.
 type Locale string
