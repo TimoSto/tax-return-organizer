@@ -3,11 +3,13 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health"
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	faketransactor "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/transactor"
@@ -26,8 +28,16 @@ func newFakeRepositories() port.Repositories {
 	return port.Repositories{Collectors: collectors, Personas: fakepersona.NewRepository()}
 }
 
+type pinger struct{ err error }
+
+func (p pinger) Ping(context.Context) error { return p.err }
+
 func wireFake(repos port.Repositories) http.Handler {
-	h, err := wire(repos, faketransactor.New(repos))
+	return wireFakeReady(repos, pinger{})
+}
+
+func wireFakeReady(repos port.Repositories, ready health.Pinger) http.Handler {
+	h, err := wire(repos, faketransactor.New(repos), ready)
 	if err != nil {
 		panic(err)
 	}
@@ -44,6 +54,28 @@ func TestWire_CreateCollector(t *testing.T) {
 
 	if rec.Code != http.StatusCreated {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusCreated)
+	}
+}
+
+func TestWire_Readyz(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"database up", nil, http.StatusOK},
+		{"database down", errors.New("down"), http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := wireFakeReady(newFakeRepositories(), pinger{err: tc.err})
+
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
+
+			if rec.Code != tc.want {
+				t.Errorf("status = %d, want %d", rec.Code, tc.want)
+			}
+		})
 	}
 }
 
