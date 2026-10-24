@@ -94,22 +94,21 @@ func newItemResponse(item domain.ItemDefinition) itemResponse {
 	resp := itemResponse{
 		ID:         item.ID.String(),
 		Title:      item.Title,
-		Kind:       string(item.Kind),
+		Kind:       string(item.Kind()),
 		Recurrence: string(item.Recurrence),
 	}
 
-	if item.DocumentSpec != nil {
-		fields := make([]metadataFieldResponse, 0, len(item.DocumentSpec.MetadataFields))
-		for _, f := range item.DocumentSpec.MetadataFields {
+	switch spec := item.Spec.(type) {
+	case domain.DocumentSpec:
+		fields := make([]metadataFieldResponse, 0, len(spec.MetadataFields))
+		for _, f := range spec.MetadataFields {
 			fields = append(fields, metadataFieldResponse{Name: f.Name, ValueSpec: newValueSpecResponse(f.ValueSpec)})
 		}
 
 		resp.DocumentSpec = &documentSpecResponse{MetadataFields: fields}
-	}
-
-	if item.ValueSpec != nil {
-		spec := newValueSpecResponse(*item.ValueSpec)
-		resp.ValueSpec = &spec
+	case domain.ValueSpec:
+		v := newValueSpecResponse(spec)
+		resp.ValueSpec = &v
 	}
 
 	return resp

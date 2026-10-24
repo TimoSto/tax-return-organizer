@@ -104,16 +104,16 @@ func TestGetPersona_Items(t *testing.T) {
 			ID: testID, CollectorID: testCollectorID, Name: "Employed",
 			Items: []domain.ItemDefinition{
 				{
-					ID: docID, PersonaID: testID, Title: "Payslip", Kind: domain.KindDocument,
+					ID: docID, Title: "Payslip",
 					Recurrence: domain.RecurrenceMonthly,
-					DocumentSpec: &domain.DocumentSpec{MetadataFields: []domain.MetadataField{
+					Spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 						{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
 					}},
 				},
 				{
-					ID: dataID, PersonaID: testID, Title: "Commuting days", Kind: domain.KindData,
+					ID: dataID, Title: "Commuting days",
 					Recurrence: domain.RecurrenceAnnually,
-					ValueSpec:  &domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days"},
+					Spec:       domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days"},
 				},
 			},
 		}, nil

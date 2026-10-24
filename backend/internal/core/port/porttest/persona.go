@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
@@ -30,41 +31,37 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 	)
 
 	payslip := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Payslip", Kind: domain.KindDocument, Recurrence: domain.RecurrenceMonthly,
-		DocumentSpec: &domain.DocumentSpec{MetadataFields: []domain.MetadataField{
+		ID: uuid.New(), Title: "Payslip", Recurrence: domain.RecurrenceMonthly,
+		Spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 			{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
 			{Name: "Gross", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "EUR"}},
 		}},
 	}
 	notice := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Tax notice", Kind: domain.KindDocument, Recurrence: domain.RecurrenceAnnually,
-		DocumentSpec: &domain.DocumentSpec{},
+		ID: uuid.New(), Title: "Tax notice", Recurrence: domain.RecurrenceAnnually,
+		Spec: domain.DocumentSpec{},
 	}
 	days := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Commuting days", Kind: domain.KindData, Recurrence: domain.RecurrenceQuarterly,
-		ValueSpec: &domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
+		ID: uuid.New(), Title: "Commuting days", Recurrence: domain.RecurrenceQuarterly,
+		Spec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
 	}
 
 	employed := personaWithItems(aliceID, "Employed", "Has a job", payslip, notice, days)
 	employedRearranged := employed
 	employedRearranged.Name = "Employed (renamed)"
-	employedRearranged.Items = withPersonaID(employed.ID, days, payslip)
+	employedRearranged.Items = []domain.ItemDefinition{days, payslip}
 	employedReduced := employed
-	employedReduced.Items = withPersonaID(employed.ID, notice)
+	employedReduced.Items = []domain.ItemDefinition{notice}
 	employedCleared := employed
 	employedCleared.Items = nil
 	hijack := employed
 	hijack.CollectorID = bobID
 	hijack.Name = "Hijacked"
 	letting := personaWithItems(aliceID, "Letting", "")
-	emptyFields := notice // explicit empty slice, which every repository reports as nil
+	emptyFields := notice // explicit empty slice, which repositories may report as nil
 	emptyFields.ID = uuid.New()
-	emptyFields.DocumentSpec = &domain.DocumentSpec{MetadataFields: []domain.MetadataField{}}
+	emptyFields.Spec = domain.DocumentSpec{MetadataFields: []domain.MetadataField{}}
 	withEmptyFields := personaWithItems(aliceID, "Empty fields", "", emptyFields)
-	nilFields := emptyFields
-	nilFields.DocumentSpec = &domain.DocumentSpec{}
-	withNilFields := withEmptyFields
-	withNilFields.Items = withPersonaID(withEmptyFields.ID, nilFields)
 	orphan := personaWithItems("zzzz", "Orphan", "")                    // no such collector
 	stolenItem := personaWithItems(aliceID, "Stolen item", "", payslip) // payslip belongs to employed
 	bobsDays := days
@@ -88,11 +85,11 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 			exp:          &employed,
 		},
 		{
-			name:         "A document spec without metadata fields is returned with nil fields",
+			name:         "A document spec with an empty list of metadata fields round-trips",
 			saves:        []domain.Persona{withEmptyFields},
 			getCollector: aliceID,
 			getID:        withEmptyFields.ID,
-			exp:          &withNilFields,
+			exp:          &withEmptyFields,
 		},
 		{
 			name:         "Get persona with empty description and no items",
@@ -189,33 +186,19 @@ func TestPersonaRepository(t *testing.T, newRepo PersonaRepositoryFactory) {
 				t.Fatalf("GetPersona() error = %v, wantErr %v", err, tc.expErr)
 			}
 
-			if diff := cmp.Diff(tc.exp, got); diff != "" {
+			if diff := cmp.Diff(tc.exp, got, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("GetPersona() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
 
-// personaWithItems returns a persona whose items belong to it.
+// personaWithItems returns a persona with the given items, or none.
 func personaWithItems(collectorID domain.CollectorID, name, description string, items ...domain.ItemDefinition) domain.Persona {
 	p := domain.Persona{ID: uuid.New(), CollectorID: collectorID, Name: name, Description: description}
-	p.Items = withPersonaID(p.ID, items...)
+	p.Items = slices.Clone(items)
 
 	return p
-}
-
-// withPersonaID returns copies of items that belong to the given persona, or nil for no items.
-func withPersonaID(personaID uuid.UUID, items ...domain.ItemDefinition) []domain.ItemDefinition {
-	if len(items) == 0 {
-		return nil
-	}
-
-	out := slices.Clone(items)
-	for i := range out {
-		out[i].PersonaID = personaID
-	}
-
-	return out
 }
 
 // TestPersonaRepositoryList runs the contract tests of ListPersonas against repositories created by newRepo.
@@ -231,14 +214,14 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 	)
 
 	payslip := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Payslip", Kind: domain.KindDocument, Recurrence: domain.RecurrenceMonthly,
-		DocumentSpec: &domain.DocumentSpec{MetadataFields: []domain.MetadataField{
+		ID: uuid.New(), Title: "Payslip", Recurrence: domain.RecurrenceMonthly,
+		Spec: domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 			{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
 		}},
 	}
 	days := domain.ItemDefinition{
-		ID: uuid.New(), Title: "Commuting days", Kind: domain.KindData, Recurrence: domain.RecurrenceQuarterly,
-		ValueSpec: &domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
+		ID: uuid.New(), Title: "Commuting days", Recurrence: domain.RecurrenceQuarterly,
+		Spec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
 	}
 	bobsDays := days
 	bobsDays.ID = uuid.New() // item ids are unique across all personas
@@ -299,7 +282,7 @@ func TestPersonaRepositoryList(t *testing.T, newRepo PersonaRepositoryFactory) {
 				t.Fatalf("ListPersonas() error = %v, wantErr %v", err, tc.expErr)
 			}
 
-			if diff := cmp.Diff(tc.exp, got); diff != "" {
+			if diff := cmp.Diff(tc.exp, got, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("ListPersonas() mismatch (-want +got):\n%s", diff)
 			}
 		})

@@ -112,29 +112,15 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 }
 
 // clone copies p deeply, so callers and the repository never share items or specs.
-// Items are normalised to belong to the persona, as they do in a relational store.
 func clone(p *domain.Persona) *domain.Persona {
 	c := *p
 	c.Items = slices.Clone(p.Items)
 
 	for i := range c.Items {
-		item := &c.Items[i]
-		item.PersonaID = p.ID
-
-		if item.DocumentSpec != nil {
-			spec := *item.DocumentSpec
+		// ValueSpec holds no references; only a DocumentSpec shares its metadata fields.
+		if spec, ok := c.Items[i].Spec.(domain.DocumentSpec); ok {
 			spec.MetadataFields = slices.Clone(spec.MetadataFields)
-			// Like the domain and a relational store, report no fields as nil, never as an empty slice.
-			if len(spec.MetadataFields) == 0 {
-				spec.MetadataFields = nil
-			}
-
-			item.DocumentSpec = &spec
-		}
-
-		if item.ValueSpec != nil {
-			spec := *item.ValueSpec
-			item.ValueSpec = &spec
+			c.Items[i].Spec = spec
 		}
 	}
 

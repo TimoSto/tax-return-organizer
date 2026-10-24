@@ -22,7 +22,6 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrInvalidCollectorID, http.StatusBadRequest},
 		{domain.ErrPersonaNameRequired, http.StatusBadRequest},
 		{domain.ErrItemTitleRequired, http.StatusBadRequest},
-		{domain.ErrInvalidKind, http.StatusBadRequest},
 		{domain.ErrInvalidRecurrence, http.StatusBadRequest},
 		{domain.ErrSpecMismatch, http.StatusBadRequest},
 		{domain.ErrInvalidValueType, http.StatusBadRequest},

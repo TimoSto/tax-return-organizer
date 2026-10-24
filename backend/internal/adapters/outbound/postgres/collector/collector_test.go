@@ -46,7 +46,7 @@ func TestSaveCollector_RolledBackWhenPersonaSaveFails(t *testing.T) {
 		t.Fatalf("new persona: %v", err)
 	}
 
-	item, err := existing.AddItem("Days", domain.KindData, domain.RecurrenceAnnually, nil, &domain.ValueSpec{Type: domain.ValueTypeNumber})
+	item, err := existing.AddItem("Days", domain.RecurrenceAnnually, domain.ValueSpec{Type: domain.ValueTypeNumber})
 	if err != nil {
 		t.Fatalf("add item: %v", err)
 	}
@@ -60,7 +60,6 @@ func TestSaveCollector_RolledBackWhenPersonaSaveFails(t *testing.T) {
 		t.Fatalf("new persona: %v", err)
 	}
 
-	item.PersonaID = clashing.ID
 	clashing.Items = []domain.ItemDefinition{item}
 
 	tx := pgdb.NewTransactor(pool, func(db pgdb.DBTX) port.Repositories {
