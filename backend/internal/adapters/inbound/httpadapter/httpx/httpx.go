@@ -48,7 +48,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	}
 
-	slog.ErrorContext(r.Context(), "request failed", "error", err, "request_id", w.Header().Get(RequestIDHeader))
+	slog.ErrorContext(r.Context(), "request failed", "error", err)
 	WriteJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
 }
 
