@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
@@ -24,18 +24,18 @@ var _ ports.PersonaRepository = (*Repository)(nil)
 
 // Repository is the Postgres implementation of ports.PersonaRepository.
 type Repository struct {
-	pool *pgxpool.Pool
+	db pgdb.DBTX
 }
 
-// NewRepository returns a repository backed by pool.
-func NewRepository(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+// NewRepository returns a repository backed by db, the pool or a transaction.
+func NewRepository(db pgdb.DBTX) *Repository {
+	return &Repository{db: db}
 }
 
 // GetPersona implements ports.PersonaRepository.
 // Persona and items are read in one statement, so a concurrent SavePersona can never show up half-applied.
 func (r *Repository) GetPersona(ctx context.Context, collectorID domain.CollectorID, id uuid.UUID) (*domain.Persona, error) {
-	rows, err := r.pool.Query(ctx, `
+	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
 		FROM personas p
@@ -62,7 +62,7 @@ func (r *Repository) GetPersona(ctx context.Context, collectorID domain.Collecto
 // ListPersonas implements ports.PersonaRepository.
 // Names sort bytewise (collation C), like the in-memory repository. The query starts at the collector, so an unknown collector (no rows) is told apart from one without personas.
 func (r *Repository) ListPersonas(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
-	rows, err := r.pool.Query(ctx, `
+	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
 		FROM collectors c
@@ -100,7 +100,7 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 		items = append(items, row)
 	}
 
-	tx, err := r.pool.Begin(ctx)
+	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("save persona: begin: %w", err)
 	}

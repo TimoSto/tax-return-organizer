@@ -15,6 +15,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getpersona"
@@ -24,27 +25,23 @@ import (
 
 const shutdownTimeout = 10 * time.Second
 
-// repositories holds one repository per resource. A new resource adds a field here instead of a parameter to wire.
-type repositories struct {
-	collectors ports.CollectorRepository
-	personas   ports.PersonaRepository
-}
-
-// postgresRepositories returns the repositories backed by pool.
-func postgresRepositories(pool *pgxpool.Pool) repositories {
-	return repositories{
-		collectors: pgcollector.NewRepository(pool),
-		personas:   pgpersona.NewRepository(pool),
+// postgresRepositories returns one repository per resource on db, which is the pool or a transaction.
+// A new resource adds a field to ports.Repositories and a line here.
+func postgresRepositories(db pgdb.DBTX) ports.Repositories {
+	return ports.Repositories{
+		Collectors: pgcollector.NewRepository(db),
+		Personas:   pgpersona.NewRepository(db),
 	}
 }
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
-func wire(repos repositories) http.Handler {
+// Reads use repos directly, writes that span several repositories go through tx.
+func wire(repos ports.Repositories, tx ports.Transactor) http.Handler {
 	return httpadapter.NewHandler(httpadapter.Deps{
-		CreateCollector: createcollector.New(repos.collectors, repos.personas).Execute,
-		GetCollector:    getcollector.New(repos.collectors).Execute,
-		GetPersona:      getpersona.New(repos.personas).Execute,
-		ListPersonas:    listpersonas.New(repos.personas).Execute,
+		CreateCollector: createcollector.New(tx).Execute,
+		GetCollector:    getcollector.New(repos.Collectors).Execute,
+		GetPersona:      getpersona.New(repos.Personas).Execute,
+		ListPersonas:    listpersonas.New(repos.Personas).Execute,
 	})
 }
 
@@ -64,7 +61,7 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer pool.Close()
 
-	return serve(ctx, newServer(cfg.HTTPAddr, wire(postgresRepositories(pool))))
+	return serve(ctx, newServer(cfg.HTTPAddr, wire(postgresRepositories(pool), pgdb.NewTransactor(pool, postgresRepositories))))
 }
 
 func newServer(addr string, handler http.Handler) *http.Server {

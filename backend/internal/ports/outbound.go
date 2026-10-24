@@ -40,3 +40,15 @@ type PersonaRepository interface {
 	// the client sends back, saved with "UPDATE ... WHERE version = $n" and answered with 409 on a mismatch.
 	SavePersona(ctx context.Context, persona *domain.Persona) error
 }
+
+// Repositories groups the repositories that can take part in one transaction.
+type Repositories struct {
+	Collectors CollectorRepository
+	Personas   PersonaRepository
+}
+
+// Transactor runs fn in a transaction. All repositories fn receives share it. The transaction commits if fn
+// returns nil, otherwise it is rolled back and fn's error is returned.
+type Transactor interface {
+	InTx(ctx context.Context, fn func(ctx context.Context, repos Repositories) error) error
+}

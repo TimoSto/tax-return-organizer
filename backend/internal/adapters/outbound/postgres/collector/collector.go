@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/ports"
 )
@@ -21,19 +21,19 @@ var _ ports.CollectorRepository = (*Repository)(nil)
 
 // Repository is the Postgres implementation of ports.CollectorRepository.
 type Repository struct {
-	pool *pgxpool.Pool
+	db pgdb.DBTX
 }
 
-// NewRepository returns a repository backed by pool.
-func NewRepository(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
+// NewRepository returns a repository backed by db, the pool or a transaction.
+func NewRepository(db pgdb.DBTX) *Repository {
+	return &Repository{db: db}
 }
 
 // GetCollector implements ports.CollectorRepository.
 func (r *Repository) GetCollector(ctx context.Context, id domain.CollectorID) (*domain.Collector, error) {
 	var row collectorRow
 
-	err := r.pool.QueryRow(ctx, `SELECT id, name, email FROM collectors WHERE id = $1`, string(id)).
+	err := r.db.QueryRow(ctx, `SELECT id, name, email FROM collectors WHERE id = $1`, string(id)).
 		Scan(&row.ID, &row.Name, &row.Email)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrCollectorNotFound
@@ -49,7 +49,7 @@ func (r *Repository) GetCollector(ctx context.Context, id domain.CollectorID) (*
 func (r *Repository) SaveCollector(ctx context.Context, collector *domain.Collector) error {
 	row := newCollectorRow(collector)
 
-	_, err := r.pool.Exec(ctx, `
+	_, err := r.db.Exec(ctx, `
 		INSERT INTO collectors (id, name, email) VALUES ($1, $2, $3)`,
 		row.ID, row.Name, row.Email)
 
