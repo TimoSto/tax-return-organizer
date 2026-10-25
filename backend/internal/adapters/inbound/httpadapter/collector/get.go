@@ -23,6 +23,7 @@ type Getter interface {
 func Get(getter Getter) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}",
+		Tenant:  true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c, err := getter.Execute(r.Context())
 			if err != nil {

@@ -9,6 +9,9 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
+// idParam is the path parameter that carries the persona id.
+const idParam = "id"
+
 type getResponse struct {
 	ID          string         `json:"id"`
 	CollectorID string         `json:"collectorId"`
@@ -50,9 +53,10 @@ type Getter interface {
 // Get is GET /collectors/{collectorId}/personas/{id}.
 func Get(getter Getter) httpx.Route {
 	return httpx.Route{
-		Pattern: "GET /collectors/{collectorId}/personas/{id}",
+		Pattern: "GET /collectors/{collectorId}/personas/{" + idParam + "}",
+		Tenant:  true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			id, ok := httpx.ParsePathID(w, r, "id", domain.ParsePersonaID)
+			id, ok := httpx.ParsePathID(w, r, idParam, domain.ParsePersonaID)
 			if !ok {
 				return
 			}

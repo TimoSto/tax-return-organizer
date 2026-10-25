@@ -21,10 +21,16 @@ const (
 	MaxBodyBytes = 1 << 20
 )
 
+// CollectorIDParam is the path parameter that carries the collector id in tenant-scoped patterns.
+const CollectorIDParam = "collectorId"
+
 // Route is an endpoint: a ServeMux pattern ("POST /collectors") and its handler.
 type Route struct {
 	Pattern string
 	Handler http.Handler
+	// Tenant marks routes that act for a collector: the adapter puts it into the request context
+	// (see tenant.WithCollector) before the handler runs.
+	Tenant bool
 }
 
 // ProblemContentType is the media type of every error answer (RFC 9457).

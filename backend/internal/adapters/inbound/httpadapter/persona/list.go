@@ -21,6 +21,7 @@ type Lister interface {
 func List(lister Lister) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas",
+		Tenant:  true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			personas, err := lister.Execute(r.Context())
 			if err != nil {

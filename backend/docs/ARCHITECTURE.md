@@ -65,7 +65,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate`,
 
 1. The HTTP middleware resolves the collector from the URL and stores it with `tenant.WithCollector` (later: from the authenticated principal).
 2. A handler in `httpadapter/<resource>` decodes the request and calls a use case through a small interface it declares itself (for example `collector.Creator`).
-3. The use case reads the tenant with `tenant.MustCollectorFrom(ctx)`, asks the store for a repository bound to it (`personas.For(collectorID)`), and works with domain entities. Writes that span several repositories run inside `Transactor.InTx`.
+3. The use case reads the tenant with `tenant.RequireCollectorFrom(ctx)`, asks the store for a repository bound to it (`personas.For(collectorID)`), and works with domain entities. Writes that span several repositories run inside `Transactor.InTx`.
 4. The Postgres repository executes the query, always filtered by the bound collector.
 5. Errors travel back up as values. `httpx` maps `domain.Error` kinds to status codes (invalid → 400, not found → 404, conflict → 409). Anything else is logged and becomes a generic 500, so internal details never reach the client.
 
@@ -119,7 +119,7 @@ Every repository interface has a Postgres and a fake implementation. Both run th
 
 ### No authentication yet
 
-The tenant is taken from the URL today. The seam is already in place: use cases only read `tenant.MustCollectorFrom(ctx)`, so authentication will change how the middleware fills the context, not the use cases.
+The tenant is taken from the URL today. The seam is already in place: use cases only read `tenant.RequireCollectorFrom(ctx)`, so authentication will change how the middleware fills the context, not the use cases.
 
 ## Adding things
 

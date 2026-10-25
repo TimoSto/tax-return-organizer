@@ -22,8 +22,8 @@ func CollectorFrom(ctx context.Context) (domain.CollectorID, bool) {
 	return id, ok
 }
 
-// MustCollectorFrom is CollectorFrom for use cases: a missing tenant is a wiring bug, not a client error.
-func MustCollectorFrom(ctx context.Context) (domain.CollectorID, error) {
+// RequireCollectorFrom is CollectorFrom for use cases, returning ErrNoTenant when there is none: a missing tenant is a wiring bug, not a client error.
+func RequireCollectorFrom(ctx context.Context) (domain.CollectorID, error) {
 	id, ok := CollectorFrom(ctx)
 	if !ok {
 		return "", ErrNoTenant
