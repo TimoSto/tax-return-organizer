@@ -4,7 +4,7 @@ package httpadapter
 import (
 	"fmt"
 	"net/http"
-	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
@@ -26,18 +26,24 @@ type Deps struct {
 }
 
 // validate reports the fields of d that are nil, so a missing wiring fails at startup and not on the first request.
+// A new field of Deps needs a line here.
 func (d Deps) validate() error {
-	v := reflect.ValueOf(d)
-
 	var missing []string
 
-	for i := range v.NumField() {
-		if v.Field(i).IsNil() {
-			missing = append(missing, v.Type().Field(i).Name)
+	for name, isNil := range map[string]bool{
+		"CreateCollector": d.CreateCollector == nil,
+		"GetCollector":    d.GetCollector == nil,
+		"GetPersona":      d.GetPersona == nil,
+		"ListPersonas":    d.ListPersonas == nil,
+		"Readiness":       d.Readiness == nil,
+	} {
+		if isNil {
+			missing = append(missing, name)
 		}
 	}
 
 	if len(missing) > 0 {
+		slices.Sort(missing)
 		return fmt.Errorf("missing dependencies: %s", strings.Join(missing, ", "))
 	}
 
