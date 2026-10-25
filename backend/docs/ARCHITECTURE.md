@@ -101,6 +101,10 @@ A *collector* is the tenant. Everything a collector owns is exposed as a `...Sto
 
 There are no inbound port interfaces in `core/port`. Each `httpadapter` resource package declares the small interface it needs from a use case (`collector.Creator`, `persona.Getter`, ...), and `backend.wire` assigns the use cases to them through `httpadapter.Deps`. `Deps` is validated at startup, so a missing wiring fails when the service starts and not on the first request.
 
+### Small, pass-through use cases are kept on purpose
+
+Some use cases (`getcollector`, `getpersona`) do little more than read the tenant from the context and call a repository. They stay. Handlers talk only to use cases and never to `port` (enforced by depguard), so every endpoint goes through the same seam, where authorization, auditing or extra rules can be added later without touching the handlers. Dropping the thin ones would give the HTTP layer two ways to reach the core and would blur the rule that handlers do not know repositories.
+
 ### Ids are created outside the domain
 
 The domain does not generate ids. `port.CollectorIDGenerator`, `PersonaIDGenerator` and `ItemIDGenerator` are separate small interfaces, and `adapters/outbound/idgen` implements them with `crypto/rand`. This keeps the domain deterministic. Collector ids are short strings (see the baseline migration), not UUIDs like in the README diagram, and a generated collector id is not guaranteed to be unused. `createcollector` handles a collision (`ErrCollectorIDTaken`).
