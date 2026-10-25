@@ -254,7 +254,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
         "404":
-          description: The collector has no persona with this id.
+          description: The collector does not exist (`collector_not_found`) or has no persona with this id (`persona_not_found`).
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"

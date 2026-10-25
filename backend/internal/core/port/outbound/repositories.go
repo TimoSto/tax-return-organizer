@@ -47,6 +47,11 @@ type PersonaStore interface {
 // PersonaRepository persists the personas of one collector (see PersonaStore.For) together with their item
 // definitions, which are part of the persona. Personas, and the ids of their items, of other collectors are not
 // visible through it.
+//
+// The repository does not check that the collector exists, and what it does for an unknown one is not part of the
+// contract: reads see no personas, saving may be accepted (the in-memory fake) or fail on a foreign key (Postgres).
+// Use cases verify the collector through CollectorRepository before they use a store, so every adapter behaves the
+// same for them. The foreign key is only a safety net.
 type PersonaRepository interface {
 	// GetPersona returns the persona with all its items in their stored order.
 	// It returns domain.ErrPersonaNotFound if the collector has no persona with the given id,
@@ -61,7 +66,7 @@ type PersonaRepository interface {
 	// domain.ErrPersonaNotFound if the id belongs to another collector,
 	// domain.ErrItemIDTaken if an item id is already used by another persona (of any collector, which
 	// tells a caller that the id exists elsewhere). Nothing is changed then.
-	// The collector is not checked here, callers verify it exists through CollectorRepository.
+	// The collector is not checked here, see the PersonaRepository comment.
 	//
 	// There is no concurrency control: SavePersona replaces the whole persona, so the last save wins. Two
 	// people editing the same persona from stale copies silently overwrite each other, and a stale save

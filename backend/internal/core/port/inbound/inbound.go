@@ -33,8 +33,8 @@ type GetCollector interface {
 }
 
 // GetPersona retrieves a persona of the collector by its id.
-// It returns domain.ErrPersonaNotFound if the collector has no such persona, which includes personas of other
-// collectors.
+// It returns domain.ErrCollectorNotFound if the collector does not exist, and domain.ErrPersonaNotFound if the
+// collector has no such persona, which includes personas of other collectors.
 type GetPersona interface {
 	Execute(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error)
 }
