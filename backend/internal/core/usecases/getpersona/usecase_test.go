@@ -11,7 +11,6 @@ import (
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getpersona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
@@ -45,7 +44,7 @@ func TestExecute_Success(t *testing.T) {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	got, err := getpersona.New(store).Execute(tenant.With(context.Background(), want.CollectorID()), want.ID())
+	got, err := getpersona.New(store).Execute(context.Background(), want.CollectorID(), want.ID())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -56,7 +55,7 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_NotFound(t *testing.T) {
-	got, err := getpersona.New(fakepersona.NewStore()).Execute(tenant.With(context.Background(), "k7m2"), domain.PersonaID(uuid.New()))
+	got, err := getpersona.New(fakepersona.NewStore()).Execute(context.Background(), "k7m2", domain.PersonaID(uuid.New()))
 	if !errors.Is(err, domain.ErrPersonaNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrPersonaNotFound)
 	}
@@ -74,7 +73,7 @@ func TestExecute_OtherCollector(t *testing.T) {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	_, err := getpersona.New(store).Execute(tenant.With(context.Background(), "bbbb"), p.ID())
+	_, err := getpersona.New(store).Execute(context.Background(), "bbbb", p.ID())
 	if !errors.Is(err, domain.ErrPersonaNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrPersonaNotFound)
 	}
@@ -83,15 +82,8 @@ func TestExecute_OtherCollector(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := getpersona.New(failingStore{err: boom}).Execute(tenant.With(context.Background(), "k7m2"), domain.PersonaID(uuid.New()))
+	_, err := getpersona.New(failingStore{err: boom}).Execute(context.Background(), "k7m2", domain.PersonaID(uuid.New()))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want it to wrap %v", err, boom)
-	}
-}
-
-func TestExecute_NoTenant(t *testing.T) {
-	_, err := getpersona.New(fakepersona.NewStore()).Execute(context.Background(), domain.PersonaID(uuid.New()))
-	if !errors.Is(err, tenant.ErrNoTenant) {
-		t.Errorf("err = %v, want %v", err, tenant.ErrNoTenant)
 	}
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 )
 
 // Usecase is the listpersonas use case.
@@ -21,14 +20,9 @@ func New(collectors port.CollectorRepository, personas port.PersonaStore) *Useca
 	return &Usecase{collectors: collectors, personas: personas}
 }
 
-// Execute retrieves all personas of the collector the context acts for.
+// Execute retrieves all personas of the collector.
 // It returns domain.ErrCollectorNotFound if that collector does not exist.
-func (u *Usecase) Execute(ctx context.Context) ([]*domain.Persona, error) {
-	collectorID, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list personas: %w", err)
-	}
-
+func (u *Usecase) Execute(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
 	if _, err := u.collectors.GetCollector(ctx, collectorID); err != nil {
 		return nil, fmt.Errorf("check collector: %w", err)
 	}

@@ -17,16 +17,12 @@ flowchart TB
         usecases["usecases (one package per use case)"]
         port["port"]
         pt["personatemplate"]
-        tenant["tenant"]
         domain["domain"]
         usecases --> port
         usecases --> pt
-        usecases --> tenant
         port --> pt
-        port --> tenant
         port --> domain
         pt --> domain
-        tenant --> domain
     end
 
     subgraph OUT["Outbound adapters"]
@@ -41,7 +37,7 @@ flowchart TB
     root -.->|wires| out
 ```
 
-Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate`, `tenant` ← `port` ← `usecases`. Adapters depend on the core, never on each other, and the core never depends on adapters.
+Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` ← `port` ← `usecases`. Adapters depend on the core, never on each other, and the core never depends on adapters.
 
 ## Package map
 
@@ -49,7 +45,6 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate`,
 | --- | --- |
 | `core/domain` | Entities and their invariants (`Collector`, `Persona`, `ItemDefinition`, `Email`, ids), plus the `domain.Error` type with its kinds (invalid, not found, conflict) and the sentinel errors. Strict import allow-list (`domain-allowlist`). |
 | `core/personatemplate` | Predefined personas, the `Locale`/`Localized` types they are written in, and `Instantiate`, which copies a template into a collector-owned persona. See [Where `personatemplate` lives](#where-personatemplate-lives). |
-| `core/tenant` | Carries the collector a request acts for in the `context.Context`. |
 | `core/port` | Interfaces the core needs from the outside: repositories and stores, `Transactor`, id generators, `PersonaTemplateCatalog`. `testutil/porttest` holds contract tests shared by every repository implementation. |
 | `core/usecases/<name>` | One package per use case, `New(deps).Execute(...)`. Use cases do not import each other. |
 | `adapters/inbound/httpadapter` | Routes, middleware, and one subpackage per resource (`collector`, `persona`, `health`). `httpx` holds shared helpers (JSON, error to status mapping). |
@@ -63,9 +58,9 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate`,
 
 ## Request flow
 
-1. The HTTP middleware resolves the collector from the URL and stores it with `tenant.With` (later: from the authenticated principal).
-2. A handler in `httpadapter/<resource>` decodes the request and calls a use case through a small interface it declares itself (for example `collector.Creator`).
-3. The use case reads the tenant with `tenant.Require(ctx)`, asks the store for a repository bound to it (`personas.For(collectorID)`), and works with domain entities. Writes that span several repositories run inside `Transactor.InTx`.
+1. A handler in `httpadapter/<resource>` decodes the request and resolves the collector it acts for with `httpx.Tenant` (today from the URL, later from the authenticated principal).
+2. The handler calls a use case through a small interface it declares itself (for example `collector.Creator`), passing the collector id as an explicit argument.
+3. The use case asks the store for a repository bound to it (`personas.For(collectorID)`), and works with domain entities. Writes that span several repositories run inside `Transactor.InTx`.
 4. The Postgres repository executes the query, always filtered by the bound collector.
 5. Errors travel back up as values. `httpx` maps `domain.Error` kinds to status codes (invalid → 400, not found → 404, conflict → 409). Anything else is logged and becomes a generic 500, so internal details never reach the client.
    Wrap errors once: use cases name the operation (`get collector: ...`), repositories only name the failing step (`query collector: ...`) and return sentinel errors bare.
@@ -103,7 +98,7 @@ There are no inbound port interfaces in `core/port`. Each `httpadapter` resource
 
 ### Small, pass-through use cases are kept on purpose
 
-Some use cases (`getcollector`, `getpersona`) do little more than read the tenant from the context and call a repository. They stay. Handlers talk only to use cases and never to `port` (enforced by depguard), so every endpoint goes through the same seam, where authorization, auditing or extra rules can be added later without touching the handlers. Dropping the thin ones would give the HTTP layer two ways to reach the core and would blur the rule that handlers do not know repositories.
+Some use cases (`getcollector`, `getpersona`) do little more than call a repository with the tenant they are given. They stay. Handlers talk only to use cases and never to `port` (enforced by depguard), so every endpoint goes through the same seam, where authorization, auditing or extra rules can be added later without touching the handlers. Dropping the thin ones would give the HTTP layer two ways to reach the core and would blur the rule that handlers do not know repositories.
 
 ### Ids are created outside the domain
 
@@ -124,7 +119,7 @@ Every repository interface has a Postgres and a fake implementation. Both run th
 
 ### No authentication yet
 
-The tenant is taken from the URL today. The seam is already in place: use cases only read `tenant.Require(ctx)`, so authentication will change how the middleware fills the context, not the use cases.
+The tenant is taken from the URL today. The seam is already in place: use cases receive the collector id as an argument and only `httpx.Tenant` resolves it, so authentication will change that one function, not the use cases.
 
 ## Adding things
 

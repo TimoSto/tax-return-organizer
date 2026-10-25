@@ -14,16 +14,20 @@ type listResponse struct {
 
 // Lister retrieves all personas of the collector the request acts for.
 type Lister interface {
-	Execute(ctx context.Context) ([]*domain.Persona, error)
+	Execute(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error)
 }
 
 // List is GET /collectors/{collectorId}/personas.
 func List(lister Lister) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas",
-		Tenant:  true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			personas, err := lister.Execute(r.Context())
+			collectorID, ok := httpx.Tenant(w, r)
+			if !ok {
+				return
+			}
+
+			personas, err := lister.Execute(r.Context(), collectorID)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

@@ -14,18 +14,22 @@ type getResponse struct {
 	Email string `json:"email"`
 }
 
-// Getter retrieves the collector the request acts for (see tenant.With).
+// Getter retrieves the collector the request acts for.
 type Getter interface {
-	Execute(ctx context.Context) (*domain.Collector, error)
+	Execute(ctx context.Context, id domain.CollectorID) (*domain.Collector, error)
 }
 
 // Get is GET /collectors/{collectorId}.
 func Get(getter Getter) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}",
-		Tenant:  true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c, err := getter.Execute(r.Context())
+			collectorID, ok := httpx.Tenant(w, r)
+			if !ok {
+				return
+			}
+
+			c, err := getter.Execute(r.Context(), collectorID)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 
