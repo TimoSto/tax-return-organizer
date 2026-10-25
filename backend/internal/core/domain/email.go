@@ -5,7 +5,7 @@ import (
 )
 
 // ErrInvalidEmail is returned for anything but a plain email address.
-var ErrInvalidEmail = invalid("invalid email address")
+var ErrInvalidEmail = invalid("invalid_email", "invalid email address")
 
 // Email is a validated, plain email address such as "john@example.com".
 type Email string

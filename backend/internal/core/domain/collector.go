@@ -7,11 +7,11 @@ import (
 
 var (
 	// ErrCollectorNotFound is returned when a collector does not exist.
-	ErrCollectorNotFound = notFound("collector not found")
+	ErrCollectorNotFound = notFound("collector_not_found", "collector not found")
 	// ErrCollectorIDTaken is returned when saving a collector whose id is already in use.
-	ErrCollectorIDTaken = conflict("collector id already taken")
+	ErrCollectorIDTaken = conflict("collector_id_taken", "collector id already taken")
 	// ErrNameRequired is returned for a blank collector name.
-	ErrNameRequired = invalid("collector name is required")
+	ErrNameRequired = invalid("collector_name_required", "collector name is required")
 )
 
 // Collector is a person who collects documents for a tax return.

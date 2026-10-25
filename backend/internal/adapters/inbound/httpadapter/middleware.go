@@ -66,7 +66,7 @@ func recoverPanic(next http.Handler) http.Handler {
 				}
 
 				slog.ErrorContext(r.Context(), "panic", "value", v)
-				httpx.WriteJSON(w, http.StatusInternalServerError, httpx.ErrorResponse{Error: "internal error"})
+				httpx.WriteProblem(w, r, http.StatusInternalServerError, httpx.CodeInternal, "internal error")
 			}
 		}()
 

@@ -8,13 +8,13 @@ import (
 
 var (
 	// ErrItemTitleRequired is returned for a blank item title.
-	ErrItemTitleRequired = invalid("item title is required")
+	ErrItemTitleRequired = invalid("item_title_required", "item title is required")
 	// ErrInvalidRecurrence is returned for a recurrence that is not one of the known ones.
-	ErrInvalidRecurrence = invalid("invalid recurrence")
+	ErrInvalidRecurrence = invalid("invalid_recurrence", "invalid recurrence")
 	// ErrSpecRequired is returned for an item without a spec.
-	ErrSpecRequired = invalid("item spec is required")
+	ErrSpecRequired = invalid("item_spec_required", "item spec is required")
 	// ErrSpecMismatch is returned when an update gives an item a spec of another kind.
-	ErrSpecMismatch = invalid("spec does not match item kind")
+	ErrSpecMismatch = invalid("item_spec_mismatch", "spec does not match item kind")
 )
 
 // Kind tells whether an item is satisfied by uploaded documents or by an entered value.

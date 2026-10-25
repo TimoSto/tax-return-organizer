@@ -3,7 +3,7 @@ package domain
 import "github.com/google/uuid"
 
 // ErrInvalidPersonaID is returned for a string that is not a well-formed persona id.
-var ErrInvalidPersonaID = invalid("invalid persona id")
+var ErrInvalidPersonaID = invalid("invalid_persona_id", "invalid persona id")
 
 // PersonaID identifies a persona.
 type PersonaID uuid.UUID

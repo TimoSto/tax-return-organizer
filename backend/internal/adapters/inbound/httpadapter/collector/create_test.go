@@ -2,6 +2,7 @@ package collector_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 )
@@ -25,6 +27,8 @@ func do(t *testing.T, create createFunc, method, body string) *httptest.Response
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := collector.Create(create)
@@ -66,12 +70,13 @@ func TestCreateCollector_Errors(t *testing.T) {
 		body    string
 		portErr error
 		want    int
+		code    string
 	}{
-		{"malformed json", `{`, nil, http.StatusBadRequest},
-		{"unknown field", `{"name":"a","email":"a@b.de","x":1}`, nil, http.StatusBadRequest},
-		{"name required", `{}`, domain.ErrNameRequired, http.StatusBadRequest},
-		{"invalid email", `{}`, errors.Join(domain.ErrInvalidEmail, errors.New("x")), http.StatusBadRequest},
-		{"internal", `{}`, errors.New("db down"), http.StatusInternalServerError},
+		{"malformed json", `{`, nil, http.StatusBadRequest, "invalid_request_body"},
+		{"unknown field", `{"name":"a","email":"a@b.de","x":1}`, nil, http.StatusBadRequest, "invalid_request_body"},
+		{"name required", `{}`, domain.ErrNameRequired, http.StatusBadRequest, "collector_name_required"},
+		{"invalid email", `{}`, errors.Join(domain.ErrInvalidEmail, errors.New("x")), http.StatusBadRequest, "invalid_email"},
+		{"internal", `{}`, errors.New("db down"), http.StatusInternalServerError, "internal_error"},
 	}
 
 	for _, tt := range tests {
@@ -82,6 +87,11 @@ func TestCreateCollector_Errors(t *testing.T) {
 
 			if rec.Code != tt.want {
 				t.Errorf("status = %d, want %d", rec.Code, tt.want)
+			}
+
+			var p httpx.Problem
+			if err := json.NewDecoder(rec.Body).Decode(&p); err != nil || p.Code != tt.code {
+				t.Errorf("code = %q (%v), want %q", p.Code, err, tt.code)
 			}
 		})
 	}

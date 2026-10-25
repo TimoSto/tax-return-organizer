@@ -81,23 +81,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/CreateCollectorResponse"
         "400":
-          description: Malformed body, unknown field, empty name, invalid email address or unknown locale.
+          description: Malformed body, unknown field, trailing data after the object, empty name, invalid email address or unknown locale.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
+        "413":
+          description: The body is larger than 1 MiB.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "415":
+          description: The Content-Type is not application/json.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "500":
           description: Unexpected error. Details are only logged, quote the request id.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
   /collectors/{collectorId}:
     get:
       operationId: getCollector
@@ -126,27 +144,27 @@ paths:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
         "404":
           description: No collector with this id exists.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
         "500":
           description: Unexpected error. Details are only logged, quote the request id.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
   /collectors/{collectorId}/personas:
     get:
       operationId: listPersonas
@@ -176,27 +194,27 @@ paths:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
         "404":
           description: No collector with this id exists.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
         "500":
           description: Unexpected error. Details are only logged, quote the request id.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
   /collectors/{collectorId}/personas/{id}:
     get:
       operationId: getPersona
@@ -232,27 +250,27 @@ paths:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
         "404":
           description: The collector has no persona with this id.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
         "500":
           description: Unexpected error. Details are only logged, quote the request id.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Problem"
 components:
   headers:
     RequestID:
@@ -388,9 +406,30 @@ components:
           example: EUR
         required:
           type: boolean
-    Error:
+    Problem:
       type: object
-      required: [error]
+      description: Problem details object (RFC 9457, media type application/problem+json). Clients switch on `code`.
+      required: [type, title, status, code]
       properties:
-        error:
+        type:
           type: string
+          description: URI reference identifying the problem class, derived from `code`. Not dereferenceable.
+          example: /problems/collector-not-found
+        title:
+          type: string
+          description: HTTP reason phrase of `status`.
+          example: Not Found
+        status:
+          type: integer
+          example: 404
+        detail:
+          type: string
+          description: English explanation for developers, not meant for end users. Do not match on it.
+          example: collector not found
+        code:
+          type: string
+          description: Stable machine-readable identifier, the key for translations.
+          enum: [collector_not_found, collector_id_taken, collector_name_required, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, persona_not_found, persona_name_required, item_not_found, item_id_taken, item_title_required, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, duplicate_metadata_field, invalid_request_body, request_body_too_large, unsupported_media_type, internal_error]
+        requestId:
+          type: string
+          description: The X-Request-ID of the response.

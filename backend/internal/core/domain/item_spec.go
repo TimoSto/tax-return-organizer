@@ -7,11 +7,11 @@ import (
 
 var (
 	// ErrInvalidValueType is returned for a value type that is not one of the known ones.
-	ErrInvalidValueType = invalid("invalid value type")
+	ErrInvalidValueType = invalid("invalid_value_type", "invalid value type")
 	// ErrMetadataFieldNameRequired is returned for a metadata field with a blank name.
-	ErrMetadataFieldNameRequired = invalid("metadata field name is required")
+	ErrMetadataFieldNameRequired = invalid("metadata_field_name_required", "metadata field name is required")
 	// ErrDuplicateMetadataField is returned when two metadata fields of one document spec share a name.
-	ErrDuplicateMetadataField = invalid("duplicate metadata field name")
+	ErrDuplicateMetadataField = invalid("duplicate_metadata_field", "duplicate metadata field name")
 )
 
 // ValueType is the kind of value a data item or metadata field holds.

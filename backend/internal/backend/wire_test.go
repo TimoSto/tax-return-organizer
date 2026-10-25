@@ -49,6 +49,7 @@ func TestWire_CreateCollector(t *testing.T) {
 	h := wireFake(newFakeRepositories())
 
 	req := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -98,7 +99,9 @@ func TestWire_GetCollector(t *testing.T) {
 	h := wireFake(newFakeRepositories())
 
 	create := httptest.NewRecorder()
-	h.ServeHTTP(create, httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`)))
+	createReq := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	h.ServeHTTP(create, createReq)
 
 	var created struct {
 		ID string `json:"id"`
