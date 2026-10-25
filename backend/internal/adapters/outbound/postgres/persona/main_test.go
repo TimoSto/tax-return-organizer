@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
 )
 
 // One container is shared by all tests in this package.

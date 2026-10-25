@@ -9,11 +9,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/porttest"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/porttest"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
 )
 
 func newStore(pool *pgxpool.Pool) porttest.PersonaStoreFactory {

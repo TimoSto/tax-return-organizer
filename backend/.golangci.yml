@@ -114,19 +114,12 @@ linters:
           files:
             - "$all"
             - "!$test"
-            - "!**/porttest/**"
-            - "!**/postgrestest/**"
+            - "!**/internal/testutil/**"
           deny:
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake
               desc: fakes are for tests
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest
-              desc: test helper
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/port/porttest
-              desc: test helper
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/postgrestest
-              desc: test helper
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/testutil
-              desc: test helper
+              desc: test helpers (domaintest, porttest, postgrestest, pgtest)
         http-no-ports:
           files:
             - "**/internal/adapters/inbound/**"
