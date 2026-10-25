@@ -68,6 +68,73 @@ func TestRun(t *testing.T) {
 	}
 }
 
+func TestRun_ReportsNotReadyWhileDraining(t *testing.T) {
+	ctx := context.Background()
+
+	if !pgtest.DockerAvailable(ctx) {
+		t.Skip("docker unavailable")
+	}
+
+	dsn, terminate, err := pgtest.Start(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(terminate)
+
+	addr := freeAddr(t)
+
+	runCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+
+	go func() {
+		done <- backend.Run(runCtx, backend.Config{DatabaseURL: dsn, HTTPAddr: addr, DrainDelay: 2 * time.Second})
+	}()
+
+	waitForServer(t, addr)
+
+	if got := readyzStatus(t, addr); got != http.StatusOK {
+		t.Fatalf("/readyz before shutdown = %d, want 200", got)
+	}
+
+	cancel()
+
+	// The server still accepts connections during the drain delay, but no longer reports ready.
+	deadline := time.Now().Add(time.Second)
+	for readyzStatus(t, addr) != http.StatusServiceUnavailable {
+		if time.Now().After(deadline) {
+			t.Fatal("/readyz did not turn 503 while draining")
+		}
+
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Errorf("Run returned error: %v", err)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("Run did not stop after cancel")
+	}
+}
+
+func readyzStatus(t *testing.T, addr string) int {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+addr+"/readyz", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("get /readyz: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	return resp.StatusCode
+}
+
 func freeAddr(t *testing.T) string {
 	t.Helper()
 

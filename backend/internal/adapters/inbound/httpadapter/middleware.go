@@ -48,7 +48,13 @@ func requestLog(next http.Handler) http.Handler {
 			route = "unmatched"
 		}
 
-		slog.InfoContext(r.Context(), "request",
+		// Probes are polled constantly, so they only show up when debugging.
+		level := slog.LevelInfo
+		if route == "GET /healthz" || route == "GET /readyz" {
+			level = slog.LevelDebug
+		}
+
+		slog.Log(r.Context(), level, "request",
 			"method", r.Method,
 			"route", route,
 			"status", sw.status,

@@ -19,12 +19,18 @@ const (
 	DefaultHealthCheckPeriod = time.Minute
 )
 
+// DefaultDrainDelay is used when DRAIN_DELAY is not set.
+const DefaultDrainDelay = 5 * time.Second
+
 // Config is the runtime configuration of the backend.
 type Config struct {
 	// DatabaseURL must be a postgres:// URL.
 	DatabaseURL string
 	// HTTPAddr defaults to DefaultHTTPAddr.
 	HTTPAddr string
+	// DrainDelay is how long the server reports itself not ready before it stops accepting connections on
+	// shutdown, so the orchestrator stops routing to it first. Zero skips the wait.
+	DrainDelay time.Duration
 	// LogLevel defaults to info.
 	LogLevel slog.Level
 	// SkipMigrate disables the migrations on startup, for when a separate job (`docker migrate`) runs them.
@@ -53,6 +59,17 @@ func ConfigFromEnv(getenv func(string) string) Config {
 	}
 
 	var errs []error
+
+	cfg.DrainDelay = DefaultDrainDelay
+
+	if v := getenv("DRAIN_DELAY"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil || d < 0 {
+			errs = append(errs, errors.New("DRAIN_DELAY: must be a non-negative duration like 5s"))
+		} else {
+			cfg.DrainDelay = d
+		}
+	}
 
 	if v := getenv("LOG_LEVEL"); v != "" {
 		if err := cfg.LogLevel.UnmarshalText([]byte(v)); err != nil {
@@ -112,6 +129,10 @@ func (c Config) Validate() error {
 
 	if c.HTTPAddr == "" {
 		return errors.New("HTTP_ADDR is required")
+	}
+
+	if c.DrainDelay < 0 {
+		return errors.New("DRAIN_DELAY must be a non-negative duration such as 5s")
 	}
 
 	return nil

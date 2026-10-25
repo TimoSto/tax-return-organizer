@@ -31,6 +31,33 @@ func TestConfigFromEnv(t *testing.T) {
 	})
 }
 
+func TestConfigFromEnv_DrainDelay(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		value   string
+		want    time.Duration
+		wantErr bool
+	}{
+		{"default", "", backend.DefaultDrainDelay, false},
+		{"custom", "250ms", 250 * time.Millisecond, false},
+		{"zero disables", "0s", 0, false},
+		{"negative", "-1s", backend.DefaultDrainDelay, true},
+		{"unparseable", "soon", backend.DefaultDrainDelay, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := backend.ConfigFromEnv(envFrom(map[string]string{"DATABASE_URL": "postgres://x", "DRAIN_DELAY": tc.value}))
+
+			if cfg.DrainDelay != tc.want {
+				t.Errorf("DrainDelay = %v, want %v", cfg.DrainDelay, tc.want)
+			}
+
+			if err := cfg.Validate(); (err != nil) != tc.wantErr {
+				t.Errorf("Validate err = %v, wantErr %v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestRun_RequiresDatabaseURL(t *testing.T) {
 	if err := backend.Run(context.Background(), backend.ConfigFromEnv(envFrom(nil))); err == nil {
 		t.Fatal("expected error for missing DATABASE_URL")

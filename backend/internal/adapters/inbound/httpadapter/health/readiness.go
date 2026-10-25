@@ -2,6 +2,7 @@ package health
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -11,6 +12,10 @@ import (
 
 // readinessTimeout bounds the dependency check, so a hanging database fails the probe instead of stalling it.
 const readinessTimeout = 2 * time.Second
+
+// ErrDraining is what a Pinger returns while the server is shutting down. It makes the probe fail without being
+// logged as an error.
+var ErrDraining = errors.New("draining")
 
 // Pinger reports whether a dependency, such as the database, can serve requests. *pgxpool.Pool satisfies it.
 type Pinger interface {
@@ -27,7 +32,10 @@ func Readiness(dep Pinger) httpx.Route {
 
 			if err := dep.Ping(ctx); err != nil {
 				// The cause is only logged, like unexpected errors elsewhere.
-				slog.ErrorContext(r.Context(), "readiness check failed", "error", err)
+				if !errors.Is(err, ErrDraining) {
+					slog.ErrorContext(r.Context(), "readiness check failed", "error", err)
+				}
+
 				httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable"})
 
 				return
