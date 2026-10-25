@@ -95,6 +95,9 @@ func NewItemDefinition(id ItemID, title string, recurrence Recurrence, spec Item
 // RehydrateItemDefinition rebuilds an item definition that was stored earlier, e.g. when a repository loads it.
 // It applies the same rules as NewItemDefinition, so corrupt stored data is reported instead of becoming an invalid
 // item.
+//
+// It currently just calls NewItemDefinition. It is kept as its own entry point for the upcoming UpdateItem use case,
+// where rebuilding a stored item and creating a new one may follow different rules.
 func RehydrateItemDefinition(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
 	return NewItemDefinition(id, title, recurrence, spec)
 }
