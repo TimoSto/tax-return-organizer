@@ -2,17 +2,10 @@ package outbound
 
 import "github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 
-// CollectorIDGenerator creates ids for new collectors. The id is not guaranteed to be unused.
-type CollectorIDGenerator interface {
+// IDGenerator creates the ids of new entities. Persona and item ids are random and effectively unique; a collector
+// id is short, so it is not guaranteed to be unused and a caller that saves it must handle domain.ErrCollectorIDTaken.
+type IDGenerator interface {
 	NewCollectorID() (domain.CollectorID, error)
-}
-
-// PersonaIDGenerator creates ids for new personas.
-type PersonaIDGenerator interface {
 	NewPersonaID() (domain.PersonaID, error)
-}
-
-// ItemIDGenerator creates ids for new item definitions.
-type ItemIDGenerator interface {
 	NewItemID() (domain.ItemID, error)
 }
