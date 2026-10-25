@@ -24,7 +24,7 @@ Review of `backend/` for architectural weaknesses and best-practice violations. 
 11. **Graceful shutdown is incomplete** (`backend.serve`). `/readyz` keeps returning 200 while `Shutdown` drains, so the orchestrator keeps routing; add a draining flag that flips readiness to 503 first (+ small delay). `BaseContext` isn't tied to the signal ctx. Probe endpoints are request-logged at INFO on every hit (noise).
 
 ### Low / hygiene
-12. Error prefix duplication: repo wraps `"get collector: …"` and the use case wraps `"get collector: …"` again → `get collector: get collector: …` in logs. Wrap once, at one layer.
+12. *(Resolved: use cases name the operation, repositories only the failing step.)* Error prefix duplication: repo wraps `"get collector: …"` and the use case wraps `"get collector: …"` again → `get collector: get collector: …` in logs. Wrap once, at one layer.
 13. `Deps.validate` uses reflection: `IsNil` panics if a non-nilable field is ever added, and a typed-nil (`(*Usecase)(nil)`) passes. Use an explicit nil-check list or generics.
 14. Pass-through use cases (`getcollector`, `getpersona`) are anemic; fine for hexagonal consistency, but the read path returns full aggregates (all items) for list endpoints with **no pagination**. Plan a read-model/query port before data grows.
 15. `RehydrateItemDefinition` is an identical alias of `NewItemDefinition` (dead indirection).

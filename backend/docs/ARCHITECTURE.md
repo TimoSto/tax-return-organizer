@@ -68,6 +68,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate`,
 3. The use case reads the tenant with `tenant.Require(ctx)`, asks the store for a repository bound to it (`personas.For(collectorID)`), and works with domain entities. Writes that span several repositories run inside `Transactor.InTx`.
 4. The Postgres repository executes the query, always filtered by the bound collector.
 5. Errors travel back up as values. `httpx` maps `domain.Error` kinds to status codes (invalid → 400, not found → 404, conflict → 409). Anything else is logged and becomes a generic 500, so internal details never reach the client.
+   Wrap errors once: use cases name the operation (`get collector: ...`), repositories only name the failing step (`query collector: ...`) and return sentinel errors bare.
 
 ## How the layering is enforced
 

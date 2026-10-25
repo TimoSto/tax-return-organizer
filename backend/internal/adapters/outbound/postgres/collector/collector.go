@@ -39,7 +39,7 @@ func (r *Repository) GetCollector(ctx context.Context, id domain.CollectorID) (*
 		return nil, domain.ErrCollectorNotFound
 	}
 	if err != nil {
-		return nil, fmt.Errorf("get collector: %w", err)
+		return nil, fmt.Errorf("query collector: %w", err)
 	}
 
 	return row.toDomain()
@@ -59,7 +59,7 @@ func (r *Repository) SaveCollector(ctx context.Context, collector *domain.Collec
 	}
 
 	if err != nil {
-		return fmt.Errorf("save collector: %w", err)
+		return fmt.Errorf("insert collector: %w", err)
 	}
 
 	return nil
