@@ -288,7 +288,7 @@ func (r personaRow) toDomain(items []domain.ItemDefinition) (*domain.Persona, er
 	p, err := domain.RehydratePersona(
 		domain.PersonaID(r.ID), domain.CollectorID(r.CollectorID), r.Name, r.Description, items)
 	if err != nil {
-		return nil, fmt.Errorf("stored persona %s: %w", r.ID, err)
+		return nil, port.CorruptData("persona "+r.ID.String(), err)
 	}
 
 	return p, nil

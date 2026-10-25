@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -11,11 +12,21 @@ var (
 	ErrPersonaNameRequired = invalid("persona_name_required", "persona name is required")
 	// ErrPersonaNotFound is returned when a collector has no persona with the requested id.
 	ErrPersonaNotFound = notFound("persona_not_found", "persona not found")
+	// ErrPersonaNameTooLong is returned for a persona name longer than MaxPersonaNameLength.
+	ErrPersonaNameTooLong = invalid("persona_name_too_long", "persona name is too long")
+	// ErrPersonaDescriptionTooLong is returned for a persona description longer than MaxPersonaDescriptionLength.
+	ErrPersonaDescriptionTooLong = invalid("persona_description_too_long", "persona description is too long")
+	// ErrTooManyItems is returned when a persona would get more than MaxItemsPerPersona item definitions.
+	ErrTooManyItems = conflict("too_many_items", "persona has too many item definitions")
 	// ErrItemNotFound is returned when a persona has no item definition with the requested id.
 	ErrItemNotFound = notFound("item_not_found", "item definition not found")
 	// ErrItemIDTaken is returned when an item definition id is already used by another persona.
 	ErrItemIDTaken = conflict("item_id_taken", "item definition id already taken")
 )
+
+// ErrDuplicateItemID is returned when an item definition id is used twice within one persona. Item ids are created by
+// the server, so this is deliberately not a *Error: it signals a bug or corrupt data (a 500), not a client mistake.
+var ErrDuplicateItemID = errors.New("duplicate item definition id")
 
 // Persona groups the items a client has to provide if they do something tax relevant, e.g. "Employed".
 // It is the aggregate root of its item definitions: they are only read and changed through the persona.
@@ -40,14 +51,35 @@ func NewPersona(id PersonaID, collectorID CollectorID, name, description string)
 func RehydratePersona(
 	id PersonaID, collectorID CollectorID, name, description string, items []ItemDefinition,
 ) (*Persona, error) {
+	collectorID, err := ParseCollectorID(string(collectorID))
+	if err != nil {
+		return nil, err
+	}
+
 	name, description = strings.TrimSpace(name), strings.TrimSpace(description)
 
 	if name == "" {
 		return nil, ErrPersonaNameRequired
 	}
 
+	if tooLong(name, MaxPersonaNameLength) {
+		return nil, ErrPersonaNameTooLong
+	}
+
+	if tooLong(description, MaxPersonaDescriptionLength) {
+		return nil, ErrPersonaDescriptionTooLong
+	}
+
+	if len(items) > MaxItemsPerPersona {
+		return nil, ErrTooManyItems
+	}
+
 	p := &Persona{id: id, collectorID: collectorID, name: name, description: description}
 	for _, item := range items {
+		if p.itemIndex(item.id) >= 0 {
+			return nil, fmt.Errorf("%w: %s", ErrDuplicateItemID, item.id)
+		}
+
 		p.items = append(p.items, cloneItem(item))
 	}
 
@@ -83,6 +115,14 @@ func (p *Persona) Items() []ItemDefinition {
 
 // AddItem validates the input, appends a new item definition and returns it.
 func (p *Persona) AddItem(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
+	if len(p.items) >= MaxItemsPerPersona {
+		return ItemDefinition{}, ErrTooManyItems
+	}
+
+	if p.itemIndex(id) >= 0 {
+		return ItemDefinition{}, fmt.Errorf("%w: %s", ErrDuplicateItemID, id)
+	}
+
 	item, err := NewItemDefinition(id, title, recurrence, spec)
 	if err != nil {
 		return ItemDefinition{}, err

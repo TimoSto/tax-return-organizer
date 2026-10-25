@@ -15,6 +15,8 @@ func TestSentinelsAreClassified(t *testing.T) {
 		domain.ErrItemNotFound, domain.ErrItemIDTaken, domain.ErrItemTitleRequired,
 		domain.ErrInvalidRecurrence, domain.ErrSpecRequired, domain.ErrSpecMismatch, domain.ErrInvalidValueType,
 		domain.ErrMetadataFieldNameRequired, domain.ErrDuplicateMetadataField,
+		domain.ErrNameTooLong, domain.ErrPersonaNameTooLong, domain.ErrPersonaDescriptionTooLong, domain.ErrTooManyItems,
+		domain.ErrItemTitleTooLong, domain.ErrMetadataFieldNameTooLong, domain.ErrTooManyMetadataFields, domain.ErrUnitTooLong,
 	} {
 		var de *domain.Error
 		if !errors.As(err, &de) || de.Kind == 0 {

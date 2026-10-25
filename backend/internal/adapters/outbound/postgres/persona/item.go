@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 )
 
 // errUnknownValue marks a stored row with a kind or recurrence the domain does not know, or whose kind and specs
@@ -98,7 +99,7 @@ func (r itemRow) toDomain() (domain.ItemDefinition, error) {
 
 	item, err := domain.RehydrateItemDefinition(domain.ItemID(r.ID), r.Title, recurrence, spec)
 	if err != nil {
-		return domain.ItemDefinition{}, fmt.Errorf("stored item %s: %w", r.ID, err)
+		return domain.ItemDefinition{}, port.CorruptData("item "+r.ID.String(), err)
 	}
 
 	return item, nil

@@ -13,6 +13,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
 )
 
@@ -31,6 +32,18 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrInvalidValueType, http.StatusBadRequest},
 		{domain.ErrMetadataFieldNameRequired, http.StatusBadRequest},
 		{domain.ErrDuplicateMetadataField, http.StatusBadRequest},
+		{domain.ErrNameTooLong, http.StatusBadRequest},
+		{domain.ErrPersonaNameTooLong, http.StatusBadRequest},
+		{domain.ErrPersonaDescriptionTooLong, http.StatusBadRequest},
+		{domain.ErrItemTitleTooLong, http.StatusBadRequest},
+		{domain.ErrMetadataFieldNameTooLong, http.StatusBadRequest},
+		{domain.ErrTooManyMetadataFields, http.StatusBadRequest},
+		{domain.ErrUnitTooLong, http.StatusBadRequest},
+		{domain.ErrTooManyItems, http.StatusConflict},
+		// Server-side faults: a duplicate id comes from our own generator, stored data from our own writes.
+		{fmt.Errorf("add item: %w", domain.ErrDuplicateItemID), http.StatusInternalServerError},
+		{port.CorruptData("collector aaaa", domain.ErrInvalidEmail), http.StatusInternalServerError},
+		{fmt.Errorf("get collector: %w", port.CorruptData("collector aaaa", domain.ErrNameRequired)), http.StatusInternalServerError},
 		{domain.ErrItemIDTaken, http.StatusConflict},
 		{personatemplate.ErrInvalidLocale, http.StatusBadRequest},
 		{domain.ErrCollectorIDTaken, http.StatusConflict},
@@ -159,7 +172,9 @@ func TestDomainErrorCodes_AreUniqueSnakeCase(t *testing.T) {
 		domain.ErrNameRequired, domain.ErrInvalidEmail, domain.ErrInvalidCollectorID, domain.ErrInvalidPersonaID,
 		domain.ErrPersonaNameRequired, domain.ErrItemTitleRequired, domain.ErrInvalidRecurrence, domain.ErrSpecRequired,
 		domain.ErrSpecMismatch, domain.ErrInvalidValueType, domain.ErrMetadataFieldNameRequired,
-		domain.ErrDuplicateMetadataField, domain.ErrItemIDTaken, domain.ErrCollectorIDTaken,
+		domain.ErrDuplicateMetadataField, domain.ErrNameTooLong, domain.ErrPersonaNameTooLong,
+		domain.ErrPersonaDescriptionTooLong, domain.ErrTooManyItems, domain.ErrItemTitleTooLong,
+		domain.ErrMetadataFieldNameTooLong, domain.ErrTooManyMetadataFields, domain.ErrUnitTooLong, domain.ErrItemIDTaken, domain.ErrCollectorIDTaken,
 		domain.ErrCollectorNotFound, domain.ErrPersonaNotFound, domain.ErrItemNotFound, personatemplate.ErrInvalidLocale,
 	} {
 		if !regexp.MustCompile(`^[a-z]+(_[a-z]+)*$`).MatchString(err.Code) {

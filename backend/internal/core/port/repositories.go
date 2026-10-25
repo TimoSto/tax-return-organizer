@@ -21,6 +21,22 @@ type CollectorRepository interface {
 // surfaces as a 500 instead of being shown to the client.
 var ErrTenantMismatch = errors.New("entity belongs to another collector")
 
+// ErrCorruptData is matched (errors.Is) by the errors CorruptData returns.
+var ErrCorruptData = errors.New("corrupt stored data")
+
+type corruptDataError struct{ what, cause string }
+
+func (e *corruptDataError) Error() string { return "corrupt stored data: " + e.what + ": " + e.cause }
+
+func (e *corruptDataError) Is(target error) bool { return target == ErrCorruptData }
+
+// CorruptData reports that a stored entity (what) breaks a domain rule. It is for repositories rebuilding entities
+// from stored rows. The cause is kept as text only and is deliberately not wrapped: a domain error inside it would
+// otherwise be shown to the client as their mistake (400), but the data was stored by us, so it must surface as a 500.
+func CorruptData(what string, cause error) error {
+	return &corruptDataError{what: what, cause: cause.Error()}
+}
+
 // PersonaStore hands out persona repositories that are bound to one collector. Tenant isolation is structural: a
 // use case can only reach the personas of the collector it asked For, there is no method that takes a collector id.
 // A store is cheap and holds no per-collector state, For returns a small view on the shared storage.

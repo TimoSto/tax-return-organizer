@@ -10,6 +10,12 @@ var (
 	ErrInvalidValueType = invalid("invalid_value_type", "invalid value type")
 	// ErrMetadataFieldNameRequired is returned for a metadata field with a blank name.
 	ErrMetadataFieldNameRequired = invalid("metadata_field_name_required", "metadata field name is required")
+	// ErrMetadataFieldNameTooLong is returned for a metadata field name longer than MaxMetadataFieldNameLength.
+	ErrMetadataFieldNameTooLong = invalid("metadata_field_name_too_long", "metadata field name is too long")
+	// ErrTooManyMetadataFields is returned for a document spec with more than MaxMetadataFields fields.
+	ErrTooManyMetadataFields = invalid("too_many_metadata_fields", "too many metadata fields")
+	// ErrUnitTooLong is returned for a unit longer than MaxUnitLength.
+	ErrUnitTooLong = invalid("unit_too_long", "unit is too long")
 	// ErrDuplicateMetadataField is returned when two metadata fields of one document spec share a name.
 	ErrDuplicateMetadataField = invalid("duplicate_metadata_field", "duplicate metadata field name")
 )
@@ -60,6 +66,10 @@ func (s ValueSpec) Validate() error {
 		return fmt.Errorf("%w: %q", ErrInvalidValueType, s.Type)
 	}
 
+	if tooLong(s.Unit, MaxUnitLength) {
+		return ErrUnitTooLong
+	}
+
 	return nil
 }
 
@@ -87,12 +97,20 @@ func (DocumentSpec) isItemSpec() {}
 
 // Validate checks that all metadata fields have a unique, non-blank name and a valid spec.
 func (s DocumentSpec) Validate() error {
+	if len(s.MetadataFields) > MaxMetadataFields {
+		return ErrTooManyMetadataFields
+	}
+
 	seen := make(map[string]bool, len(s.MetadataFields))
 
 	for _, f := range s.MetadataFields {
 		name := strings.TrimSpace(f.Name)
 		if name == "" {
 			return ErrMetadataFieldNameRequired
+		}
+
+		if tooLong(name, MaxMetadataFieldNameLength) {
+			return ErrMetadataFieldNameTooLong
 		}
 
 		if seen[name] {

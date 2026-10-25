@@ -9,6 +9,8 @@ import (
 var (
 	// ErrItemTitleRequired is returned for a blank item title.
 	ErrItemTitleRequired = invalid("item_title_required", "item title is required")
+	// ErrItemTitleTooLong is returned for an item title longer than MaxItemTitleLength.
+	ErrItemTitleTooLong = invalid("item_title_too_long", "item title is too long")
 	// ErrInvalidRecurrence is returned for a recurrence that is not one of the known ones.
 	ErrInvalidRecurrence = invalid("invalid_recurrence", "invalid recurrence")
 	// ErrSpecRequired is returned for an item without a spec.
@@ -75,6 +77,10 @@ func NewItemDefinition(id ItemID, title string, recurrence Recurrence, spec Item
 
 	if title == "" {
 		return ItemDefinition{}, ErrItemTitleRequired
+	}
+
+	if tooLong(title, MaxItemTitleLength) {
+		return ItemDefinition{}, ErrItemTitleTooLong
 	}
 
 	if !recurrence.Valid() {

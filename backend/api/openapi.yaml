@@ -286,11 +286,13 @@ components:
       properties:
         name:
           type: string
-          description: Must not be blank after trimming.
+          description: Must not be blank after trimming, at most 200 characters.
+          maxLength: 200
           example: Jane Doe
         email:
           type: string
-          description: Plain address. Display names such as "Jane <jane@example.com>" are rejected.
+          description: Plain address, at most 254 characters. Display names such as "Jane <jane@example.com>" are rejected. It is stored lowercased.
+          maxLength: 254
           example: jane@example.com
         locale:
           type: string
@@ -429,7 +431,7 @@ components:
         code:
           type: string
           description: Stable machine-readable identifier, the key for translations.
-          enum: [collector_not_found, collector_id_taken, collector_name_required, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, persona_not_found, persona_name_required, item_not_found, item_id_taken, item_title_required, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, duplicate_metadata_field, invalid_request_body, request_body_too_large, unsupported_media_type, internal_error]
+          enum: [collector_not_found, collector_id_taken, collector_name_required, collector_name_too_long, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, persona_not_found, persona_name_required, persona_name_too_long, persona_description_too_long, too_many_items, item_not_found, item_id_taken, item_title_required, item_title_too_long, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, metadata_field_name_too_long, too_many_metadata_fields, unit_too_long, duplicate_metadata_field, invalid_request_body, request_body_too_large, unsupported_media_type, internal_error]
         requestId:
           type: string
           description: The X-Request-ID of the response.
