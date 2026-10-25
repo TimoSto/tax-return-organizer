@@ -12,8 +12,8 @@ import (
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
@@ -175,7 +175,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 		return r
 	})
 
-	_, err := createcollector.New(tx, templates.New(), idgen.Random{}).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
+	_, err := createcollector.New(tx, personatemplate.Predefined(), idgen.Random{}).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -197,7 +197,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
-	id, err := createcollector.New(tx, templates.New(), idgen.Random{}).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
+	id, err := createcollector.New(tx, personatemplate.Predefined(), idgen.Random{}).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
@@ -207,8 +207,8 @@ func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
 		t.Fatalf("ListPersonas: %v", err)
 	}
 
-	if len(personas) != len(templates.New().PersonaTemplates()) {
-		t.Errorf("personas = %d, want %d", len(personas), len(templates.New().PersonaTemplates()))
+	if len(personas) != len(personatemplate.Predefined()) {
+		t.Errorf("personas = %d, want %d", len(personas), len(personatemplate.Predefined()))
 	}
 }
 
@@ -221,7 +221,7 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 	}
 
 	ids := []domain.CollectorID{"aaaa", "bbbb"}
-	uc := createcollector.New(tx, templates.New(), &sequenceIDs{ids: ids})
+	uc := createcollector.New(tx, personatemplate.Predefined(), &sequenceIDs{ids: ids})
 
 	id, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {

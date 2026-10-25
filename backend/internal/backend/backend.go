@@ -19,7 +19,7 @@ import (
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
@@ -47,7 +47,7 @@ func NewTransactor(pool *pgxpool.Pool) outbound.Transactor {
 // Reads use repos directly, writes that span several repositories go through tx. ready backs /readyz.
 func wire(repos outbound.Repositories, tx outbound.Transactor, ready health.Pinger) (http.Handler, error) {
 	return httpadapter.NewHandler(httpadapter.Deps{
-		CreateCollector: createcollector.New(tx, templates.New(), idgen.Random{}),
+		CreateCollector: createcollector.New(tx, personatemplate.Predefined(), idgen.Random{}),
 		GetCollector:    getcollector.New(repos.Collectors),
 		GetPersona:      getpersona.New(repos.Collectors, repos.Personas),
 		ListPersonas:    listpersonas.New(repos.Collectors, repos.Personas),
