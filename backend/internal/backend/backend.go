@@ -13,6 +13,7 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
@@ -40,7 +41,7 @@ func postgresRepositories(db pgdb.DBTX) port.Repositories {
 // Reads use repos directly, writes that span several repositories go through tx. ready backs /readyz.
 func wire(repos port.Repositories, tx port.Transactor, ready health.Pinger) (http.Handler, error) {
 	return httpadapter.NewHandler(httpadapter.Deps{
-		CreateCollector: createcollector.New(tx, templates.New()),
+		CreateCollector: createcollector.New(tx, templates.New(), idgen.Random{}),
 		GetCollector:    getcollector.New(repos.Collectors),
 		GetPersona:      getpersona.New(repos.Personas),
 		ListPersonas:    listpersonas.New(repos.Collectors, repos.Personas),

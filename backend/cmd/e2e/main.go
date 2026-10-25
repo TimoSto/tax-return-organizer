@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
@@ -101,7 +102,8 @@ func seed(ctx context.Context, dsn string) error {
 			return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewStore(db)}
 		}),
 		templates.New(),
-		createcollector.WithIDGenerator(fixedCollectorID{}),
+		idgen.Random{},
+		createcollector.WithCollectorIDs(fixedCollectorID{}),
 	)
 
 	if _, err := create.Execute(ctx, createcollector.Command{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
@@ -111,7 +113,7 @@ func seed(ctx context.Context, dsn string) error {
 	return nil
 }
 
-// fixedCollectorID draws the well-known collector id, everything else is random.
-type fixedCollectorID struct{ domain.RandomIDs }
+// fixedCollectorID draws the well-known collector id.
+type fixedCollectorID struct{}
 
 func (fixedCollectorID) NewCollectorID() (domain.CollectorID, error) { return defaultCollectorID, nil }

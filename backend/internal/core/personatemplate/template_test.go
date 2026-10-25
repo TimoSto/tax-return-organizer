@@ -3,6 +3,7 @@ package personatemplate_test
 import (
 	"testing"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	pt "github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 )
@@ -14,7 +15,7 @@ func TestInstantiate_RejectsBrokenItemTemplates(t *testing.T) {
 	} {
 		tmpl := pt.PersonaTemplate{Name: pt.Localized{pt.LocaleEN: "p"}, Items: []pt.ItemTemplate{it}}
 
-		if _, err := tmpl.Instantiate(domain.RandomIDs{}, "k7m2", pt.LocaleEN); err == nil {
+		if _, err := tmpl.Instantiate(idgen.Random{}, "k7m2", pt.LocaleEN); err == nil {
 			t.Errorf("%s: expected an error", name)
 		}
 	}

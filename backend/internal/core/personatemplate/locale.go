@@ -6,6 +6,9 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
+// ErrInvalidLocale is returned for a locale that is not one of the known ones.
+var ErrInvalidLocale = domain.NewError(domain.ErrorInvalid, "invalid locale")
+
 // Locale is a language that predefined content is available in.
 type Locale string
 
@@ -33,7 +36,7 @@ func ParseLocale(s string) (Locale, error) {
 		}
 	}
 
-	return "", fmt.Errorf("%w: %q", domain.ErrInvalidLocale, s)
+	return "", fmt.Errorf("%w: %q", ErrInvalidLocale, s)
 }
 
 // Localized is a text in several locales.

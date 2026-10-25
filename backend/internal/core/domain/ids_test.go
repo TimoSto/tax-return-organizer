@@ -21,16 +21,3 @@ func TestParsePersonaID(t *testing.T) {
 		}
 	}
 }
-
-func TestRandomIDs_AreUnique(t *testing.T) {
-	ids := domain.RandomIDs{}
-
-	p1, _ := ids.NewPersonaID()
-	p2, _ := ids.NewPersonaID()
-	i1, _ := ids.NewItemID()
-	i2, _ := ids.NewItemID()
-
-	if p1 == p2 || i1 == i2 || p1 == (domain.PersonaID{}) || i1 == (domain.ItemID{}) {
-		t.Errorf("ids are not unique and non-zero: %v %v %v %v", p1, p2, i1, i2)
-	}
-}

@@ -8,6 +8,12 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
+// IDs creates the ids of the persona and items an Instantiate call makes.
+type IDs interface {
+	NewPersonaID() (domain.PersonaID, error)
+	NewItemID() (domain.ItemID, error)
+}
+
 // PersonaTemplate is a predefined persona that is copied to a collector, in the collector's locale.
 // The copy is a normal persona that the collector owns and may change, nothing links it back to the template.
 type PersonaTemplate struct {
@@ -32,7 +38,7 @@ type MetadataFieldTemplate struct {
 }
 
 // Instantiate creates a persona of the collector from the template, with all texts in locale l and ids from ids.
-func (t PersonaTemplate) Instantiate(ids domain.IDGenerator, collectorID domain.CollectorID, l Locale) (*domain.Persona, error) {
+func (t PersonaTemplate) Instantiate(ids IDs, collectorID domain.CollectorID, l Locale) (*domain.Persona, error) {
 	personaID, err := ids.NewPersonaID()
 	if err != nil {
 		return nil, err

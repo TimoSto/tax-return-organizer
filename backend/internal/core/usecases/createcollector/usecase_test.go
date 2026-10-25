@@ -7,8 +7,10 @@ import (
 
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	faketransactor "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/transactor"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 )
@@ -42,7 +44,7 @@ func newTransactor(repo port.CollectorRepository, personas port.PersonaStore) *f
 }
 
 func newUsecase(repo port.CollectorRepository) *createcollector.Usecase {
-	return createcollector.New(newTransactor(repo, &personaRecorder{}), templates.New())
+	return createcollector.New(newTransactor(repo, &personaRecorder{}), templates.New(), idgen.Random{})
 }
 
 type failingRepo struct {
@@ -154,7 +156,7 @@ func TestExecute_AddsPredefinedPersonas(t *testing.T) {
 	for locale, wantName := range map[string]string{"": "Employed", "en": "Employed", "de": "Angestellt"} {
 		t.Run("locale "+locale, func(t *testing.T) {
 			personas := &personaRecorder{}
-			uc := createcollector.New(newTransactor(fakecollector.NewRepository(), personas), templates.New())
+			uc := createcollector.New(newTransactor(fakecollector.NewRepository(), personas), templates.New(), idgen.Random{})
 
 			id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com", Locale: locale})
 			if err != nil {
@@ -176,8 +178,8 @@ func TestExecute_InvalidLocale(t *testing.T) {
 	repo := fakecollector.NewRepository()
 
 	id, err := newUsecase(repo).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com", Locale: "fr"})
-	if !errors.Is(err, domain.ErrInvalidLocale) {
-		t.Errorf("err = %v, want %v", err, domain.ErrInvalidLocale)
+	if !errors.Is(err, personatemplate.ErrInvalidLocale) {
+		t.Errorf("err = %v, want %v", err, personatemplate.ErrInvalidLocale)
 	}
 
 	if id != "" {
@@ -187,7 +189,7 @@ func TestExecute_InvalidLocale(t *testing.T) {
 
 func TestExecute_PersonaFailureFails(t *testing.T) {
 	boom := errors.New("boom")
-	uc := createcollector.New(newTransactor(fakecollector.NewRepository(), &personaRecorder{err: boom}), templates.New())
+	uc := createcollector.New(newTransactor(fakecollector.NewRepository(), &personaRecorder{err: boom}), templates.New(), idgen.Random{})
 
 	id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if !errors.Is(err, boom) {
@@ -203,7 +205,7 @@ func TestExecute_RetriesInFreshTransaction(t *testing.T) {
 	repo := &collidingRepo{CollectorRepository: fakecollector.NewRepository(), collisions: 2}
 	tx := newTransactor(repo, &personaRecorder{})
 
-	if _, err := createcollector.New(tx, templates.New()).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"}); err != nil {
+	if _, err := createcollector.New(tx, templates.New(), idgen.Random{}).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -214,7 +216,7 @@ func TestExecute_RetriesInFreshTransaction(t *testing.T) {
 
 func TestExecute_WithIDGenerator(t *testing.T) {
 	repo := fakecollector.NewRepository()
-	uc := createcollector.New(newTransactor(repo, &personaRecorder{}), templates.New(), createcollector.WithIDGenerator(fixedCollectorID{}))
+	uc := createcollector.New(newTransactor(repo, &personaRecorder{}), templates.New(), idgen.Random{}, createcollector.WithCollectorIDs(fixedCollectorID{}))
 
 	id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
@@ -226,6 +228,6 @@ func TestExecute_WithIDGenerator(t *testing.T) {
 	}
 }
 
-type fixedCollectorID struct{ domain.RandomIDs }
+type fixedCollectorID struct{}
 
 func (fixedCollectorID) NewCollectorID() (domain.CollectorID, error) { return "aaaa", nil }

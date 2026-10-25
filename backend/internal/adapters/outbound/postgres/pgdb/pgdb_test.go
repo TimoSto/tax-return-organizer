@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
@@ -173,7 +174,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 		return r
 	})
 
-	_, err := createcollector.New(tx, templates.New()).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
+	_, err := createcollector.New(tx, templates.New(), idgen.Random{}).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -195,7 +196,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
-	id, err := createcollector.New(tx, templates.New()).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
+	id, err := createcollector.New(tx, templates.New(), idgen.Random{}).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
@@ -219,7 +220,7 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 	}
 
 	ids := []domain.CollectorID{"aaaa", "bbbb"}
-	uc := createcollector.New(tx, templates.New(), createcollector.WithIDGenerator(&sequenceIDs{ids: ids}))
+	uc := createcollector.New(tx, templates.New(), idgen.Random{}, createcollector.WithCollectorIDs(&sequenceIDs{ids: ids}))
 
 	id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
@@ -235,10 +236,8 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 	}
 }
 
-// sequenceIDs hands out the given collector ids in order and random ids otherwise.
+// sequenceIDs hands out the given collector ids in order.
 type sequenceIDs struct {
-	domain.RandomIDs
-
 	ids []domain.CollectorID
 }
 
