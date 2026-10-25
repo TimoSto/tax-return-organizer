@@ -2,11 +2,22 @@ package backend
 
 import (
 	"errors"
+	"fmt"
+	"log/slog"
+	"strconv"
 	"time"
 )
 
-// DefaultHTTPAddr is used when HTTP_ADDR is not set.
-const DefaultHTTPAddr = ":8080"
+const (
+	// DefaultHTTPAddr is used when HTTP_ADDR is not set.
+	DefaultHTTPAddr = ":8080"
+	// DefaultMaxConns is the pool size used when DB_MAX_CONNS is not set.
+	DefaultMaxConns = 10
+	// DefaultMaxConnLifetime is used when DB_MAX_CONN_LIFETIME is not set.
+	DefaultMaxConnLifetime = 30 * time.Minute
+	// DefaultHealthCheckPeriod is used when DB_HEALTH_CHECK_PERIOD is not set.
+	DefaultHealthCheckPeriod = time.Minute
+)
 
 // DefaultDrainDelay is used when DRAIN_DELAY is not set.
 const DefaultDrainDelay = 5 * time.Second
@@ -20,35 +31,98 @@ type Config struct {
 	// DrainDelay is how long the server reports itself not ready before it stops accepting connections on
 	// shutdown, so the orchestrator stops routing to it first. Zero skips the wait.
 	DrainDelay time.Duration
+	// LogLevel defaults to info.
+	LogLevel slog.Level
+	// SkipMigrate disables the migrations on startup, for when a separate job (`docker migrate`) runs them.
+	SkipMigrate bool
+	// MaxConns, MaxConnLifetime and HealthCheckPeriod tune the connection pool; zero keeps the pgx default.
+	MaxConns          int32
+	MaxConnLifetime   time.Duration
+	HealthCheckPeriod time.Duration
+
+	envErr error // unparsable environment values, reported by Validate
 }
 
-// ConfigFromEnv reads DATABASE_URL, HTTP_ADDR and DRAIN_DELAY (a Go duration such as "5s"). It only applies defaults; call Validate to check the result.
+// ConfigFromEnv reads the environment. It only applies defaults; call Validate to check the result.
+// Unparsable values are reported by Validate, so ConfigFromEnv itself never fails.
 func ConfigFromEnv(getenv func(string) string) Config {
 	cfg := Config{
-		DatabaseURL: getenv("DATABASE_URL"),
-		HTTPAddr:    getenv("HTTP_ADDR"),
+		DatabaseURL:       getenv("DATABASE_URL"),
+		HTTPAddr:          getenv("HTTP_ADDR"),
+		MaxConns:          DefaultMaxConns,
+		MaxConnLifetime:   DefaultMaxConnLifetime,
+		HealthCheckPeriod: DefaultHealthCheckPeriod,
 	}
 
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = DefaultHTTPAddr
 	}
 
+	var errs []error
+
 	cfg.DrainDelay = DefaultDrainDelay
 
 	if v := getenv("DRAIN_DELAY"); v != "" {
 		d, err := time.ParseDuration(v)
+		if err != nil || d < 0 {
+			errs = append(errs, errors.New("DRAIN_DELAY: must be a non-negative duration like 5s"))
+		} else {
+			cfg.DrainDelay = d
+		}
+	}
+
+	if v := getenv("LOG_LEVEL"); v != "" {
+		if err := cfg.LogLevel.UnmarshalText([]byte(v)); err != nil {
+			errs = append(errs, fmt.Errorf("LOG_LEVEL: %w", err))
+		}
+	}
+
+	if v := getenv("MIGRATE_ON_START"); v != "" {
+		on, err := strconv.ParseBool(v)
 		if err != nil {
-			d = -1 // rejected by Validate
+			errs = append(errs, fmt.Errorf("MIGRATE_ON_START: %w", err))
 		}
 
-		cfg.DrainDelay = d
+		cfg.SkipMigrate = !on
 	}
+
+	if v := getenv("DB_MAX_CONNS"); v != "" {
+		n, err := strconv.ParseInt(v, 10, 32)
+		if err != nil || n < 1 {
+			errs = append(errs, errors.New("DB_MAX_CONNS: must be a positive integer"))
+		} else {
+			cfg.MaxConns = int32(n)
+		}
+	}
+
+	cfg.MaxConnLifetime = envDuration(getenv, "DB_MAX_CONN_LIFETIME", cfg.MaxConnLifetime, &errs)
+	cfg.HealthCheckPeriod = envDuration(getenv, "DB_HEALTH_CHECK_PERIOD", cfg.HealthCheckPeriod, &errs)
+	cfg.envErr = errors.Join(errs...)
 
 	return cfg
 }
 
+func envDuration(getenv func(string) string, key string, def time.Duration, errs *[]error) time.Duration {
+	v := getenv(key)
+	if v == "" {
+		return def
+	}
+
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		*errs = append(*errs, fmt.Errorf("%s: must be a positive duration like 30m", key))
+		return def
+	}
+
+	return d
+}
+
 // Validate reports whether the config is complete.
 func (c Config) Validate() error {
+	if c.envErr != nil {
+		return c.envErr
+	}
+
 	if c.DatabaseURL == "" {
 		return errors.New("DATABASE_URL is required")
 	}

@@ -24,7 +24,7 @@ go build -o bin/docker ./cmd/docker
 ```
 
 - Postgres adapter tests start their own container via testcontainers (`internal/testutil/pgtest`), so **Docker must be running**.
-- `cmd/docker` is the production entrypoint (env: `DATABASE_URL` required, `HTTP_ADDR` default `:8080`). `cmd/e2e` (build tag `e2e`: `go run -tags e2e ./cmd/e2e`) starts a throwaway Postgres container, seeds a collector with id `aaaa`, and serves the API for end-to-end tests against the real backend (to live in a separate e2e package; the BFF's own Playwright tests mock the backend).
+- `cmd/docker` is the production entrypoint (env: `DATABASE_URL` required, `HTTP_ADDR` default `:8080`, `LOG_LEVEL` default `info`, `MIGRATE_ON_START` default `true`, pool tuning via `DB_MAX_CONNS`/`DB_MAX_CONN_LIFETIME`/`DB_HEALTH_CHECK_PERIOD`; `docker migrate` only applies migrations and exits, for running them as a separate job). `cmd/e2e` (build tag `e2e`: `go run -tags e2e ./cmd/e2e`) starts a throwaway Postgres container, seeds a collector with id `aaaa`, and serves the API for end-to-end tests against the real backend (to live in a separate e2e package; the BFF's own Playwright tests mock the backend).
 
 ## Backend architecture (hexagonal)
 
