@@ -67,7 +67,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 2. The handler calls a use case through its inbound port (for example `inbound.GetPersona`), passing the collector id as an explicit argument.
 3. The use case first checks that the collector exists (`CollectorRepository.GetCollector`, adapters do not do this, see [tenant-scoped-stores.md](tenant-scoped-stores.md)), then asks the store for a repository bound to it (`personas.For(collectorID)`), and works with domain entities. Writes that span several repositories run inside `Transactor.InTx`.
 4. The Postgres repository executes the query, always filtered by the bound collector.
-5. Errors travel back up as values. `httpx` maps `domain.Error` kinds to status codes (invalid → 400, not found → 404, conflict → 409). Anything else is logged and becomes a generic 500, so internal details never reach the client.
+5. Errors travel back up as values. `httpx` maps `domain.Error` kinds to status codes (invalid → 400, not found → 404, conflict → 409). Anything else is logged and becomes a generic 500, so internal details never reach the client. A domain error carries only its kind and an English message. The stable machine-readable code clients switch on (`collector_not_found`, ...) is API contract and lives in the adapter, in the table in `httpx/problemcodes.go`. A new sentinel needs an entry there and the code in the `Problem.code` enum of `api/openapi.yaml`; tests fail if either is missing.
    Wrap errors once: use cases name the operation (`get collector: ...`), repositories only name the failing step (`query collector: ...`) and return sentinel errors bare.
 
 ## How the layering is enforced

@@ -34,6 +34,7 @@ linters:
             - errors
             - fmt
             - strings
+            - sync
             - bytes
             - slices
             - maps

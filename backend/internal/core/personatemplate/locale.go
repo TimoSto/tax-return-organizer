@@ -7,7 +7,7 @@ import (
 )
 
 // ErrInvalidLocale is returned for a locale that is not one of the known ones.
-var ErrInvalidLocale = domain.NewError(domain.ErrorInvalid, "invalid_locale", "invalid locale")
+var ErrInvalidLocale = domain.NewError(domain.ErrorInvalid, "invalid locale")
 
 // Locale is a language that predefined content is available in.
 type Locale string

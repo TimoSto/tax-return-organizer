@@ -4,9 +4,9 @@ import "github.com/google/uuid"
 
 var (
 	// ErrInvalidPersonaID is returned for a string that is not a well-formed persona id.
-	ErrInvalidPersonaID = invalid("invalid_persona_id", "invalid persona id")
+	ErrInvalidPersonaID = invalid("invalid persona id")
 	// ErrInvalidItemID is returned for a string that is not a well-formed item definition id.
-	ErrInvalidItemID = invalid("invalid_item_id", "invalid item id")
+	ErrInvalidItemID = invalid("invalid item id")
 )
 
 // PersonaID identifies a persona.

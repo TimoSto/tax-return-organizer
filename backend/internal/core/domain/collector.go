@@ -7,13 +7,13 @@ import (
 
 var (
 	// ErrCollectorNotFound is returned when a collector does not exist.
-	ErrCollectorNotFound = notFound("collector_not_found", "collector not found")
+	ErrCollectorNotFound = notFound("collector not found")
 	// ErrCollectorIDTaken is returned when saving a collector whose id is already in use.
-	ErrCollectorIDTaken = conflict("collector_id_taken", "collector id already taken")
+	ErrCollectorIDTaken = conflict("collector id already taken")
 	// ErrNameRequired is returned for a blank collector name.
-	ErrNameRequired = invalid("collector_name_required", "collector name is required")
+	ErrNameRequired = invalid("collector name is required")
 	// ErrNameTooLong is returned for a collector name longer than MaxCollectorNameLength.
-	ErrNameTooLong = invalid("collector_name_too_long", "collector name is too long")
+	ErrNameTooLong = invalid("collector name is too long")
 )
 
 // Collector is a person who collects documents for a tax return.

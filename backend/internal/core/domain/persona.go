@@ -9,19 +9,19 @@ import (
 
 var (
 	// ErrPersonaNameRequired is returned for a blank persona name.
-	ErrPersonaNameRequired = invalid("persona_name_required", "persona name is required")
+	ErrPersonaNameRequired = invalid("persona name is required")
 	// ErrPersonaNotFound is returned when a collector has no persona with the requested id.
-	ErrPersonaNotFound = notFound("persona_not_found", "persona not found")
+	ErrPersonaNotFound = notFound("persona not found")
 	// ErrPersonaNameTooLong is returned for a persona name longer than MaxPersonaNameLength.
-	ErrPersonaNameTooLong = invalid("persona_name_too_long", "persona name is too long")
+	ErrPersonaNameTooLong = invalid("persona name is too long")
 	// ErrPersonaDescriptionTooLong is returned for a persona description longer than MaxPersonaDescriptionLength.
-	ErrPersonaDescriptionTooLong = invalid("persona_description_too_long", "persona description is too long")
+	ErrPersonaDescriptionTooLong = invalid("persona description is too long")
 	// ErrTooManyItems is returned when a persona would get more than MaxItemsPerPersona item definitions.
-	ErrTooManyItems = conflict("too_many_items", "persona has too many item definitions")
+	ErrTooManyItems = conflict("persona has too many item definitions")
 	// ErrItemNotFound is returned when a persona has no item definition with the requested id.
-	ErrItemNotFound = notFound("item_not_found", "item definition not found")
+	ErrItemNotFound = notFound("item definition not found")
 	// ErrItemIDTaken is returned when an item definition id is already used by another persona.
-	ErrItemIDTaken = conflict("item_id_taken", "item definition id already taken")
+	ErrItemIDTaken = conflict("item definition id already taken")
 )
 
 // ErrDuplicateItemID is returned when an item definition id is used twice within one persona. Item ids are created by

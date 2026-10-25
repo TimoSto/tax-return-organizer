@@ -150,7 +150,15 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	var de *domain.Error
 	if errors.As(err, &de) {
-		WriteProblem(w, r, statusFor(de.Kind), de.Code, de.Error())
+		if code, ok := codeFor(de); ok {
+			WriteProblem(w, r, statusFor(de.Kind), code, de.Error())
+
+			return
+		}
+
+		// A domain error without a code is a programming error (see problemCodes), not the client's mistake.
+		slog.ErrorContext(r.Context(), "domain error without a problem code", "error", err)
+		WriteProblem(w, r, http.StatusInternalServerError, CodeInternal, internalErrorDetailText)
 
 		return
 	}
