@@ -3,6 +3,7 @@ package getcollector_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
@@ -57,6 +58,10 @@ func TestExecute_RepositoryError(t *testing.T) {
 	_, err := getcollector.New(failingRepo{err: boom}).Execute(tenant.With(context.Background(), "k7m2"))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want it to wrap %v", err, boom)
+	}
+
+	if n := strings.Count(err.Error(), "get collector"); n != 1 {
+		t.Errorf("err = %q, want the operation name exactly once, got %d", err, n)
 	}
 }
 

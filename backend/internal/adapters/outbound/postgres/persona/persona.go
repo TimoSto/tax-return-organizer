@@ -50,13 +50,13 @@ func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*doma
 		WHERE p.id = $1 AND p.collector_id = $2
 		ORDER BY i.position`, uuid.UUID(id), string(r.collectorID))
 	if err != nil {
-		return nil, fmt.Errorf("get persona: %w", err)
+		return nil, fmt.Errorf("query persona: %w", err)
 	}
 	defer rows.Close()
 
 	personas, err := scanPersonas(rows)
 	if err != nil {
-		return nil, fmt.Errorf("get persona: %w", err)
+		return nil, err
 	}
 
 	if len(personas) == 0 {
@@ -77,13 +77,13 @@ func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error
 		WHERE p.collector_id = $1
 		ORDER BY p.name COLLATE "C", p.id, i.position`, string(r.collectorID))
 	if err != nil {
-		return nil, fmt.Errorf("list personas: %w", err)
+		return nil, fmt.Errorf("query personas: %w", err)
 	}
 	defer rows.Close()
 
 	personas, err := scanPersonas(rows)
 	if err != nil {
-		return nil, fmt.Errorf("list personas: %w", err)
+		return nil, err
 	}
 
 	return personas, nil
@@ -100,7 +100,7 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 	for _, item := range persona.Items() {
 		row, err := newItemRow(item)
 		if err != nil {
-			return fmt.Errorf("save persona: %w", err)
+			return err
 		}
 
 		items = append(items, row)
@@ -108,7 +108,7 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("save persona: begin: %w", err)
+		return fmt.Errorf("begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
@@ -121,7 +121,7 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("save persona: commit: %w", err)
+		return fmt.Errorf("commit: %w", err)
 	}
 
 	return nil
@@ -136,7 +136,7 @@ func savePersonaRow(ctx context.Context, tx pgx.Tx, row personaRow) error {
 		row.ID, row.CollectorID, row.Name, row.Description)
 
 	if err != nil {
-		return fmt.Errorf("save persona: %w", err)
+		return fmt.Errorf("upsert persona: %w", err)
 	}
 
 	if tag.RowsAffected() == 0 {

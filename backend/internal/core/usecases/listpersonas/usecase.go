@@ -30,7 +30,7 @@ func (u *Usecase) Execute(ctx context.Context) ([]*domain.Persona, error) {
 	}
 
 	if _, err := u.collectors.GetCollector(ctx, collectorID); err != nil {
-		return nil, fmt.Errorf("list personas: %w", err)
+		return nil, fmt.Errorf("check collector: %w", err)
 	}
 
 	personas, err := u.personas.For(collectorID).ListPersonas(ctx)
