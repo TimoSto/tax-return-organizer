@@ -220,7 +220,7 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 	}
 
 	ids := []domain.CollectorID{"aaaa", "bbbb"}
-	uc := createcollector.New(tx, templates.New(), idgen.Random{}, createcollector.WithCollectorIDs(&sequenceIDs{ids: ids}))
+	uc := createcollector.New(tx, templates.New(), &sequenceIDs{ids: ids})
 
 	id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
@@ -238,6 +238,7 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 
 // sequenceIDs hands out the given collector ids in order.
 type sequenceIDs struct {
+	idgen.Random
 	ids []domain.CollectorID
 }
 

@@ -19,13 +19,9 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
-	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
-	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
 )
@@ -98,12 +94,9 @@ func seed(ctx context.Context, dsn string) error {
 	defer pool.Close()
 
 	create := createcollector.New(
-		pgdb.NewTransactor(pool, func(db pgdb.DBTX) port.Repositories {
-			return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewStore(db)}
-		}),
+		backend.NewTransactor(pool),
 		templates.New(),
-		idgen.Random{},
-		createcollector.WithCollectorIDs(fixedCollectorID{}),
+		seedIDs{},
 	)
 
 	if _, err := create.Execute(ctx, createcollector.Command{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
@@ -113,7 +106,7 @@ func seed(ctx context.Context, dsn string) error {
 	return nil
 }
 
-// fixedCollectorID draws the well-known collector id.
-type fixedCollectorID struct{}
+// seedIDs draws the well-known collector id and random ids otherwise.
+type seedIDs struct{ idgen.Random }
 
-func (fixedCollectorID) NewCollectorID() (domain.CollectorID, error) { return defaultCollectorID, nil }
+func (seedIDs) NewCollectorID() (domain.CollectorID, error) { return defaultCollectorID, nil }

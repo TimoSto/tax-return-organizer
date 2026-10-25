@@ -27,8 +27,6 @@ type Usecase struct {
 	tx      port.Transactor
 	catalog port.PersonaTemplateCatalog
 	ids     IDGenerator
-	// collectorIDs draws the collector id, it is ids unless WithCollectorIDs replaces it.
-	collectorIDs port.CollectorIDGenerator
 }
 
 // IDGenerator creates the ids of the new collector, its personas and their items.
@@ -38,24 +36,10 @@ type IDGenerator interface {
 	port.ItemIDGenerator
 }
 
-// Option customizes a Usecase.
-type Option func(*Usecase)
-
-// WithCollectorIDs replaces how the collector id is drawn, e.g. to seed a collector with a well-known id.
-func WithCollectorIDs(ids port.CollectorIDGenerator) Option {
-	return func(u *Usecase) { u.collectorIDs = ids }
-}
-
 // New returns a use case that stores collectors, together with the predefined personas from catalog, through tx.
 // ids creates the new ids.
-func New(tx port.Transactor, catalog port.PersonaTemplateCatalog, ids IDGenerator, opts ...Option) *Usecase {
-	u := &Usecase{tx: tx, catalog: catalog, ids: ids, collectorIDs: ids}
-
-	for _, opt := range opts {
-		opt(u)
-	}
-
-	return u
+func New(tx port.Transactor, catalog port.PersonaTemplateCatalog, ids IDGenerator) *Usecase {
+	return &Usecase{tx: tx, catalog: catalog, ids: ids}
 }
 
 // Execute creates and persists a collector with the predefined personas in the requested locale and returns its id.
@@ -68,7 +52,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd Command) (domain.CollectorID,
 
 	// One transaction per attempt: a taken id is a unique violation, which aborts the transaction in Postgres.
 	for range maxIDAttempts {
-		id, err := u.collectorIDs.NewCollectorID()
+		id, err := u.ids.NewCollectorID()
 		if err != nil {
 			return "", err
 		}
