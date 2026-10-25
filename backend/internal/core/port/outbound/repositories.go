@@ -65,7 +65,8 @@ type PersonaRepository interface {
 	// It returns ErrTenantMismatch if the persona belongs to another collector than the repository,
 	// domain.ErrPersonaNotFound if the id belongs to another collector,
 	// domain.ErrItemIDTaken if an item id is already used by another persona (of any collector, which
-	// tells a caller that the id exists elsewhere). Nothing is changed then.
+	// tells a caller that the id exists elsewhere). Nothing is changed then: the save is atomic on its own,
+	// without the caller wrapping it in a transaction.
 	// The collector is not checked here, see the PersonaRepository comment.
 	//
 	// There is no concurrency control: SavePersona replaces the whole persona, so the last save wins. Two

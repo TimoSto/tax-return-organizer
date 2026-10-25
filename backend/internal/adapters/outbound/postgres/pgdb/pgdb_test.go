@@ -104,7 +104,7 @@ func TestInTx_RollsBackOnPanic(t *testing.T) {
 	}
 }
 
-// SavePersona opens its own transaction, which inside InTx is a savepoint of the outer one.
+// SavePersona joins the transaction of InTx: rolling back the outer transaction removes the persona too.
 func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 	boom := errors.New("boom")

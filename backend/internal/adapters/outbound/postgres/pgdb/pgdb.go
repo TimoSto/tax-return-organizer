@@ -13,13 +13,13 @@ import (
 )
 
 // DBTX is the part of the pgx API the repositories use. Both *pgxpool.Pool and pgx.Tx implement it, so a
-// repository works the same on the pool and inside a transaction. Begin on a pgx.Tx starts a savepoint.
+// repository works the same on the pool and inside a transaction.
+// Repositories never open a transaction themselves (there is no Begin), the use case decides through outbound.Transactor.
 type DBTX interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
-	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
 var (

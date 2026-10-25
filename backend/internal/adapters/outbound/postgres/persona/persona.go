@@ -3,15 +3,20 @@ package persona
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
+
+// uniqueViolation is the SQLSTATE of a unique or primary key violation.
+const uniqueViolation = "23505"
 
 var (
 	_ outbound.PersonaStore      = (*Store)(nil)
@@ -89,7 +94,9 @@ func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error
 	return personas, nil
 }
 
-// SavePersona implements outbound.PersonaRepository. Persona and items are written in one transaction.
+// SavePersona implements outbound.PersonaRepository. The persona and its items go out as one batch, which Postgres
+// runs as a single implicit transaction: either everything is written or nothing is. The repository opens no
+// transaction itself, callers that need more than this one save to be atomic wrap it in outbound.Transactor.
 func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) error {
 	if persona.CollectorID() != r.collectorID {
 		return fmt.Errorf("save persona %s: %w", persona.ID(), outbound.ErrTenantMismatch)
@@ -106,35 +113,68 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 		items = append(items, row)
 	}
 
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("begin: %w", err)
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	row := newPersonaRow(persona)
 
-	if err := savePersonaRow(ctx, tx, newPersonaRow(persona)); err != nil {
-		return err
-	}
+	// Never nil: a nil slice is sent as NULL and "<> ALL(NULL)" would delete nothing.
+	ids := make([]uuid.UUID, 0, len(items))
+	batch := &pgx.Batch{}
 
-	if err := saveItems(ctx, tx, uuid.UUID(persona.ID()), items); err != nil {
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit: %w", err)
-	}
-
-	return nil
-}
-
-// savePersonaRow upserts the persona. The collector of an existing persona never changes.
-func savePersonaRow(ctx context.Context, tx pgx.Tx, row personaRow) error {
-	tag, err := tx.Exec(ctx, `
+	// The persona is upserted first. The collector of an existing persona never changes. If the id belongs to
+	// another collector this affects no row, and the guards below keep the item statements from touching the
+	// foreign persona.
+	batch.Queue(`
 		INSERT INTO personas (id, collector_id, name, description) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description
 		WHERE personas.collector_id = EXCLUDED.collector_id`,
 		row.ID, row.CollectorID, row.Name, row.Description)
 
+	// Items keep their identity: an item of this persona is updated, any other id is inserted. The insert is
+	// plain on purpose. An id that exists under another persona makes it fail with a unique violation, which
+	// aborts the whole batch, so nothing stays written (a statement that merely affects no row could not undo
+	// the persona upsert before it). The EXISTS guard turns the statement into a no-op if the persona is not
+	// this collector's, the persona upsert has reported that already.
+	for position, item := range items {
+		batch.Queue(`
+			WITH updated AS (
+				UPDATE item_definitions SET position = $3, title = $4, kind = $5, recurrence = $6,
+					document_spec = $7, value_spec = $8
+				WHERE id = $1 AND persona_id = $2
+				RETURNING 1)
+			INSERT INTO item_definitions (id, persona_id, position, title, kind, recurrence, document_spec, value_spec)
+			SELECT $1, $2, $3, $4, $5, $6, $7, $8
+			WHERE NOT EXISTS (SELECT 1 FROM updated)
+			  AND EXISTS (SELECT 1 FROM personas WHERE id = $2 AND collector_id = $9)`,
+			item.ID, row.ID, position, item.Title, item.Kind, item.Recurrence, item.DocumentSpec, item.ValueSpec,
+			row.CollectorID)
+
+		ids = append(ids, item.ID)
+	}
+
+	batch.Queue(`
+		DELETE FROM item_definitions
+		WHERE persona_id = $1 AND id <> ALL($2::uuid[])
+		  AND EXISTS (SELECT 1 FROM personas WHERE id = $1 AND collector_id = $3)`,
+		row.ID, ids, row.CollectorID)
+
+	results := r.db.SendBatch(ctx, batch)
+
+	if err := readSaveResults(results, items); err != nil {
+		_ = results.Close()
+
+		return err
+	}
+
+	if err := results.Close(); err != nil {
+		return fmt.Errorf("save persona: %w", err)
+	}
+
+	return nil
+}
+
+// readSaveResults checks the result of every statement queued by SavePersona, in order. An error aborts the
+// implicit transaction, so returning early leaves nothing written.
+func readSaveResults(results pgx.BatchResults, items []itemRow) error {
+	tag, err := results.Exec()
 	if err != nil {
 		return fmt.Errorf("upsert persona: %w", err)
 	}
@@ -143,62 +183,28 @@ func savePersonaRow(ctx context.Context, tx pgx.Tx, row personaRow) error {
 		return domain.ErrPersonaNotFound
 	}
 
-	return nil
-}
-
-// saveItems upserts the items by id, so they keep their identity, and deletes the ones that are gone.
-// All statements go out as one batch, so it costs a single round trip however many items there are.
-func saveItems(ctx context.Context, tx pgx.Tx, personaID uuid.UUID, items []itemRow) error {
-	// Never nil: a nil slice is sent as NULL and "<> ALL(NULL)" would delete nothing.
-	ids := make([]uuid.UUID, 0, len(items))
-	batch := &pgx.Batch{}
-
-	for position, item := range items {
-		batch.Queue(`
-			INSERT INTO item_definitions (id, persona_id, position, title, kind, recurrence, document_spec, value_spec)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (id) DO UPDATE SET
-				position = EXCLUDED.position, title = EXCLUDED.title, kind = EXCLUDED.kind,
-				recurrence = EXCLUDED.recurrence, document_spec = EXCLUDED.document_spec, value_spec = EXCLUDED.value_spec
-			WHERE item_definitions.persona_id = EXCLUDED.persona_id`,
-			item.ID, personaID, position, item.Title, item.Kind, item.Recurrence, item.DocumentSpec, item.ValueSpec)
-
-		ids = append(ids, item.ID)
-	}
-
-	batch.Queue(`DELETE FROM item_definitions WHERE persona_id = $1 AND id <> ALL($2::uuid[])`, personaID, ids)
-
-	results := tx.SendBatch(ctx, batch)
-
 	for _, item := range items {
-		tag, err := results.Exec()
-		if err != nil {
-			_ = results.Close()
+		if _, err := results.Exec(); err != nil {
+			if isItemIDTaken(err) {
+				return fmt.Errorf("save item %s: %w", item.ID, domain.ErrItemIDTaken)
+			}
 
 			return fmt.Errorf("save item %s: %w", item.ID, err)
-		}
-
-		// The statement inserts a new id or updates an item of this persona, both affect one row. Zero rows
-		// means the id exists under another persona and the WHERE above skipped the update. Keep the
-		// statement and this check in sync: any other way to affect no rows would be misreported here.
-		if tag.RowsAffected() == 0 {
-			_ = results.Close()
-
-			return fmt.Errorf("save item %s: %w", item.ID, domain.ErrItemIDTaken)
 		}
 	}
 
 	if _, err := results.Exec(); err != nil {
-		_ = results.Close()
-
 		return fmt.Errorf("delete removed items: %w", err)
 	}
 
-	if err := results.Close(); err != nil {
-		return fmt.Errorf("save items: %w", err)
-	}
-
 	return nil
+}
+
+// isItemIDTaken reports whether err is the primary key violation of an item id that exists under another persona.
+func isItemIDTaken(err error) bool {
+	var pgErr *pgconn.PgError
+
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == "item_definitions_pkey"
 }
 
 // scanPersonas reads rows of persona and item columns ordered by persona.
