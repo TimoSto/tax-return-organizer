@@ -22,7 +22,7 @@ func New(personas port.PersonaStore) *Usecase {
 
 // Execute retrieves a persona of the collector the context acts for by its id.
 func (u *Usecase) Execute(ctx context.Context, id domain.PersonaID) (*domain.Persona, error) {
-	collectorID, err := tenant.MustCollectorFrom(ctx)
+	collectorID, err := tenant.RequireCollectorFrom(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get persona: %w", err)
 	}

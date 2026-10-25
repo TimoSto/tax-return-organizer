@@ -56,36 +56,66 @@ func Routes(d Deps) []httpx.Route {
 	}
 }
 
-// NewHandler registers all endpoints and wraps them in the middleware. It fails if a dependency is nil.
+// NewHandler registers all endpoints and wraps them in the middleware. It fails if a dependency is nil or a
+// route is misconfigured.
 func NewHandler(d Deps) (http.Handler, error) {
 	if err := d.validate(); err != nil {
 		return nil, err
 	}
 
+	routes := Routes(d)
+	if err := checkPathTenants(routes); err != nil {
+		return nil, err
+	}
+
 	mux := http.NewServeMux()
 
-	for _, r := range Routes(d) {
-		mux.Handle(r.Pattern, tenantFromPath(r))
+	for _, r := range routes {
+		mux.Handle(r.Pattern, withTenant(r, pathTenant))
 	}
 
 	return Middleware(mux), nil
 }
 
-const collectorIDParam = "collectorId"
+// tenantResolver determines the collector a request acts for.
+type tenantResolver func(w http.ResponseWriter, r *http.Request) (domain.CollectorID, bool)
 
-// tenantFromPath puts the {collectorId} path value of routes that have one into the context. Once there is
-// authentication, this is the only place that changes: the tenant then comes from the authenticated principal.
-func tenantFromPath(r httpx.Route) http.Handler {
-	if !strings.Contains(r.Pattern, "{"+collectorIDParam+"}") {
+// withTenant puts the resolved collector into the context of routes marked Tenant. Once there is authentication,
+// only the resolver changes: the tenant then comes from the authenticated principal (and checkPathTenants goes).
+func withTenant(r httpx.Route, resolve tenantResolver) http.Handler {
+	if !r.Tenant {
 		return r.Handler
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		id, ok := httpx.ParsePathID(w, req, collectorIDParam, domain.ParseCollectorID)
+		id, ok := resolve(w, req)
 		if !ok {
 			return
 		}
 
 		r.Handler.ServeHTTP(w, req.WithContext(tenant.WithCollector(req.Context(), id)))
 	})
+}
+
+// pathTenant reads the tenant from the {collectorId} path value.
+func pathTenant(w http.ResponseWriter, r *http.Request) (domain.CollectorID, bool) {
+	return httpx.ParsePathID(w, r, httpx.CollectorIDParam, domain.ParseCollectorID)
+}
+
+// checkPathTenants fails at startup when a route's Tenant flag and its pattern disagree, which pathTenant
+// would otherwise turn into a 400 or a missing tenant at request time.
+func checkPathTenants(routes []httpx.Route) error {
+	var bad []string
+
+	for _, r := range routes {
+		if r.Tenant != strings.Contains(r.Pattern, "{"+httpx.CollectorIDParam+"}") {
+			bad = append(bad, r.Pattern)
+		}
+	}
+
+	if len(bad) > 0 {
+		return fmt.Errorf("routes whose Tenant flag disagrees with {%s} in the pattern: %s", httpx.CollectorIDParam, strings.Join(bad, ", "))
+	}
+
+	return nil
 }
