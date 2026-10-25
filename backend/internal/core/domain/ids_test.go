@@ -21,3 +21,18 @@ func TestParsePersonaID(t *testing.T) {
 		}
 	}
 }
+
+func TestParseItemID(t *testing.T) {
+	const s = "9c1d7e2a-0b3f-4a58-8e6d-5f4c3b2a1d09"
+
+	id, err := domain.ParseItemID(s)
+	if err != nil || id.String() != s {
+		t.Errorf("ParseItemID(%q) = %v, %v", s, id, err)
+	}
+
+	for _, in := range []string{"", "not-a-uuid", s + "0"} {
+		if _, err := domain.ParseItemID(in); !errors.Is(err, domain.ErrInvalidItemID) {
+			t.Errorf("ParseItemID(%q) error = %v, want %v", in, err, domain.ErrInvalidItemID)
+		}
+	}
+}

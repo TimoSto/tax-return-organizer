@@ -90,7 +90,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 - **Not in `domain`.** The domain holds aggregates and their invariants and is kept minimal on purpose (strict import allow-list, no id generation, no infrastructure concerns). Templates are seed content plus a copy operation. They need `Locale`/`Localized`, `ErrInvalidLocale` and an id-generating interface, and these are exactly the things that were moved out of the domain on purpose. Nothing in the domain depends on templates: an instantiated persona is a normal persona and nothing links it back to its template.
 - **Not an adapter.** `Instantiate` is business behaviour. It builds personas through the domain constructors (`NewPersona`, `AddItem`) and so enforces the domain rules. `outbound.PersonaTemplateCatalog` returns `personatemplate` types, so `port/outbound` has to be able to import the package, which means it must be inside the core.
 - **Only the content is infrastructure.** The actual list of predefined personas lives in the adapter `adapters/outbound/templates`, behind the `PersonaTemplateCatalog` port.
-- **Its own small `IDs` interface is intentional.** It repeats the persona and item parts of the `outbound` id generators. Importing `port/outbound` from `personatemplate` would invert the layering (`personatemplate` sits below `port/outbound`), so the local interface stays.
+- **Its own small `IDs` interface is intentional.** It repeats the persona and item parts of `outbound.IDGenerator`. Importing `port/outbound` from `personatemplate` would invert the layering (`personatemplate` sits below `port/outbound`), so the local interface stays.
 - **Possible later extraction.** `Locale`, `Localized` and `ParseLocale` are not template specific (`createcollector` parses the request locale with them). If locales get more uses, move them to a small `core/locale` package.
 
 ### Tenant-scoped stores
@@ -111,7 +111,7 @@ Some use cases (`getcollector`, `getpersona`) do little more than check the coll
 
 ### Ids are created outside the domain
 
-The domain does not generate ids. `outbound.CollectorIDGenerator`, `PersonaIDGenerator` and `ItemIDGenerator` are separate small interfaces, and `adapters/outbound/idgen` implements them with `crypto/rand`. This keeps the domain deterministic. Collector ids are short strings (see the baseline migration), not UUIDs like in the README diagram, and a generated collector id is not guaranteed to be unused. `createcollector` handles a collision (`ErrCollectorIDTaken`).
+The domain does not generate ids. `outbound.IDGenerator` creates the ids of new collectors, personas and items, and `adapters/outbound/idgen` implements it with `crypto/rand`. This keeps the domain deterministic. Collector ids are short strings (see the baseline migration), not UUIDs like in the README diagram, and a generated collector id is not guaranteed to be unused. `createcollector` handles a collision (`ErrCollectorIDTaken`).
 
 ### Transactions
 

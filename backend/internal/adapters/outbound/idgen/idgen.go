@@ -8,11 +8,13 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
-// Random generates random ids with crypto/rand. It implements outbound.CollectorIDGenerator, outbound.PersonaIDGenerator
-// and outbound.ItemIDGenerator.
+// Random generates random ids with crypto/rand. It implements outbound.IDGenerator.
 type Random struct{}
+
+var _ outbound.IDGenerator = Random{}
 
 // NewCollectorID returns a random, short collector id. It is not guaranteed to be unused.
 func (Random) NewCollectorID() (domain.CollectorID, error) {

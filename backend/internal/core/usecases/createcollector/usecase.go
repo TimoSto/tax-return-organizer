@@ -19,21 +19,14 @@ const maxIDAttempts = 5
 type Usecase struct {
 	tx      outbound.Transactor
 	catalog outbound.PersonaTemplateCatalog
-	ids     IDGenerator
+	ids     outbound.IDGenerator
 }
 
 var _ inbound.CreateCollector = (*Usecase)(nil)
 
-// IDGenerator creates the ids of the new collector, its personas and their items.
-type IDGenerator interface {
-	outbound.CollectorIDGenerator
-	outbound.PersonaIDGenerator
-	outbound.ItemIDGenerator
-}
-
 // New returns a use case that stores collectors, together with the predefined personas from catalog, through tx.
 // ids creates the new ids.
-func New(tx outbound.Transactor, catalog outbound.PersonaTemplateCatalog, ids IDGenerator) *Usecase {
+func New(tx outbound.Transactor, catalog outbound.PersonaTemplateCatalog, ids outbound.IDGenerator) *Usecase {
 	return &Usecase{tx: tx, catalog: catalog, ids: ids}
 }
 
