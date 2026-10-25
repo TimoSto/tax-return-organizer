@@ -11,7 +11,7 @@ A *collector* is the tenant. Everything a collector owns (personas today, client
 Make the safe thing the only possible thing: a repository that is **bound to one collector**, so none of its methods has a collector parameter and none can reach another tenant's rows.
 
 ```go
-// internal/core/port/outbound.go
+// internal/core/port/repositories.go
 type PersonaStore interface {
     For(collectorID domain.CollectorID) PersonaRepository
 }
@@ -50,7 +50,7 @@ Nothing is stored per tenant. There is one store per process, wired once on the 
 
 ## Adding a new tenant-owned resource (checklist)
 
-1. **Port** (`internal/core/port/outbound.go`): add `XStore` with `For(collectorID) XRepository` and the `XRepository` interface without collector parameters. Document the not-found and `ErrTenantMismatch` behaviour on the methods. Add `X XStore` to `Repositories`.
+1. **Port** (`internal/core/port/repositories.go`): add `XStore` with `For(collectorID) XRepository` and the `XRepository` interface without collector parameters. Document the not-found and `ErrTenantMismatch` behaviour on the methods. Add `X XStore` to `Repositories` (`transactor.go`).
 2. **Postgres** (`internal/adapters/outbound/postgres/<x>`): `Store{db pgdb.DBTX}` with `NewStore(db)`, `For(id)` returning `&Repository{db, collectorID}`. Every query filters on `r.collectorID` (`WHERE <table>.collector_id = $n`). Reject a mismatching entity in the save method with `port.ErrTenantMismatch`. Add `var _ port.XStore = (*Store)(nil)` and the same for the repository.
 3. **Fake** (`internal/adapters/outbound/fake/<x>`): a `Store` owning the data and mutex; `For` returns a view that filters on the bound id.
 4. **Wiring**: add `X: pgx.NewStore(db)` to `postgresRepositories` in `internal/backend/backend.go`, and to the repository literal in `cmd/e2e/main.go`.

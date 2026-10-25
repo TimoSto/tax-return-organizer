@@ -1,4 +1,3 @@
-// Package port defines the interfaces the core needs from its adapters: repositories and the transactor.
 package port
 
 import (
@@ -6,13 +5,7 @@ import (
 	"errors"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 )
-
-// PersonaTemplateCatalog provides the predefined personas every new collector starts with.
-type PersonaTemplateCatalog interface {
-	PersonaTemplates() []personatemplate.PersonaTemplate
-}
 
 // CollectorRepository persists collectors. It is deliberately not tenant-scoped: the collector is the tenant itself,
 // so it is looked up and created by id. Everything a collector owns is reached through a store (see PersonaStore).
@@ -61,17 +54,4 @@ type PersonaRepository interface {
 	// definitions (deleting one would then lose that data), add optimistic locking: a persona version that
 	// the client sends back, saved with "UPDATE ... WHERE version = $n" and answered with 409 on a mismatch.
 	SavePersona(ctx context.Context, persona *domain.Persona) error
-}
-
-// Repositories groups the repositories that can take part in one transaction.
-// Resources owned by a collector are added as stores, never as plain repositories.
-type Repositories struct {
-	Collectors CollectorRepository
-	Personas   PersonaStore
-}
-
-// Transactor runs fn in a transaction. All repositories fn receives share it. The transaction commits if fn
-// returns nil, otherwise it is rolled back and fn's error is returned.
-type Transactor interface {
-	InTx(ctx context.Context, fn func(ctx context.Context, repos Repositories) error) error
 }
