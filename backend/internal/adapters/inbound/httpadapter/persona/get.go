@@ -2,11 +2,11 @@
 package persona
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 )
 
 // idParam is the path parameter that carries the persona id.
@@ -45,13 +45,8 @@ type valueSpecResponse struct {
 	Required bool   `json:"required"`
 }
 
-// Getter retrieves a persona of the collector the request acts for by its id.
-type Getter interface {
-	Execute(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error)
-}
-
 // Get is GET /collectors/{collectorId}/personas/{id}.
-func Get(getter Getter) httpx.Route {
+func Get(getter inbound.GetPersona) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas/{" + idParam + "}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

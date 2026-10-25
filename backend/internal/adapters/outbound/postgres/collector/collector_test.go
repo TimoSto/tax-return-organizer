@@ -11,7 +11,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/porttest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
@@ -20,7 +20,7 @@ import (
 func TestCollectorRepository(t *testing.T) {
 	pool := postgrestest.RequirePool(t)
 
-	porttest.TestCollectorRepository(t, func(t *testing.T) port.CollectorRepository {
+	porttest.TestCollectorRepository(t, func(t *testing.T) outbound.CollectorRepository {
 		if _, err := pool.Exec(context.Background(), `TRUNCATE collectors CASCADE`); err != nil {
 			t.Fatalf("truncate collectors: %v", err)
 		}
@@ -60,11 +60,11 @@ func TestSaveCollector_RolledBackWhenPersonaSaveFails(t *testing.T) {
 
 	clashing := domaintest.Persona(domaintest.PersonaID(), "aaaa", "Employed", "", item)
 
-	tx := pgdb.NewTransactor(pool, func(db pgdb.DBTX) port.Repositories {
-		return port.Repositories{Collectors: collector.NewRepository(db), Personas: persona.NewStore(db)}
+	tx := pgdb.NewTransactor(pool, func(db pgdb.DBTX) outbound.Repositories {
+		return outbound.Repositories{Collectors: collector.NewRepository(db), Personas: persona.NewStore(db)}
 	})
 
-	err = tx.InTx(ctx, func(ctx context.Context, repos port.Repositories) error {
+	err = tx.InTx(ctx, func(ctx context.Context, repos outbound.Repositories) error {
 		if err := repos.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
 			return err
 		}

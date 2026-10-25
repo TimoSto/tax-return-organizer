@@ -11,15 +11,15 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
 // uniqueViolation is the SQLSTATE of a violated unique or primary key constraint.
 const uniqueViolation = "23505"
 
-var _ port.CollectorRepository = (*Repository)(nil)
+var _ outbound.CollectorRepository = (*Repository)(nil)
 
-// Repository is the Postgres implementation of port.CollectorRepository.
+// Repository is the Postgres implementation of outbound.CollectorRepository.
 type Repository struct {
 	db pgdb.DBTX
 }
@@ -29,7 +29,7 @@ func NewRepository(db pgdb.DBTX) *Repository {
 	return &Repository{db: db}
 }
 
-// GetCollector implements port.CollectorRepository.
+// GetCollector implements outbound.CollectorRepository.
 func (r *Repository) GetCollector(ctx context.Context, id domain.CollectorID) (*domain.Collector, error) {
 	var row collectorRow
 
@@ -45,7 +45,7 @@ func (r *Repository) GetCollector(ctx context.Context, id domain.CollectorID) (*
 	return row.toDomain()
 }
 
-// SaveCollector implements port.CollectorRepository.
+// SaveCollector implements outbound.CollectorRepository.
 func (r *Repository) SaveCollector(ctx context.Context, collector *domain.Collector) error {
 	row := newCollectorRow(collector)
 
@@ -79,7 +79,7 @@ func newCollectorRow(c *domain.Collector) collectorRow {
 func (r collectorRow) toDomain() (*domain.Collector, error) {
 	c, err := domain.RehydrateCollector(domain.CollectorID(r.ID), r.Name, domain.Email(r.Email))
 	if err != nil {
-		return nil, port.CorruptData("collector "+r.ID, err)
+		return nil, outbound.CorruptData("collector "+r.ID, err)
 	}
 
 	return c, nil

@@ -10,14 +10,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
 // PersonaStoreFactory returns an empty store for the given test.
 // Implementations that enforce referential integrity (the foreign key to collectors) must make sure the given
 // collectors exist. The repositories themselves do not check collectors, callers do.
-type PersonaStoreFactory func(t *testing.T, collectors ...domain.CollectorID) port.PersonaStore
+type PersonaStoreFactory func(t *testing.T, collectors ...domain.CollectorID) outbound.PersonaStore
 
 // TestPersonaRepository runs the contract tests against stores created by newStore. Each persona is saved through
 // the repository of its own collector, as a use case would.
@@ -304,8 +304,8 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 	t.Run("Saving a persona of another collector is rejected and changes nothing", func(t *testing.T) {
 		store := newStore(t, aliceID, bobID)
 
-		if err := store.For(aliceID).SavePersona(ctx, bobs); !errors.Is(err, port.ErrTenantMismatch) {
-			t.Fatalf("SavePersona() error = %v, want %v", err, port.ErrTenantMismatch)
+		if err := store.For(aliceID).SavePersona(ctx, bobs); !errors.Is(err, outbound.ErrTenantMismatch) {
+			t.Fatalf("SavePersona() error = %v, want %v", err, outbound.ErrTenantMismatch)
 		}
 
 		for _, id := range []domain.CollectorID{aliceID, bobID} {
@@ -317,7 +317,7 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 	})
 }
 
-func mustSave(ctx context.Context, t *testing.T, repo port.PersonaRepository, p *domain.Persona) {
+func mustSave(ctx context.Context, t *testing.T, repo outbound.PersonaRepository, p *domain.Persona) {
 	t.Helper()
 
 	if err := repo.SavePersona(ctx, p); err != nil {

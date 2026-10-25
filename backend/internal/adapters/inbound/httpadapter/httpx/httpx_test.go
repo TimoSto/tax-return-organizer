@@ -13,7 +13,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
 )
 
@@ -42,8 +42,8 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrTooManyItems, http.StatusConflict},
 		// Server-side faults: a duplicate id comes from our own generator, stored data from our own writes.
 		{fmt.Errorf("add item: %w", domain.ErrDuplicateItemID), http.StatusInternalServerError},
-		{port.CorruptData("collector aaaa", domain.ErrInvalidEmail), http.StatusInternalServerError},
-		{fmt.Errorf("get collector: %w", port.CorruptData("collector aaaa", domain.ErrNameRequired)), http.StatusInternalServerError},
+		{outbound.CorruptData("collector aaaa", domain.ErrInvalidEmail), http.StatusInternalServerError},
+		{fmt.Errorf("get collector: %w", outbound.CorruptData("collector aaaa", domain.ErrNameRequired)), http.StatusInternalServerError},
 		{domain.ErrItemIDTaken, http.StatusConflict},
 		{personatemplate.ErrInvalidLocale, http.StatusBadRequest},
 		{domain.ErrCollectorIDTaken, http.StatusConflict},

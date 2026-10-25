@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
 // DBTX is the part of the pgx API the repositories use. Both *pgxpool.Pool and pgx.Tx implement it, so a
@@ -27,22 +27,22 @@ var (
 	_ DBTX = pgx.Tx(nil)
 )
 
-// Transactor implements port.Transactor on a pgx pool.
+// Transactor implements outbound.Transactor on a pgx pool.
 type Transactor struct {
 	pool  *pgxpool.Pool
-	repos func(DBTX) port.Repositories
+	repos func(DBTX) outbound.Repositories
 }
 
-var _ port.Transactor = (*Transactor)(nil)
+var _ outbound.Transactor = (*Transactor)(nil)
 
 // NewTransactor returns a transactor on pool. repos builds the repositories that run on the given transaction;
 // the composition root passes it so this package does not depend on the resource packages.
-func NewTransactor(pool *pgxpool.Pool, repos func(DBTX) port.Repositories) *Transactor {
+func NewTransactor(pool *pgxpool.Pool, repos func(DBTX) outbound.Repositories) *Transactor {
 	return &Transactor{pool: pool, repos: repos}
 }
 
-// InTx implements port.Transactor. It rolls back if fn returns an error or panics.
-func (t *Transactor) InTx(ctx context.Context, fn func(ctx context.Context, repos port.Repositories) error) error {
+// InTx implements outbound.Transactor. It rolls back if fn returns an error or panics.
+func (t *Transactor) InTx(ctx context.Context, fn func(ctx context.Context, repos outbound.Repositories) error) error {
 	tx, err := t.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)

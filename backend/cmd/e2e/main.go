@@ -22,6 +22,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
 )
@@ -99,7 +100,7 @@ func seed(ctx context.Context, dsn string) error {
 		seedIDs{},
 	)
 
-	if _, err := create.Execute(ctx, createcollector.Command{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
+	if _, err := create.Execute(ctx, inbound.CreateCollectorCommand{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
 		return fmt.Errorf("create collector: %w", err)
 	}
 

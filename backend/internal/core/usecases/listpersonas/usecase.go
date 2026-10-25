@@ -6,17 +6,20 @@ import (
 	"fmt"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
 // Usecase is the listpersonas use case.
 type Usecase struct {
-	collectors port.CollectorRepository
-	personas   port.PersonaStore
+	collectors outbound.CollectorRepository
+	personas   outbound.PersonaStore
 }
 
+var _ inbound.ListPersonas = (*Usecase)(nil)
+
 // New returns a use case that lists personas from personas, for collectors found in collectors.
-func New(collectors port.CollectorRepository, personas port.PersonaStore) *Usecase {
+func New(collectors outbound.CollectorRepository, personas outbound.PersonaStore) *Usecase {
 	return &Usecase{collectors: collectors, personas: personas}
 }
 

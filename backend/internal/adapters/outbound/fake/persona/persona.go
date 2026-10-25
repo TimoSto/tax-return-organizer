@@ -10,15 +10,15 @@ import (
 	"sync"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
 var (
-	_ port.PersonaStore      = (*Store)(nil)
-	_ port.PersonaRepository = (*Repository)(nil)
+	_ outbound.PersonaStore      = (*Store)(nil)
+	_ outbound.PersonaRepository = (*Repository)(nil)
 )
 
-// Store is an in-memory port.PersonaStore. A persona is stored as one object including its items.
+// Store is an in-memory outbound.PersonaStore. A persona is stored as one object including its items.
 type Store struct {
 	mu       sync.RWMutex
 	personas map[domain.PersonaID]domain.Persona
@@ -29,8 +29,8 @@ func NewStore() *Store {
 	return &Store{personas: make(map[domain.PersonaID]domain.Persona)}
 }
 
-// For implements port.PersonaStore. The repositories of all collectors share the storage of the store.
-func (s *Store) For(collectorID domain.CollectorID) port.PersonaRepository {
+// For implements outbound.PersonaStore. The repositories of all collectors share the storage of the store.
+func (s *Store) For(collectorID domain.CollectorID) outbound.PersonaRepository {
 	return &Repository{store: s, collectorID: collectorID}
 }
 
@@ -40,7 +40,7 @@ type Repository struct {
 	collectorID domain.CollectorID
 }
 
-// GetPersona implements port.PersonaRepository.
+// GetPersona implements outbound.PersonaRepository.
 func (r *Repository) GetPersona(_ context.Context, id domain.PersonaID) (*domain.Persona, error) {
 	r.store.mu.RLock()
 	defer r.store.mu.RUnlock()
@@ -53,7 +53,7 @@ func (r *Repository) GetPersona(_ context.Context, id domain.PersonaID) (*domain
 	return clone(&p), nil
 }
 
-// ListPersonas implements port.PersonaRepository.
+// ListPersonas implements outbound.PersonaRepository.
 func (r *Repository) ListPersonas(_ context.Context) ([]*domain.Persona, error) {
 	r.store.mu.RLock()
 	defer r.store.mu.RUnlock()
@@ -73,10 +73,10 @@ func (r *Repository) ListPersonas(_ context.Context) ([]*domain.Persona, error) 
 	return personas, nil
 }
 
-// SavePersona implements port.PersonaRepository.
+// SavePersona implements outbound.PersonaRepository.
 func (r *Repository) SavePersona(_ context.Context, persona *domain.Persona) error {
 	if persona.CollectorID() != r.collectorID {
-		return fmt.Errorf("save persona %s: %w", persona.ID(), port.ErrTenantMismatch)
+		return fmt.Errorf("save persona %s: %w", persona.ID(), outbound.ErrTenantMismatch)
 	}
 
 	r.store.mu.Lock()

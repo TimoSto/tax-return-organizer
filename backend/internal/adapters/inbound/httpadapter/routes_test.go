@@ -9,12 +9,12 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 )
 
 type stubDeps struct{}
 
-func (stubDeps) Execute(context.Context, createcollector.Command) (domain.CollectorID, error) {
+func (stubDeps) Execute(context.Context, inbound.CreateCollectorCommand) (domain.CollectorID, error) {
 	return "", nil
 }
 

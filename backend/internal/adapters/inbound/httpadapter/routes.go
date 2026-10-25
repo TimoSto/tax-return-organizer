@@ -11,14 +11,15 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 )
 
 // Deps are the use cases the endpoints call.
 type Deps struct {
-	CreateCollector collector.Creator
-	GetCollector    collector.Getter
-	GetPersona      persona.Getter
-	ListPersonas    persona.Lister
+	CreateCollector inbound.CreateCollector
+	GetCollector    inbound.GetCollector
+	GetPersona      inbound.GetPersona
+	ListPersonas    inbound.ListPersonas
 	// Readiness is checked by GET /readyz, normally the database pool.
 	Readiness health.Pinger
 }

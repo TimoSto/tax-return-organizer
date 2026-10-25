@@ -1,6 +1,6 @@
 # Tenant-scoped stores
 
-How the backend keeps one collector (tenant) away from the data of another, and the recipe for adding a new tenant-owned resource. Reference implementation: personas (`port.PersonaStore`).
+How the backend keeps one collector (tenant) away from the data of another, and the recipe for adding a new tenant-owned resource. Reference implementation: personas (`outbound.PersonaStore`).
 
 ## The problem
 
@@ -11,7 +11,7 @@ A *collector* is the tenant. Everything a collector owns (personas today, client
 Make the safe thing the only possible thing: a repository that is **bound to one collector**, so none of its methods has a collector parameter and none can reach another tenant's rows.
 
 ```go
-// internal/core/port/repositories.go
+// internal/core/port/outbound/repositories.go
 type PersonaStore interface {
     For(collectorID domain.CollectorID) PersonaRepository
 }
@@ -37,10 +37,10 @@ func (u *Usecase) Execute(ctx context.Context, collectorID domain.CollectorID, i
 
 ### Rules
 
-- **Tenant-owned resources are stores.** A new field in `port.Repositories` for something a collector owns is a `...Store`, never a plain repository. Its repository methods take no collector id.
+- **Tenant-owned resources are stores.** A new field in `outbound.Repositories` for something a collector owns is a `...Store`, never a plain repository. Its repository methods take no collector id.
 - **`CollectorRepository` stays unscoped.** The collector is the tenant itself; it is looked up and created by id.
 - **Reading another tenant's id looks like "not found".** `GetPersona` with an id of another collector returns `domain.ErrPersonaNotFound`, same as a missing id (no existence oracle).
-- **Saving a foreign entity is a programming error.** `SavePersona` of a persona whose `CollectorID()` differs from the bound one returns `port.ErrTenantMismatch`. It is not a domain error, so it surfaces as a 500 and is never shown to the client.
+- **Saving a foreign entity is a programming error.** `SavePersona` of a persona whose `CollectorID()` differs from the bound one returns `outbound.ErrTenantMismatch`. It is not a domain error, so it surfaces as a 500 and is never shown to the client.
 - **Keep the SQL guard too.** `ON CONFLICT ... WHERE personas.collector_id = EXCLUDED.collector_id` stays as a second line of defence for ids that belong to another collector.
 
 ### Cost
@@ -49,12 +49,12 @@ Nothing is stored per tenant. There is one store per process, wired once on the 
 
 ## Adding a new tenant-owned resource (checklist)
 
-1. **Port** (`internal/core/port/repositories.go`): add `XStore` with `For(collectorID) XRepository` and the `XRepository` interface without collector parameters. Document the not-found and `ErrTenantMismatch` behaviour on the methods. Add `X XStore` to `Repositories` (`transactor.go`).
-2. **Postgres** (`internal/adapters/outbound/postgres/<x>`): `Store{db pgdb.DBTX}` with `NewStore(db)`, `For(id)` returning `&Repository{db, collectorID}`. Every query filters on `r.collectorID` (`WHERE <table>.collector_id = $n`). Reject a mismatching entity in the save method with `port.ErrTenantMismatch`. Add `var _ port.XStore = (*Store)(nil)` and the same for the repository.
+1. **Port** (`internal/core/port/outbound/repositories.go`): add `XStore` with `For(collectorID) XRepository` and the `XRepository` interface without collector parameters. Document the not-found and `ErrTenantMismatch` behaviour on the methods. Add `X XStore` to `Repositories` (`transactor.go`).
+2. **Postgres** (`internal/adapters/outbound/postgres/<x>`): `Store{db pgdb.DBTX}` with `NewStore(db)`, `For(id)` returning `&Repository{db, collectorID}`. Every query filters on `r.collectorID` (`WHERE <table>.collector_id = $n`). Reject a mismatching entity in the save method with `outbound.ErrTenantMismatch`. Add `var _ outbound.XStore = (*Store)(nil)` and the same for the repository.
 3. **Fake** (`internal/adapters/outbound/fake/<x>`): a `Store` owning the data and mutex; `For` returns a view that filters on the bound id.
 4. **Wiring**: add `X: pgx.NewStore(db)` to `postgresRepositories` in `internal/backend/backend.go`, and to the repository literal in `cmd/e2e/main.go`.
-5. **Use cases**: depend on `port.XStore` and take the collector id as an argument of `Execute` and call `u.xs.For(collectorID)`. Handlers get that id only from `httpx.Tenant`, never from the request body or other input.
-6. **Contract tests** (`internal/testutil/porttest`): take a store factory (`func(t, collectors ...domain.CollectorID) port.XStore`), save each entity through `store.For(entity.CollectorID())`, and include an isolation test. Copy `TestPersonaRepositoryIsolation`: another collector cannot get by id, does not list, and a foreign save fails with `port.ErrTenantMismatch` and changes nothing. Run it from both the fake and the postgres test packages.
+5. **Use cases**: depend on `outbound.XStore` and take the collector id as an argument of `Execute` and call `u.xs.For(collectorID)`. Handlers get that id only from `httpx.Tenant`, never from the request body or other input.
+6. **Contract tests** (`internal/testutil/porttest`): take a store factory (`func(t, collectors ...domain.CollectorID) outbound.XStore`), save each entity through `store.For(entity.CollectorID())`, and include an isolation test. Copy `TestPersonaRepositoryIsolation`: another collector cannot get by id, does not list, and a foreign save fails with `outbound.ErrTenantMismatch` and changes nothing. Run it from both the fake and the postgres test packages.
 7. **Test doubles in use case tests**: a store stub with `For` returning a repository stub (see `failingStore` in `usecases/getpersona/usecase_test.go`).
 
 ## Known limits

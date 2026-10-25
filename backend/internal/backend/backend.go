@@ -20,7 +20,7 @@ import (
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getpersona"
@@ -30,22 +30,22 @@ import (
 const shutdownTimeout = 10 * time.Second
 
 // postgresRepositories returns one repository per resource on db, which is the pool or a transaction.
-// A new resource adds a field to port.Repositories and a line here.
-func postgresRepositories(db pgdb.DBTX) port.Repositories {
-	return port.Repositories{
+// A new resource adds a field to outbound.Repositories and a line here.
+func postgresRepositories(db pgdb.DBTX) outbound.Repositories {
+	return outbound.Repositories{
 		Collectors: pgcollector.NewRepository(db),
 		Personas:   pgpersona.NewStore(db),
 	}
 }
 
 // NewTransactor returns the Postgres transactor that use cases run their writes through.
-func NewTransactor(pool *pgxpool.Pool) port.Transactor {
+func NewTransactor(pool *pgxpool.Pool) outbound.Transactor {
 	return pgdb.NewTransactor(pool, postgresRepositories)
 }
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
 // Reads use repos directly, writes that span several repositories go through tx. ready backs /readyz.
-func wire(repos port.Repositories, tx port.Transactor, ready health.Pinger) (http.Handler, error) {
+func wire(repos outbound.Repositories, tx outbound.Transactor, ready health.Pinger) (http.Handler, error) {
 	return httpadapter.NewHandler(httpadapter.Deps{
 		CreateCollector: createcollector.New(tx, templates.New(), idgen.Random{}),
 		GetCollector:    getcollector.New(repos.Collectors),

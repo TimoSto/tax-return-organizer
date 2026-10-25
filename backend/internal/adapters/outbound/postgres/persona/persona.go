@@ -10,15 +10,15 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
 var (
-	_ port.PersonaStore      = (*Store)(nil)
-	_ port.PersonaRepository = (*Repository)(nil)
+	_ outbound.PersonaStore      = (*Store)(nil)
+	_ outbound.PersonaRepository = (*Repository)(nil)
 )
 
-// Store is the Postgres implementation of port.PersonaStore.
+// Store is the Postgres implementation of outbound.PersonaStore.
 type Store struct {
 	db pgdb.DBTX
 }
@@ -28,18 +28,18 @@ func NewStore(db pgdb.DBTX) *Store {
 	return &Store{db: db}
 }
 
-// For implements port.PersonaStore. The repository is a view on the same db, nothing is allocated per collector.
-func (s *Store) For(collectorID domain.CollectorID) port.PersonaRepository {
+// For implements outbound.PersonaStore. The repository is a view on the same db, nothing is allocated per collector.
+func (s *Store) For(collectorID domain.CollectorID) outbound.PersonaRepository {
 	return &Repository{db: s.db, collectorID: collectorID}
 }
 
-// Repository is the Postgres implementation of port.PersonaRepository for one collector.
+// Repository is the Postgres implementation of outbound.PersonaRepository for one collector.
 type Repository struct {
 	db          pgdb.DBTX
 	collectorID domain.CollectorID
 }
 
-// GetPersona implements port.PersonaRepository.
+// GetPersona implements outbound.PersonaRepository.
 // Persona and items are read in one statement, so a concurrent SavePersona can never show up half-applied.
 func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
@@ -66,7 +66,7 @@ func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*doma
 	return personas[0], nil
 }
 
-// ListPersonas implements port.PersonaRepository.
+// ListPersonas implements outbound.PersonaRepository.
 // Names sort bytewise (collation C), like the in-memory repository. An unknown collector yields an empty list, callers check the collector.
 func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
@@ -89,10 +89,10 @@ func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error
 	return personas, nil
 }
 
-// SavePersona implements port.PersonaRepository. Persona and items are written in one transaction.
+// SavePersona implements outbound.PersonaRepository. Persona and items are written in one transaction.
 func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) error {
 	if persona.CollectorID() != r.collectorID {
-		return fmt.Errorf("save persona %s: %w", persona.ID(), port.ErrTenantMismatch)
+		return fmt.Errorf("save persona %s: %w", persona.ID(), outbound.ErrTenantMismatch)
 	}
 
 	items := make([]itemRow, 0, len(persona.Items()))
@@ -288,7 +288,7 @@ func (r personaRow) toDomain(items []domain.ItemDefinition) (*domain.Persona, er
 	p, err := domain.RehydratePersona(
 		domain.PersonaID(r.ID), domain.CollectorID(r.CollectorID), r.Name, r.Description, items)
 	if err != nil {
-		return nil, port.CorruptData("persona "+r.ID.String(), err)
+		return nil, outbound.CorruptData("persona "+r.ID.String(), err)
 	}
 
 	return p, nil

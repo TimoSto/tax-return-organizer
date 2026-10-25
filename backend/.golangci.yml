@@ -44,6 +44,14 @@ linters:
             - unicode/utf8
             - net/mail
             - github.com/google/uuid
+        inbound-ports-allowlist:
+          # Strict: inbound ports describe what the core offers, in domain terms only.
+          list-mode: strict
+          files:
+            - "**/internal/core/port/inbound/**"
+          allow:
+            - context
+            - github.com/TimoSto/tax-return-organizer/backend/internal/core/domain
         core:
           files:
             - "**/internal/core/**"
@@ -56,6 +64,8 @@ linters:
           files:
             - "**/internal/adapters/inbound/**"
           deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases
+              desc: inbound adapters reach the core through core/port/inbound, not through a use case package
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound
               desc: adapters must not import each other, only the core
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/backend
@@ -124,7 +134,7 @@ linters:
           files:
             - "**/internal/adapters/inbound/**"
           deny:
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/port
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound
               desc: handlers talk to use cases, not to repositories
         http-collector-isolated:
           files:

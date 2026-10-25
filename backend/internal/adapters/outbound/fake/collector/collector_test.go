@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/porttest"
 )
 
 func TestCollectorRepository(t *testing.T) {
-	porttest.TestCollectorRepository(t, func(*testing.T) port.CollectorRepository {
+	porttest.TestCollectorRepository(t, func(*testing.T) outbound.CollectorRepository {
 		return collector.NewRepository()
 	})
 }

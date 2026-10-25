@@ -1,4 +1,4 @@
-package port
+package outbound
 
 import "github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 
