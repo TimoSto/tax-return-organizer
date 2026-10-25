@@ -115,7 +115,7 @@ The domain does not generate ids. `outbound.IDGenerator` creates the ids of new 
 
 ### Transactions
 
-`outbound.Transactor.InTx` runs a function with an `outbound.Repositories` that share one transaction, and commits only if the function returns nil. Simple reads use the repositories wired on the pool directly. Writes spanning several repositories go through the transactor. `postgresRepositories(db)` in `internal/backend` builds the same set on either the pool or a transaction.
+The use case owns the transaction, repositories never open one (the `pgdb.DBTX` interface has no `Begin`). `outbound.Transactor.InTx` runs a function with an `outbound.Repositories` that share one transaction and commits only if the function returns nil. A single repository call is atomic on its own: `SavePersona` writes the persona and its items as one pgx batch, which Postgres runs as one implicit transaction. A use case therefore needs `InTx` only when it writes through more than one call (`createcollector`: collector plus personas). Simple reads and single saves use the repositories wired on the pool directly. `postgresRepositories(db)` in `internal/backend` builds the same set on the pool and on a transaction, so the two cannot drift. `Repositories` lists every repository, so each new resource adds a field there and a line in that function; use cases take only the repositories they need from it.
 
 ### Repositories have two implementations and one test suite
 
