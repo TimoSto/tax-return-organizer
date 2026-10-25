@@ -55,7 +55,7 @@ Nothing is stored per tenant. There is one store per process, wired once on the 
 3. **Fake** (`internal/adapters/outbound/fake/<x>`): a `Store` owning the data and mutex; `For` returns a view that filters on the bound id.
 4. **Wiring**: add `X: pgx.NewStore(db)` to `postgresRepositories` in `internal/backend/backend.go`, and to the repository literal in `cmd/e2e/main.go`.
 5. **Use cases**: depend on `port.XStore` and call `u.xs.For(collectorID)` after `tenant.Require(ctx)`. Never pass a collector id from request input other than the one in the tenant context.
-6. **Contract tests** (`internal/core/port/porttest`): take a store factory (`func(t, collectors ...domain.CollectorID) port.XStore`), save each entity through `store.For(entity.CollectorID())`, and include an isolation test. Copy `TestPersonaRepositoryIsolation`: another collector cannot get by id, does not list, and a foreign save fails with `port.ErrTenantMismatch` and changes nothing. Run it from both the fake and the postgres test packages.
+6. **Contract tests** (`internal/testutil/porttest`): take a store factory (`func(t, collectors ...domain.CollectorID) port.XStore`), save each entity through `store.For(entity.CollectorID())`, and include an isolation test. Copy `TestPersonaRepositoryIsolation`: another collector cannot get by id, does not list, and a foreign save fails with `port.ErrTenantMismatch` and changes nothing. Run it from both the fake and the postgres test packages.
 7. **Test doubles in use case tests**: a store stub with `For` returning a repository stub (see `failingStore` in `usecases/getpersona/usecase_test.go`).
 
 ## Known limits

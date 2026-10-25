@@ -50,16 +50,16 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate`,
 | `core/domain` | Entities and their invariants (`Collector`, `Persona`, `ItemDefinition`, `Email`, ids), plus the `domain.Error` type with its kinds (invalid, not found, conflict) and the sentinel errors. Strict import allow-list (`domain-allowlist`). |
 | `core/personatemplate` | Predefined personas, the `Locale`/`Localized` types they are written in, and `Instantiate`, which copies a template into a collector-owned persona. See [Where `personatemplate` lives](#where-personatemplate-lives). |
 | `core/tenant` | Carries the collector a request acts for in the `context.Context`. |
-| `core/port` | Interfaces the core needs from the outside: repositories and stores, `Transactor`, id generators, `PersonaTemplateCatalog`. `port/porttest` holds contract tests shared by every repository implementation. |
+| `core/port` | Interfaces the core needs from the outside: repositories and stores, `Transactor`, id generators, `PersonaTemplateCatalog`. `testutil/porttest` holds contract tests shared by every repository implementation. |
 | `core/usecases/<name>` | One package per use case, `New(deps).Execute(...)`. Use cases do not import each other. |
 | `adapters/inbound/httpadapter` | Routes, middleware, and one subpackage per resource (`collector`, `persona`, `health`). `httpx` holds shared helpers (JSON, error to status mapping). |
-| `adapters/outbound/postgres/<resource>` | Repository implementations on pgx. `pgdb` abstracts pool vs. transaction, `migrations` are embedded SQL, `postgrestest` is a test helper. |
+| `adapters/outbound/postgres/<resource>` | Repository implementations on pgx. `pgdb` abstracts pool vs. transaction, `migrations` are embedded SQL. |
 | `adapters/outbound/fake/<resource>` | In-memory repositories and transactor for tests. |
 | `adapters/outbound/idgen` | Random id generation (`crypto/rand`), implements the `port` id generators. |
 | `adapters/outbound/templates` | The catalog content: the actual predefined personas (`port.PersonaTemplateCatalog`). |
 | `internal/backend` | Composition root: `wire()` builds use cases on repositories and returns the HTTP handler. `Run` migrates, connects, serves, shuts down gracefully. |
 | `cmd/docker`, `cmd/e2e` | Entrypoints. `docker` is production; `e2e` (build tag `e2e`) starts a throwaway Postgres and seeds a collector with id `aaaa`. |
-| `internal/testutil/pgtest`, `core/domaintest` | Test-only helpers (a Postgres testcontainer, domain builders). Must not be imported by production code. |
+| `internal/testutil/{pgtest,postgrestest,porttest,domaintest}` | Test-only helpers (a Postgres testcontainer and its migrated test pool, repository contract tests, domain builders). Must not be imported by production code. The fakes stay next to the real repositories in `adapters/outbound/fake`. |
 
 ## Request flow
 
@@ -79,7 +79,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate`,
 - Use cases must not import each other. Shared logic goes into the domain.
 - Inbound and outbound adapters must not import each other, and neither may import the composition root. Handlers may not import `port`: they talk to use cases, not repositories.
 - `fake` and `postgres` must not import each other. Each `httpadapter/<x>` and `postgres/<x>` resource package is isolated from its siblings by a `*-isolated` rule.
-- Fakes and test helpers (`fake`, `domaintest`, `porttest`, `postgrestest`, `testutil`) must not be imported from production code. Test files are exempt, so they can wire real adapters into the core.
+- Fakes and test helpers (`adapters/outbound/fake` and everything under `internal/testutil`) must not be imported from production code. Test files are exempt, so they can wire real adapters into the core.
 
 ## Design decisions and nuances
 
@@ -115,7 +115,7 @@ The domain does not generate ids. `port.CollectorIDGenerator`, `PersonaIDGenerat
 
 ### Repositories have two implementations and one test suite
 
-Every repository interface has a Postgres and a fake implementation. Both run the same contract tests from `port/porttest`, including the tenant isolation tests, so the fake used in use case tests cannot drift from the real behaviour. The Postgres tests start their own container with testcontainers, so Docker must be running.
+Every repository interface has a Postgres and a fake implementation. Both run the same contract tests from `testutil/porttest`, including the tenant isolation tests, so the fake used in use case tests cannot drift from the real behaviour. The Postgres tests start their own container with testcontainers, so Docker must be running.
 
 ### API contract and migrations
 

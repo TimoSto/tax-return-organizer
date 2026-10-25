@@ -12,8 +12,8 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
 const testCollectorID domain.CollectorID = "k7m2"

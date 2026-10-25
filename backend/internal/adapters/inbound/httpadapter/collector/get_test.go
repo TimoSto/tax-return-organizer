@@ -10,8 +10,8 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
 type getFunc func(context.Context) (*domain.Collector, error)
