@@ -66,6 +66,24 @@ func TestMiddleware_LogsRequest(t *testing.T) {
 	}
 }
 
+func TestMiddleware_ProbesAreNotLoggedAtInfo(t *testing.T) {
+	var logs bytes.Buffer
+
+	captureLogs(t, &logs)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc("GET /readyz", func(http.ResponseWriter, *http.Request) {})
+
+	for _, path := range []string{"/healthz", "/readyz"} {
+		httpadapter.Middleware(mux).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, path, nil))
+	}
+
+	if logs.Len() != 0 {
+		t.Errorf("probes were logged: %s", logs.String())
+	}
+}
+
 func TestMiddleware_LogsUnmatchedRoute(t *testing.T) {
 	var logs bytes.Buffer
 

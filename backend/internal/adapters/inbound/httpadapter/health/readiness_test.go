@@ -24,6 +24,7 @@ func TestReadiness(t *testing.T) {
 	}{
 		{"database reachable", nil, http.StatusOK, `{"status":"ok"}`},
 		{"database down", errors.New("connection refused"), http.StatusServiceUnavailable, `{"status":"unavailable"}`},
+		{"draining", health.ErrDraining, http.StatusServiceUnavailable, `{"status":"unavailable"}`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			route := health.Readiness(pinger(func(context.Context) error { return tc.ping }))

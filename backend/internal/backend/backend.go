@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 
@@ -70,12 +71,14 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	defer pool.Close()
 
-	handler, err := wire(postgresRepositories(pool), NewTransactor(pool), pool)
+	ready := &drainingPinger{inner: pool}
+
+	handler, err := wire(postgresRepositories(pool), NewTransactor(pool), ready)
 	if err != nil {
 		return fmt.Errorf("wire: %w", err)
 	}
 
-	return serve(ctx, newServer(cfg.HTTPAddr, handler))
+	return serve(ctx, newServer(cfg.HTTPAddr, handler), ready.startDraining, cfg.DrainDelay)
 }
 
 func newServer(addr string, handler http.Handler) *http.Server {
@@ -89,8 +92,16 @@ func newServer(addr string, handler http.Handler) *http.Server {
 	}
 }
 
-// serve runs srv until it fails or ctx is cancelled, then shuts it down gracefully.
-func serve(ctx context.Context, srv *http.Server) error {
+// serve runs srv until it fails or ctx is cancelled, then shuts it down gracefully: it calls drain, waits
+// drainDelay so the orchestrator notices, and only then stops accepting connections and waits for in-flight requests.
+func serve(ctx context.Context, srv *http.Server, drain func(), drainDelay time.Duration) error {
+	// Requests keep the values of ctx but are not cancelled by it, which would abort them during the drain.
+	// They are cancelled only when the graceful shutdown gives up.
+	baseCtx, cancelRequests := context.WithCancel(context.WithoutCancel(ctx))
+	defer cancelRequests()
+
+	srv.BaseContext = func(net.Listener) context.Context { return baseCtx }
+
 	serveErr := make(chan error, 1)
 	go func() {
 		slog.Info("listening", "addr", srv.Addr)
@@ -103,10 +114,21 @@ func serve(ctx context.Context, srv *http.Server) error {
 	case <-ctx.Done():
 	}
 
+	slog.InfoContext(ctx, "draining", "delay", drainDelay)
+	drain()
+
+	select {
+	case err := <-serveErr:
+		return fmt.Errorf("serve: %w", err)
+	case <-time.After(drainDelay):
+	}
+
 	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		cancelRequests()
+
 		return fmt.Errorf("shutdown: %w", err)
 	}
 
