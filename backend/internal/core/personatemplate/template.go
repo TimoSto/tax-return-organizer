@@ -8,12 +8,6 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
-// IDs creates the ids of the persona and items an Instantiate call makes.
-type IDs interface {
-	NewPersonaID() (domain.PersonaID, error)
-	NewItemID() (domain.ItemID, error)
-}
-
 // PersonaTemplate is a predefined persona that is copied to a collector, in the collector's locale.
 // The copy is a normal persona that the collector owns and may change, nothing links it back to the template.
 type PersonaTemplate struct {
@@ -37,11 +31,11 @@ type MetadataFieldTemplate struct {
 	ValueSpec domain.ValueSpec
 }
 
-// Instantiate creates a persona of the collector from the template, with all texts in locale l and ids from ids.
-func (t PersonaTemplate) Instantiate(ids IDs, collectorID domain.CollectorID, l Locale) (*domain.Persona, error) {
-	personaID, err := ids.NewPersonaID()
-	if err != nil {
-		return nil, err
+// Instantiate creates a persona of the collector from the template, with all texts in locale l.
+// It is pure: the caller supplies the persona id and one item id per item of the template, in order.
+func (t PersonaTemplate) Instantiate(collectorID domain.CollectorID, l Locale, personaID domain.PersonaID, itemIDs []domain.ItemID) (*domain.Persona, error) {
+	if len(itemIDs) != len(t.Items) {
+		return nil, fmt.Errorf("persona template %q has %d items, got %d item ids", t.Name.For(DefaultLocale), len(t.Items), len(itemIDs))
 	}
 
 	p, err := domain.NewPersona(personaID, collectorID, t.Name.For(l), t.Description.For(l))
@@ -49,18 +43,13 @@ func (t PersonaTemplate) Instantiate(ids IDs, collectorID domain.CollectorID, l 
 		return nil, err
 	}
 
-	for _, it := range t.Items {
+	for i, it := range t.Items {
 		spec, err := it.spec(l)
 		if err != nil {
 			return nil, fmt.Errorf("item %q: %w", it.Title.For(DefaultLocale), err)
 		}
 
-		itemID, err := ids.NewItemID()
-		if err != nil {
-			return nil, err
-		}
-
-		if _, err := p.AddItem(itemID, it.Title.For(l), it.Recurrence, spec); err != nil {
+		if _, err := p.AddItem(itemIDs[i], it.Title.For(l), it.Recurrence, spec); err != nil {
 			return nil, err
 		}
 	}

@@ -23,13 +23,12 @@ flowchart TB
         usecases --> outbound
         usecases --> pt
         inbound --> domain
-        outbound --> pt
         outbound --> domain
         pt --> domain
     end
 
     subgraph OUT["Outbound adapters"]
-        out["adapters/outbound/<br/>postgres, fake, idgen, templates"]
+        out["adapters/outbound/<br/>postgres, fake, idgen"]
     end
 
     root["Composition root: internal/backend + cmd/*"]
@@ -41,22 +40,21 @@ flowchart TB
     root -.->|wires| out
 ```
 
-Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` ← `port/outbound` ← `usecases`, and `domain` ← `port/inbound` ← `usecases`. Adapters depend on the core, never on each other, and the core never depends on adapters.
+Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` ← `usecases`, `domain` ← `port/outbound` ← `usecases`, and `domain` ← `port/inbound` ← `usecases`. Adapters depend on the core, never on each other, and the core never depends on adapters.
 
 ## Package map
 
 | Package | Role |
 | --- | --- |
 | `core/domain` | Entities and their invariants (`Collector`, `Persona`, `ItemDefinition`, `Email`, ids), plus the `domain.Error` type with its kinds (invalid, not found, conflict) and the sentinel errors. Strict import allow-list (`domain-allowlist`). |
-| `core/personatemplate` | Predefined personas, the `Locale`/`Localized` types they are written in, and `Instantiate`, which copies a template into a collector-owned persona. See [Where `personatemplate` lives](#where-personatemplate-lives). |
+| `core/personatemplate` | Predefined personas, the `Locale`/`Localized` types they are written in, the built-in content (`Predefined`), and `Instantiate`, which copies a template into a collector-owned persona. See [Where `personatemplate` lives](#where-personatemplate-lives). |
 | `core/port/inbound` | What the core offers: one interface per use case (`CreateCollector`, `GetPersona`, ...) plus their input types (`CreateCollectorCommand`). Inbound adapters depend on these only. Allow-listed to `domain` (`inbound-ports-allowlist`). |
-| `core/port/outbound` | What the core needs from the outside: repositories and stores, `Transactor`, id generators, `PersonaTemplateCatalog`. `testutil/porttest` holds contract tests shared by every repository implementation. |
+| `core/port/outbound` | What the core needs from the outside: repositories and stores, `Transactor`, id generators. `testutil/porttest` holds contract tests shared by every repository implementation. |
 | `core/usecases/<name>` | One package per use case, `New(deps).Execute(...)`. Use cases do not import each other. |
 | `adapters/inbound/httpadapter` | Routes, middleware, and one subpackage per resource (`collector`, `persona`, `health`). `httpx` holds shared helpers (JSON, error to status mapping). |
 | `adapters/outbound/postgres/<resource>` | Repository implementations on pgx. `pgdb` abstracts pool vs. transaction, `migrations` are embedded SQL. |
 | `adapters/outbound/fake/<resource>` | In-memory repositories and transactor for tests. |
 | `adapters/outbound/idgen` | Random id generation (`crypto/rand`), implements the `outbound` id generators. |
-| `adapters/outbound/templates` | The catalog content: the actual predefined personas (`outbound.PersonaTemplateCatalog`). |
 | `internal/backend` | Composition root: `wire()` builds use cases on repositories and returns the HTTP handler. `Run` migrates, connects, serves, shuts down gracefully. |
 | `cmd/docker`, `cmd/e2e` | Entrypoints. `docker` is production; `e2e` (build tag `e2e`) starts a throwaway Postgres and seeds a collector with id `aaaa`. |
 | `internal/testutil/{pgtest,postgrestest,porttest,domaintest}` | Test-only helpers (a Postgres testcontainer and its migrated test pool, repository contract tests, domain builders). Must not be imported by production code. The fakes stay next to the real repositories in `adapters/outbound/fake`. |
@@ -87,10 +85,10 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 
 `personatemplate` is a separate package inside the core. It is neither part of `domain` nor an adapter.
 
-- **Not in `domain`.** The domain holds aggregates and their invariants and is kept minimal on purpose (strict import allow-list, no id generation, no infrastructure concerns). Templates are seed content plus a copy operation. They need `Locale`/`Localized`, `ErrInvalidLocale` and an id-generating interface, and these are exactly the things that were moved out of the domain on purpose. Nothing in the domain depends on templates: an instantiated persona is a normal persona and nothing links it back to its template.
-- **Not an adapter.** `Instantiate` is business behaviour. It builds personas through the domain constructors (`NewPersona`, `AddItem`) and so enforces the domain rules. `outbound.PersonaTemplateCatalog` returns `personatemplate` types, so `port/outbound` has to be able to import the package, which means it must be inside the core.
-- **Only the content is infrastructure.** The actual list of predefined personas lives in the adapter `adapters/outbound/templates`, behind the `PersonaTemplateCatalog` port.
-- **Its own small `IDs` interface is intentional.** It repeats the persona and item parts of `outbound.IDGenerator`. Importing `port/outbound` from `personatemplate` would invert the layering (`personatemplate` sits below `port/outbound`), so the local interface stays.
+- **Not in `domain`.** The domain holds aggregates and their invariants and is kept minimal on purpose (strict import allow-list, no id generation, no infrastructure concerns). Templates are seed content plus a copy operation. They need `Locale`/`Localized` and `ErrInvalidLocale`, and these are exactly the things that were moved out of the domain on purpose. Nothing in the domain depends on templates: an instantiated persona is a normal persona and nothing links it back to its template.
+- **Not an adapter.** `Instantiate` is business behaviour. It builds personas through the domain constructors (`NewPersona`, `AddItem`) and so enforces the domain rules. It is domain behaviour, so it has to be inside the core.
+- **The content is code, not infrastructure.** The list of predefined personas is static business knowledge. It lives in `personatemplate.Predefined()`, with no port or adapter. `createcollector.New` takes the templates as plain data, so tests can pass their own.
+- **`Instantiate` is pure.** It takes the persona id and the item ids from the caller (`createcollector` draws them through `outbound.IDGenerator`), so `personatemplate` needs no id interface and does no I/O-flavoured work.
 - **Possible later extraction.** `Locale`, `Localized` and `ParseLocale` are not template specific (`createcollector` parses the request locale with them). If locales get more uses, move them to a small `core/locale` package.
 
 ### Tenant-scoped stores
