@@ -12,6 +12,8 @@ var (
 	ErrCollectorIDTaken = conflict("collector_id_taken", "collector id already taken")
 	// ErrNameRequired is returned for a blank collector name.
 	ErrNameRequired = invalid("collector_name_required", "collector name is required")
+	// ErrNameTooLong is returned for a collector name longer than MaxCollectorNameLength.
+	ErrNameTooLong = invalid("collector_name_too_long", "collector name is too long")
 )
 
 // Collector is a person who collects documents for a tax return.
@@ -35,10 +37,19 @@ func NewCollector(id CollectorID, name, email string) (*Collector, error) {
 // RehydrateCollector rebuilds a collector that was stored earlier, e.g. when a repository loads it. It applies the
 // same rules as NewCollector, so corrupt stored data is reported instead of becoming an invalid collector.
 func RehydrateCollector(id CollectorID, name string, email Email) (*Collector, error) {
+	id, err := ParseCollectorID(string(id))
+	if err != nil {
+		return nil, err
+	}
+
 	name = strings.TrimSpace(name)
 
 	if name == "" {
 		return nil, ErrNameRequired
+	}
+
+	if tooLong(name, MaxCollectorNameLength) {
+		return nil, ErrNameTooLong
 	}
 
 	addr, err := ParseEmail(string(email))

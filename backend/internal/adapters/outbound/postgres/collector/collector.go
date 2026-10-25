@@ -79,7 +79,7 @@ func newCollectorRow(c *domain.Collector) collectorRow {
 func (r collectorRow) toDomain() (*domain.Collector, error) {
 	c, err := domain.RehydrateCollector(domain.CollectorID(r.ID), r.Name, domain.Email(r.Email))
 	if err != nil {
-		return nil, fmt.Errorf("stored collector %s: %w", r.ID, err)
+		return nil, port.CorruptData("collector "+r.ID, err)
 	}
 
 	return c, nil
