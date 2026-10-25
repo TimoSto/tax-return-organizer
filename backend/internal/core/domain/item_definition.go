@@ -8,15 +8,15 @@ import (
 
 var (
 	// ErrItemTitleRequired is returned for a blank item title.
-	ErrItemTitleRequired = invalid("item_title_required", "item title is required")
+	ErrItemTitleRequired = invalid("item title is required")
 	// ErrItemTitleTooLong is returned for an item title longer than MaxItemTitleLength.
-	ErrItemTitleTooLong = invalid("item_title_too_long", "item title is too long")
+	ErrItemTitleTooLong = invalid("item title is too long")
 	// ErrInvalidRecurrence is returned for a recurrence that is not one of the known ones.
-	ErrInvalidRecurrence = invalid("invalid_recurrence", "invalid recurrence")
+	ErrInvalidRecurrence = invalid("invalid recurrence")
 	// ErrSpecRequired is returned for an item without a spec.
-	ErrSpecRequired = invalid("item_spec_required", "item spec is required")
+	ErrSpecRequired = invalid("item spec is required")
 	// ErrSpecMismatch is returned when an update gives an item a spec of another kind.
-	ErrSpecMismatch = invalid("item_spec_mismatch", "spec does not match item kind")
+	ErrSpecMismatch = invalid("spec does not match item kind")
 )
 
 // Kind tells whether an item is satisfied by uploaded documents or by an entered value.

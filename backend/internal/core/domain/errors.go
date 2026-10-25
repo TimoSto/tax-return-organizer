@@ -1,5 +1,7 @@
 package domain
 
+import "sync"
+
 // ErrorKind classifies a domain error so adapters can map it without knowing every sentinel.
 type ErrorKind int
 
@@ -12,23 +14,43 @@ const (
 	ErrorConflict
 )
 
-// Error is a domain error with a client-safe message, a stable machine-readable code and an ErrorKind.
-// The code is part of the API contract: clients switch on it (and translate it), so never change one.
+// Error is a domain error: a business rule that was violated, with a client-safe English message and an ErrorKind.
+// How a client is told about it (status, stable code) is up to the inbound adapter, which maps the sentinels.
 // Sentinels are *Error values, so errors.Is matches by identity.
 type Error struct {
 	Kind ErrorKind
-	// Code is a stable snake_case identifier such as "collector_not_found".
-	Code string
 	msg  string
 }
 
 func (e *Error) Error() string { return e.msg }
 
-// NewError returns a classified error for a sentinel that is declared outside the domain package.
-func NewError(kind ErrorKind, code, msg string) *Error {
-	return &Error{Kind: kind, Code: code, msg: msg}
+var (
+	registryMu sync.Mutex
+	registry   []*Error
+)
+
+// NewError returns a classified error for a sentinel. Declare sentinels as package level variables; this is also
+// how sentinels outside the domain package are made. Every error made here is listed by Errors.
+func NewError(kind ErrorKind, msg string) *Error {
+	e := &Error{Kind: kind, msg: msg}
+
+	registryMu.Lock()
+	defer registryMu.Unlock()
+
+	registry = append(registry, e)
+
+	return e
 }
 
-func invalid(code, msg string) *Error  { return NewError(ErrorInvalid, code, msg) }
-func notFound(code, msg string) *Error { return NewError(ErrorNotFound, code, msg) }
-func conflict(code, msg string) *Error { return NewError(ErrorConflict, code, msg) }
+// Errors returns all errors made with NewError so far, i.e. all sentinels of the packages loaded. It exists so that
+// adapters can test that they handle every sentinel; production code has no use for it.
+func Errors() []*Error {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+
+	return append([]*Error(nil), registry...)
+}
+
+func invalid(msg string) *Error  { return NewError(ErrorInvalid, msg) }
+func notFound(msg string) *Error { return NewError(ErrorNotFound, msg) }
+func conflict(msg string) *Error { return NewError(ErrorConflict, msg) }

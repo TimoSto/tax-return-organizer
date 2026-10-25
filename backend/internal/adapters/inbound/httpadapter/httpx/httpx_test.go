@@ -191,27 +191,52 @@ func TestWriteError_ProblemShape(t *testing.T) {
 	}
 }
 
-func TestDomainErrorCodes_AreUniqueSnakeCase(t *testing.T) {
-	seen := map[string]error{}
+// Every domain error must reach the client with its own, unique snake_case code and a 4xx status.
+func TestWriteError_EveryDomainErrorHasACode(t *testing.T) {
+	snake := regexp.MustCompile(`^[a-z]+(_[a-z]+)*$`)
+	seen := map[string]*domain.Error{}
 
-	for _, err := range []*domain.Error{
-		domain.ErrNameRequired, domain.ErrInvalidEmail, domain.ErrInvalidCollectorID, domain.ErrInvalidPersonaID,
-		domain.ErrPersonaNameRequired, domain.ErrItemTitleRequired, domain.ErrInvalidRecurrence, domain.ErrSpecRequired,
-		domain.ErrSpecMismatch, domain.ErrInvalidValueType, domain.ErrMetadataFieldNameRequired,
-		domain.ErrDuplicateMetadataField, domain.ErrNameTooLong, domain.ErrPersonaNameTooLong,
-		domain.ErrPersonaDescriptionTooLong, domain.ErrTooManyItems, domain.ErrItemTitleTooLong,
-		domain.ErrMetadataFieldNameTooLong, domain.ErrTooManyMetadataFields, domain.ErrUnitTooLong, domain.ErrItemIDTaken, domain.ErrCollectorIDTaken,
-		domain.ErrCollectorNotFound, domain.ErrPersonaNotFound, domain.ErrItemNotFound, personatemplate.ErrInvalidLocale,
-	} {
-		if !regexp.MustCompile(`^[a-z]+(_[a-z]+)*$`).MatchString(err.Code) {
-			t.Errorf("%v: code %q is not snake_case", err, err.Code)
+	for _, de := range domain.Errors() {
+		rec := httptest.NewRecorder()
+
+		httpx.WriteError(rec, httptest.NewRequest(http.MethodGet, "/", nil), de)
+
+		var p httpx.Problem
+		if err := json.NewDecoder(rec.Body).Decode(&p); err != nil {
+			t.Fatal(err)
 		}
 
-		if prev, dup := seen[err.Code]; dup {
-			t.Errorf("code %q used by %v and %v", err.Code, prev, err)
+		if rec.Code >= 500 || p.Code == httpx.CodeInternal {
+			t.Errorf("%v: status %d, code %q: no problem code in httpx/problemcodes.go?", de, rec.Code, p.Code)
+
+			continue
 		}
 
-		seen[err.Code] = err
+		if !snake.MatchString(p.Code) {
+			t.Errorf("%v: code %q is not snake_case", de, p.Code)
+		}
+
+		if prev, dup := seen[p.Code]; dup {
+			t.Errorf("code %q used by %v and %v", p.Code, prev, de)
+		}
+
+		seen[p.Code] = de
+	}
+}
+
+func TestWriteError_DomainErrorWithoutCodeIs500(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	httpx.WriteError(rec, httptest.NewRequest(http.MethodGet, "/", nil), &domain.Error{Kind: domain.ErrorInvalid})
+
+	var p httpx.Problem
+	if err := json.NewDecoder(rec.Body).Decode(&p); err != nil {
+		t.Fatal(err)
+	}
+
+	// The error is built by hand, not with NewError, so it is not in the registry the other tests iterate.
+	if rec.Code != http.StatusInternalServerError || p.Code != httpx.CodeInternal || p.Detail != "internal error" {
+		t.Errorf("got %d %+v, want a generic 500", rec.Code, p)
 	}
 }
 
