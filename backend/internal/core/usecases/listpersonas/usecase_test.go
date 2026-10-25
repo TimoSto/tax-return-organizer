@@ -63,7 +63,7 @@ func TestExecute_Success(t *testing.T) {
 		}
 	}
 
-	got, err := listpersonas.New(collectors, store).Execute(tenant.WithCollector(ctx, "k7m2"))
+	got, err := listpersonas.New(collectors, store).Execute(tenant.With(ctx, "k7m2"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_UnknownCollector(t *testing.T) {
-	got, err := listpersonas.New(fakecollector.NewRepository(), fakepersona.NewStore()).Execute(tenant.WithCollector(context.Background(), "k7m2"))
+	got, err := listpersonas.New(fakecollector.NewRepository(), fakepersona.NewStore()).Execute(tenant.With(context.Background(), "k7m2"))
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
@@ -87,7 +87,7 @@ func TestExecute_UnknownCollector(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := listpersonas.New(seededCollectors(t), failingStore{err: boom}).Execute(tenant.WithCollector(context.Background(), "k7m2"))
+	_, err := listpersonas.New(seededCollectors(t), failingStore{err: boom}).Execute(tenant.With(context.Background(), "k7m2"))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want wrapped %v", err, boom)
 	}

@@ -24,7 +24,7 @@ func New(collectors port.CollectorRepository, personas port.PersonaStore) *Useca
 // Execute retrieves all personas of the collector the context acts for.
 // It returns domain.ErrCollectorNotFound if that collector does not exist.
 func (u *Usecase) Execute(ctx context.Context) ([]*domain.Persona, error) {
-	collectorID, err := tenant.RequireCollectorFrom(ctx)
+	collectorID, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list personas: %w", err)
 	}

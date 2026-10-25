@@ -30,7 +30,7 @@ func doGet(t *testing.T, get getFunc, method, id string) *httptest.ResponseRecor
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors/"+testCollectorID.String()+"/personas/"+id, nil)
-	req = req.WithContext(tenant.WithCollector(req.Context(), testCollectorID))
+	req = req.WithContext(tenant.With(req.Context(), testCollectorID))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := persona.Get(get)

@@ -29,7 +29,7 @@ type Route struct {
 	Pattern string
 	Handler http.Handler
 	// Tenant marks routes that act for a collector: the adapter puts it into the request context
-	// (see tenant.WithCollector) before the handler runs.
+	// (see tenant.With) before the handler runs.
 	Tenant bool
 }
 

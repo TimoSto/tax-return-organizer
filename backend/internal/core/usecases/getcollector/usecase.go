@@ -22,7 +22,7 @@ func New(repo port.CollectorRepository) *Usecase {
 
 // Execute retrieves the collector the context acts for.
 func (u *Usecase) Execute(ctx context.Context) (*domain.Collector, error) {
-	id, err := tenant.RequireCollectorFrom(ctx)
+	id, err := tenant.Require(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get collector: %w", err)
 	}

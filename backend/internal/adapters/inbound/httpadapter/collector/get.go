@@ -14,7 +14,7 @@ type getResponse struct {
 	Email string `json:"email"`
 }
 
-// Getter retrieves the collector the request acts for (see tenant.WithCollector).
+// Getter retrieves the collector the request acts for (see tenant.With).
 type Getter interface {
 	Execute(ctx context.Context) (*domain.Collector, error)
 }
