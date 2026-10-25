@@ -13,17 +13,23 @@ import (
 )
 
 func main() {
-	logging.Setup(os.Stderr, slog.LevelInfo)
+	cfg := backend.ConfigFromEnv(os.Getenv)
+	logging.Setup(os.Stderr, cfg.LogLevel)
 
-	if err := run(); err != nil {
+	if err := run(cfg, os.Args[1:]); err != nil {
 		slog.Error("backend stopped", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+// run starts the server, or only applies the migrations when called with the `migrate` argument.
+func run(cfg backend.Config, args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	return backend.Run(ctx, backend.ConfigFromEnv(os.Getenv))
+	if len(args) > 0 && args[0] == "migrate" {
+		return backend.Migrate(ctx, cfg)
+	}
+
+	return backend.Run(ctx, cfg)
 }
