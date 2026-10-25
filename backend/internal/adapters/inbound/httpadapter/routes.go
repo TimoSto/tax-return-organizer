@@ -81,7 +81,7 @@ func tenantFromPath(r httpx.Route) http.Handler {
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		id, ok := httpx.ParsePathID(w, req, collectorIDParam, domain.ParseCollectorID, "collector id")
+		id, ok := httpx.ParsePathID(w, req, collectorIDParam, domain.ParseCollectorID)
 		if !ok {
 			return
 		}

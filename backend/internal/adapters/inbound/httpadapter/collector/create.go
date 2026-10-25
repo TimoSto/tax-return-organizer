@@ -3,7 +3,6 @@ package collector
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
@@ -34,12 +33,7 @@ func Create(creator Creator) httpx.Route {
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req createRequest
 
-			dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, httpx.MaxBodyBytes))
-			dec.DisallowUnknownFields()
-
-			if err := dec.Decode(&req); err != nil {
-				httpx.WriteJSON(w, http.StatusBadRequest, httpx.ErrorResponse{Error: "invalid request body"})
-
+			if !httpx.DecodeJSON(w, r, &req) {
 				return
 			}
 

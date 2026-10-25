@@ -8,13 +8,13 @@ import (
 
 var (
 	// ErrPersonaNameRequired is returned for a blank persona name.
-	ErrPersonaNameRequired = invalid("persona name is required")
+	ErrPersonaNameRequired = invalid("persona_name_required", "persona name is required")
 	// ErrPersonaNotFound is returned when a collector has no persona with the requested id.
-	ErrPersonaNotFound = notFound("persona not found")
+	ErrPersonaNotFound = notFound("persona_not_found", "persona not found")
 	// ErrItemNotFound is returned when a persona has no item definition with the requested id.
-	ErrItemNotFound = notFound("item definition not found")
+	ErrItemNotFound = notFound("item_not_found", "item definition not found")
 	// ErrItemIDTaken is returned when an item definition id is already used by another persona.
-	ErrItemIDTaken = conflict("item definition id already taken")
+	ErrItemIDTaken = conflict("item_id_taken", "item definition id already taken")
 )
 
 // Persona groups the items a client has to provide if they do something tax relevant, e.g. "Employed".
