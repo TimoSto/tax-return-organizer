@@ -10,6 +10,7 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 )
 
 func TestWriteError_Status(t *testing.T) {
@@ -28,7 +29,7 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrMetadataFieldNameRequired, http.StatusBadRequest},
 		{domain.ErrDuplicateMetadataField, http.StatusBadRequest},
 		{domain.ErrItemIDTaken, http.StatusConflict},
-		{domain.ErrInvalidLocale, http.StatusBadRequest},
+		{personatemplate.ErrInvalidLocale, http.StatusBadRequest},
 		{domain.ErrCollectorIDTaken, http.StatusConflict},
 		{fmt.Errorf("wrapped: %w", domain.ErrSpecMismatch), http.StatusBadRequest},
 		{domain.ErrCollectorNotFound, http.StatusNotFound},

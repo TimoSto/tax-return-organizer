@@ -21,9 +21,9 @@ type Error struct {
 
 func (e *Error) Error() string { return e.msg }
 
-func invalid(msg string) *Error  { return &Error{Kind: ErrorInvalid, msg: msg} }
-func notFound(msg string) *Error { return &Error{Kind: ErrorNotFound, msg: msg} }
-func conflict(msg string) *Error { return &Error{Kind: ErrorConflict, msg: msg} }
+// NewError returns a classified error for a sentinel that is declared outside the domain package.
+func NewError(kind ErrorKind, msg string) *Error { return &Error{Kind: kind, msg: msg} }
 
-// ErrInvalidLocale is returned for a locale that is not one of the known ones.
-var ErrInvalidLocale = invalid("invalid locale")
+func invalid(msg string) *Error  { return NewError(ErrorInvalid, msg) }
+func notFound(msg string) *Error { return NewError(ErrorNotFound, msg) }
+func conflict(msg string) *Error { return NewError(ErrorConflict, msg) }

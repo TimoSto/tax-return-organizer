@@ -43,8 +43,6 @@ linters:
             - unicode
             - unicode/utf8
             - net/mail
-            # TODO: drop crypto/rand once id generation moves out of the domain.
-            - crypto/rand
             - github.com/google/uuid
         core:
           files:

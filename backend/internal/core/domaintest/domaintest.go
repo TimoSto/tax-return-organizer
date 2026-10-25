@@ -5,6 +5,7 @@ package domaintest
 import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/uuid"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
@@ -43,22 +44,12 @@ func Persona(
 
 // PersonaID returns a random persona id.
 func PersonaID() domain.PersonaID {
-	id, err := domain.RandomIDs{}.NewPersonaID()
-	if err != nil {
-		panic(err)
-	}
-
-	return id
+	return domain.PersonaID(uuid.New())
 }
 
 // ItemID returns a random item id.
 func ItemID() domain.ItemID {
-	id, err := domain.RandomIDs{}.NewItemID()
-	if err != nil {
-		panic(err)
-	}
-
-	return id
+	return domain.ItemID(uuid.New())
 }
 
 // CmpOptions makes go-cmp compare entities, which have no exported fields, by their contents. A nil and an empty
