@@ -15,13 +15,16 @@ flowchart TB
     subgraph CORE["internal/core"]
         direction TB
         usecases["usecases (one package per use case)"]
-        port["port"]
+        inbound["port/inbound"]
+        outbound["port/outbound"]
         pt["personatemplate"]
         domain["domain"]
-        usecases --> port
+        usecases --> inbound
+        usecases --> outbound
         usecases --> pt
-        port --> pt
-        port --> domain
+        inbound --> domain
+        outbound --> pt
+        outbound --> domain
         pt --> domain
     end
 
@@ -31,13 +34,14 @@ flowchart TB
 
     root["Composition root: internal/backend + cmd/*"]
 
-    http -->|calls| usecases
-    out -.->|implements| port
+    http -->|uses| inbound
+    usecases -.->|implement| inbound
+    out -.->|implement| outbound
     root -.->|wires| http
     root -.->|wires| out
 ```
 
-Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` ← `port` ← `usecases`. Adapters depend on the core, never on each other, and the core never depends on adapters.
+Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` ← `port/outbound` ← `usecases`, and `domain` ← `port/inbound` ← `usecases`. Adapters depend on the core, never on each other, and the core never depends on adapters.
 
 ## Package map
 
@@ -45,13 +49,14 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 | --- | --- |
 | `core/domain` | Entities and their invariants (`Collector`, `Persona`, `ItemDefinition`, `Email`, ids), plus the `domain.Error` type with its kinds (invalid, not found, conflict) and the sentinel errors. Strict import allow-list (`domain-allowlist`). |
 | `core/personatemplate` | Predefined personas, the `Locale`/`Localized` types they are written in, and `Instantiate`, which copies a template into a collector-owned persona. See [Where `personatemplate` lives](#where-personatemplate-lives). |
-| `core/port` | Interfaces the core needs from the outside: repositories and stores, `Transactor`, id generators, `PersonaTemplateCatalog`. `testutil/porttest` holds contract tests shared by every repository implementation. |
+| `core/port/inbound` | What the core offers: one interface per use case (`CreateCollector`, `GetPersona`, ...) plus their input types (`CreateCollectorCommand`). Inbound adapters depend on these only. Allow-listed to `domain` (`inbound-ports-allowlist`). |
+| `core/port/outbound` | What the core needs from the outside: repositories and stores, `Transactor`, id generators, `PersonaTemplateCatalog`. `testutil/porttest` holds contract tests shared by every repository implementation. |
 | `core/usecases/<name>` | One package per use case, `New(deps).Execute(...)`. Use cases do not import each other. |
 | `adapters/inbound/httpadapter` | Routes, middleware, and one subpackage per resource (`collector`, `persona`, `health`). `httpx` holds shared helpers (JSON, error to status mapping). |
 | `adapters/outbound/postgres/<resource>` | Repository implementations on pgx. `pgdb` abstracts pool vs. transaction, `migrations` are embedded SQL. |
 | `adapters/outbound/fake/<resource>` | In-memory repositories and transactor for tests. |
-| `adapters/outbound/idgen` | Random id generation (`crypto/rand`), implements the `port` id generators. |
-| `adapters/outbound/templates` | The catalog content: the actual predefined personas (`port.PersonaTemplateCatalog`). |
+| `adapters/outbound/idgen` | Random id generation (`crypto/rand`), implements the `outbound` id generators. |
+| `adapters/outbound/templates` | The catalog content: the actual predefined personas (`outbound.PersonaTemplateCatalog`). |
 | `internal/backend` | Composition root: `wire()` builds use cases on repositories and returns the HTTP handler. `Run` migrates, connects, serves, shuts down gracefully. |
 | `cmd/docker`, `cmd/e2e` | Entrypoints. `docker` is production; `e2e` (build tag `e2e`) starts a throwaway Postgres and seeds a collector with id `aaaa`. |
 | `internal/testutil/{pgtest,postgrestest,porttest,domaintest}` | Test-only helpers (a Postgres testcontainer and its migrated test pool, repository contract tests, domain builders). Must not be imported by production code. The fakes stay next to the real repositories in `adapters/outbound/fake`. |
@@ -59,7 +64,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 ## Request flow
 
 1. A handler in `httpadapter/<resource>` decodes the request and resolves the collector it acts for with `httpx.Tenant` (today from the URL, later from the authenticated principal).
-2. The handler calls a use case through a small interface it declares itself (for example `collector.Creator`), passing the collector id as an explicit argument.
+2. The handler calls a use case through its inbound port (for example `inbound.GetPersona`), passing the collector id as an explicit argument.
 3. The use case asks the store for a repository bound to it (`personas.For(collectorID)`), and works with domain entities. Writes that span several repositories run inside `Transactor.InTx`.
 4. The Postgres repository executes the query, always filtered by the bound collector.
 5. Errors travel back up as values. `httpx` maps `domain.Error` kinds to status codes (invalid → 400, not found → 404, conflict → 409). Anything else is logged and becomes a generic 500, so internal details never reach the client.
@@ -67,12 +72,12 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 
 ## How the layering is enforced
 
-`.golangci.yml` (depguard) encodes these rules, and Go's import cycles cover the opposite directions (for example `port` cannot import `usecases`):
+`.golangci.yml` (depguard) encodes these rules, and Go's import cycles cover the opposite directions (for example `port/outbound` cannot import `usecases`):
 
 - `domain` may import only an explicit allow-list. A new import needs a deliberate edit.
 - The core must not import adapters, `internal/backend`, `net/http`, `database/sql`, pgx, the migration tool, testcontainers or the logging package. It returns errors and does not log.
 - Use cases must not import each other. Shared logic goes into the domain.
-- Inbound and outbound adapters must not import each other, and neither may import the composition root. Handlers may not import `port`: they talk to use cases, not repositories.
+- Inbound and outbound adapters must not import each other, and neither may import the composition root. Handlers may not import `port/outbound` or any `usecases` package: they talk to the use cases through `port/inbound`, not to repositories.
 - `fake` and `postgres` must not import each other. Each `httpadapter/<x>` and `postgres/<x>` resource package is isolated from its siblings by a `*-isolated` rule.
 - Fakes and test helpers (`adapters/outbound/fake` and everything under `internal/testutil`) must not be imported from production code. Test files are exempt, so they can wire real adapters into the core.
 
@@ -83,18 +88,20 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 `personatemplate` is a separate package inside the core. It is neither part of `domain` nor an adapter.
 
 - **Not in `domain`.** The domain holds aggregates and their invariants and is kept minimal on purpose (strict import allow-list, no id generation, no infrastructure concerns). Templates are seed content plus a copy operation. They need `Locale`/`Localized`, `ErrInvalidLocale` and an id-generating interface, and these are exactly the things that were moved out of the domain on purpose. Nothing in the domain depends on templates: an instantiated persona is a normal persona and nothing links it back to its template.
-- **Not an adapter.** `Instantiate` is business behaviour. It builds personas through the domain constructors (`NewPersona`, `AddItem`) and so enforces the domain rules. `port.PersonaTemplateCatalog` returns `personatemplate` types, so `port` has to be able to import the package, which means it must be inside the core.
+- **Not an adapter.** `Instantiate` is business behaviour. It builds personas through the domain constructors (`NewPersona`, `AddItem`) and so enforces the domain rules. `outbound.PersonaTemplateCatalog` returns `personatemplate` types, so `port/outbound` has to be able to import the package, which means it must be inside the core.
 - **Only the content is infrastructure.** The actual list of predefined personas lives in the adapter `adapters/outbound/templates`, behind the `PersonaTemplateCatalog` port.
-- **Its own small `IDs` interface is intentional.** It repeats the persona and item parts of the `port` id generators. Importing `port` from `personatemplate` would invert the layering (`personatemplate` sits below `port`), so the local interface stays.
+- **Its own small `IDs` interface is intentional.** It repeats the persona and item parts of the `outbound` id generators. Importing `port/outbound` from `personatemplate` would invert the layering (`personatemplate` sits below `port/outbound`), so the local interface stays.
 - **Possible later extraction.** `Locale`, `Localized` and `ParseLocale` are not template specific (`createcollector` parses the request locale with them). If locales get more uses, move them to a small `core/locale` package.
 
 ### Tenant-scoped stores
 
 A *collector* is the tenant. Everything a collector owns is exposed as a `...Store` whose `For(collectorID)` returns a repository bound to that collector, so repository methods never take a collector id and cannot reach another tenant's rows. Only `CollectorRepository`, the tenant root, is unscoped. The full rules, the cost and the checklist for a new resource are in [tenant-scoped-stores.md](tenant-scoped-stores.md).
 
-### No inbound port types
+### Inbound and outbound ports
 
-There are no inbound port interfaces in `core/port`. Each `httpadapter` resource package declares the small interface it needs from a use case (`collector.Creator`, `persona.Getter`, ...), and `backend.wire` assigns the use cases to them through `httpadapter.Deps`. `Deps` is validated at startup, so a missing wiring fails when the service starts and not on the first request.
+Both kinds of ports live in the core, under `core/port`: `outbound` holds what the core needs (repositories, transactor, id generators), `inbound` holds what it offers. Each use case has one interface in `core/port/inbound` and asserts that it implements it (`var _ inbound.GetPersona = (*Usecase)(nil)`). `httpadapter` handlers and `httpadapter.Deps` use these interfaces and never import a `usecases` package (enforced by depguard). The input of a use case with more than a few arguments is a type next to the interface (`inbound.CreateCollectorCommand`). `backend.wire` assigns the use cases to `Deps`. `Deps` is validated at startup, so a missing wiring fails when the service starts and not on the first request.
+
+Use cases still return domain entities to the adapter. If a read ever needs a projection (counts, joins), add a result type to the inbound port instead of loading whole aggregates.
 
 ### Small, pass-through use cases are kept on purpose
 
@@ -102,11 +109,11 @@ Some use cases (`getcollector`, `getpersona`) do little more than call a reposit
 
 ### Ids are created outside the domain
 
-The domain does not generate ids. `port.CollectorIDGenerator`, `PersonaIDGenerator` and `ItemIDGenerator` are separate small interfaces, and `adapters/outbound/idgen` implements them with `crypto/rand`. This keeps the domain deterministic. Collector ids are short strings (see the baseline migration), not UUIDs like in the README diagram, and a generated collector id is not guaranteed to be unused. `createcollector` handles a collision (`ErrCollectorIDTaken`).
+The domain does not generate ids. `outbound.CollectorIDGenerator`, `PersonaIDGenerator` and `ItemIDGenerator` are separate small interfaces, and `adapters/outbound/idgen` implements them with `crypto/rand`. This keeps the domain deterministic. Collector ids are short strings (see the baseline migration), not UUIDs like in the README diagram, and a generated collector id is not guaranteed to be unused. `createcollector` handles a collision (`ErrCollectorIDTaken`).
 
 ### Transactions
 
-`port.Transactor.InTx` runs a function with a `port.Repositories` that share one transaction, and commits only if the function returns nil. Simple reads use the repositories wired on the pool directly. Writes spanning several repositories go through the transactor. `postgresRepositories(db)` in `internal/backend` builds the same set on either the pool or a transaction.
+`outbound.Transactor.InTx` runs a function with an `outbound.Repositories` that share one transaction, and commits only if the function returns nil. Simple reads use the repositories wired on the pool directly. Writes spanning several repositories go through the transactor. `postgresRepositories(db)` in `internal/backend` builds the same set on either the pool or a transaction.
 
 ### Repositories have two implementations and one test suite
 

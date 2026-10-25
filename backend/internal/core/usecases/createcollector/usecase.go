@@ -8,43 +8,38 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
-
-// Command is the input of the use case.
-type Command struct {
-	Name  string
-	Email string
-	// Locale is the language of the predefined personas, empty for the default.
-	Locale string
-}
 
 // maxIDAttempts bounds the retries when a randomly drawn collector id is already taken.
 const maxIDAttempts = 5
 
 // Usecase is the createcollector use case.
 type Usecase struct {
-	tx      port.Transactor
-	catalog port.PersonaTemplateCatalog
+	tx      outbound.Transactor
+	catalog outbound.PersonaTemplateCatalog
 	ids     IDGenerator
 }
 
+var _ inbound.CreateCollector = (*Usecase)(nil)
+
 // IDGenerator creates the ids of the new collector, its personas and their items.
 type IDGenerator interface {
-	port.CollectorIDGenerator
-	port.PersonaIDGenerator
-	port.ItemIDGenerator
+	outbound.CollectorIDGenerator
+	outbound.PersonaIDGenerator
+	outbound.ItemIDGenerator
 }
 
 // New returns a use case that stores collectors, together with the predefined personas from catalog, through tx.
 // ids creates the new ids.
-func New(tx port.Transactor, catalog port.PersonaTemplateCatalog, ids IDGenerator) *Usecase {
+func New(tx outbound.Transactor, catalog outbound.PersonaTemplateCatalog, ids IDGenerator) *Usecase {
 	return &Usecase{tx: tx, catalog: catalog, ids: ids}
 }
 
 // Execute creates and persists a collector with the predefined personas in the requested locale and returns its id.
 // The collector and its personas are saved in one transaction: on an error nothing is stored, so a retry is safe.
-func (u *Usecase) Execute(ctx context.Context, cmd Command) (domain.CollectorID, error) {
+func (u *Usecase) Execute(ctx context.Context, cmd inbound.CreateCollectorCommand) (domain.CollectorID, error) {
 	locale, err := personatemplate.ParseLocale(cmd.Locale)
 	if err != nil {
 		return "", err
@@ -67,7 +62,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd Command) (domain.CollectorID,
 			return "", err
 		}
 
-		err = u.tx.InTx(ctx, func(ctx context.Context, repos port.Repositories) error {
+		err = u.tx.InTx(ctx, func(ctx context.Context, repos outbound.Repositories) error {
 			return save(ctx, repos, c, personas)
 		})
 		if errors.Is(err, domain.ErrCollectorIDTaken) {
@@ -84,7 +79,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd Command) (domain.CollectorID,
 	return "", fmt.Errorf("save collector: no free id after %d attempts", maxIDAttempts)
 }
 
-func save(ctx context.Context, repos port.Repositories, c *domain.Collector, personas []*domain.Persona) error {
+func save(ctx context.Context, repos outbound.Repositories, c *domain.Collector, personas []*domain.Persona) error {
 	if err := repos.Collectors.SaveCollector(ctx, c); err != nil {
 		return fmt.Errorf("save collector: %w", err)
 	}
@@ -99,7 +94,7 @@ func save(ctx context.Context, repos port.Repositories, c *domain.Collector, per
 }
 
 // predefinedPersonas instantiates a persona per template for the collector.
-func predefinedPersonas(catalog port.PersonaTemplateCatalog, ids personatemplate.IDs, id domain.CollectorID, locale personatemplate.Locale) ([]*domain.Persona, error) {
+func predefinedPersonas(catalog outbound.PersonaTemplateCatalog, ids personatemplate.IDs, id domain.CollectorID, locale personatemplate.Locale) ([]*domain.Persona, error) {
 	templates := catalog.PersonaTemplates()
 	personas := make([]*domain.Persona, 0, len(templates))
 

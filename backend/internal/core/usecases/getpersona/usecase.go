@@ -6,16 +6,19 @@ import (
 	"fmt"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
 // Usecase is the getpersona use case.
 type Usecase struct {
-	personas port.PersonaStore
+	personas outbound.PersonaStore
 }
 
+var _ inbound.GetPersona = (*Usecase)(nil)
+
 // New returns a use case that gets personas from the persona store.
-func New(personas port.PersonaStore) *Usecase {
+func New(personas outbound.PersonaStore) *Usecase {
 	return &Usecase{personas: personas}
 }
 

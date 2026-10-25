@@ -13,30 +13,30 @@ import (
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	faketransactor "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/transactor"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
 // newFakeRepositories returns in-memory repositories. The persona repository accepts personas of the stored
 // collectors, and of collector k7m2, which is stored up front.
-func newFakeRepositories() port.Repositories {
+func newFakeRepositories() outbound.Repositories {
 	collectors := fakecollector.NewRepository()
 	if err := collectors.SaveCollector(context.Background(), domaintest.Collector("k7m2", "K", "k@example.com")); err != nil {
 		panic(err)
 	}
 
-	return port.Repositories{Collectors: collectors, Personas: fakepersona.NewStore()}
+	return outbound.Repositories{Collectors: collectors, Personas: fakepersona.NewStore()}
 }
 
 type pinger struct{ err error }
 
 func (p pinger) Ping(context.Context) error { return p.err }
 
-func wireFake(repos port.Repositories) http.Handler {
+func wireFake(repos outbound.Repositories) http.Handler {
 	return wireFakeReady(repos, pinger{})
 }
 
-func wireFakeReady(repos port.Repositories, ready health.Pinger) http.Handler {
+func wireFakeReady(repos outbound.Repositories, ready health.Pinger) http.Handler {
 	h, err := wire(repos, faketransactor.New(repos), ready)
 	if err != nil {
 		panic(err)

@@ -1,24 +1,18 @@
 package persona
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 )
 
 type listResponse struct {
 	Personas []getResponse `json:"personas"`
 }
 
-// Lister retrieves all personas of the collector the request acts for.
-type Lister interface {
-	Execute(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error)
-}
-
 // List is GET /collectors/{collectorId}/personas.
-func List(lister Lister) httpx.Route {
+func List(lister inbound.ListPersonas) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

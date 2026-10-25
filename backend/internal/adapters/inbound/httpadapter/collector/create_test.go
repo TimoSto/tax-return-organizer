@@ -12,14 +12,14 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 )
 
 const testID domain.CollectorID = "k7m2"
 
-type createFunc func(context.Context, createcollector.Command) (domain.CollectorID, error)
+type createFunc func(context.Context, inbound.CreateCollectorCommand) (domain.CollectorID, error)
 
-func (f createFunc) Execute(ctx context.Context, cmd createcollector.Command) (domain.CollectorID, error) {
+func (f createFunc) Execute(ctx context.Context, cmd inbound.CreateCollectorCommand) (domain.CollectorID, error) {
 	return f(ctx, cmd)
 }
 
@@ -39,9 +39,9 @@ func do(t *testing.T, create createFunc, method, body string) *httptest.Response
 }
 
 func TestCreateCollector_Created(t *testing.T) {
-	var got createcollector.Command
+	var got inbound.CreateCollectorCommand
 
-	rec := do(t, func(_ context.Context, cmd createcollector.Command) (domain.CollectorID, error) {
+	rec := do(t, func(_ context.Context, cmd inbound.CreateCollectorCommand) (domain.CollectorID, error) {
 		got = cmd
 
 		return testID, nil
@@ -81,7 +81,7 @@ func TestCreateCollector_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := do(t, func(context.Context, createcollector.Command) (domain.CollectorID, error) {
+			rec := do(t, func(context.Context, inbound.CreateCollectorCommand) (domain.CollectorID, error) {
 				return "", tt.portErr
 			}, http.MethodPost, tt.body)
 

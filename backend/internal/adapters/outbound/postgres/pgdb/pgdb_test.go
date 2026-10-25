@@ -14,18 +14,19 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/templates"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
 )
 
-func repositories(db pgdb.DBTX) port.Repositories {
-	return port.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewStore(db)}
+func repositories(db pgdb.DBTX) outbound.Repositories {
+	return outbound.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewStore(db)}
 }
 
 // newTransactor returns a transactor on an emptied database.
-func newTransactor(t *testing.T, build func(pgdb.DBTX) port.Repositories) (*pgdb.Transactor, *pgxpool.Pool) {
+func newTransactor(t *testing.T, build func(pgdb.DBTX) outbound.Repositories) (*pgdb.Transactor, *pgxpool.Pool) {
 	t.Helper()
 
 	pool := postgrestest.RequirePool(t)
@@ -51,7 +52,7 @@ func countCollectors(t *testing.T, pool *pgxpool.Pool) int {
 func TestInTx_CommitsOnSuccess(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
-	err := tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
+	err := tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
 		return r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com"))
 	})
 	if err != nil {
@@ -67,7 +68,7 @@ func TestInTx_RollsBackOnError(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 	boom := errors.New("boom")
 
-	err := tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
+	err := tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
 		if err := r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
 			return err
 		}
@@ -89,7 +90,7 @@ func TestInTx_RollsBackOnPanic(t *testing.T) {
 	func() {
 		defer func() { _ = recover() }()
 
-		_ = tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
+		_ = tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
 			if err := r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
 				return err
 			}
@@ -108,7 +109,7 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 	boom := errors.New("boom")
 
-	err := tx.InTx(context.Background(), func(ctx context.Context, r port.Repositories) error {
+	err := tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
 		if err := r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
 			return err
 		}
@@ -141,16 +142,16 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 // failingPersonas fails the n-th SavePersona, whichever collector's repository it goes through, like a database
 // error in the middle of creating a collector.
 type failingPersonas struct {
-	port.PersonaStore
+	outbound.PersonaStore
 	failAt, calls int
 }
 
-func (s *failingPersonas) For(id domain.CollectorID) port.PersonaRepository {
+func (s *failingPersonas) For(id domain.CollectorID) outbound.PersonaRepository {
 	return &failingPersonaRepo{PersonaRepository: s.PersonaStore.For(id), store: s}
 }
 
 type failingPersonaRepo struct {
-	port.PersonaRepository
+	outbound.PersonaRepository
 	store *failingPersonas
 }
 
@@ -166,7 +167,7 @@ func (r *failingPersonaRepo) SavePersona(ctx context.Context, p *domain.Persona)
 // Regression test: a persona failing after the collector was saved must not leave the collector behind.
 func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 	failing := &failingPersonas{failAt: 2}
-	tx, pool := newTransactor(t, func(db pgdb.DBTX) port.Repositories {
+	tx, pool := newTransactor(t, func(db pgdb.DBTX) outbound.Repositories {
 		r := repositories(db)
 		failing.PersonaStore = r.Personas
 		r.Personas = failing
@@ -174,7 +175,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 		return r
 	})
 
-	_, err := createcollector.New(tx, templates.New(), idgen.Random{}).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
+	_, err := createcollector.New(tx, templates.New(), idgen.Random{}).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -196,7 +197,7 @@ func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
 func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
-	id, err := createcollector.New(tx, templates.New(), idgen.Random{}).Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
+	id, err := createcollector.New(tx, templates.New(), idgen.Random{}).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
@@ -222,7 +223,7 @@ func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
 	ids := []domain.CollectorID{"aaaa", "bbbb"}
 	uc := createcollector.New(tx, templates.New(), &sequenceIDs{ids: ids})
 
-	id, err := uc.Execute(context.Background(), createcollector.Command{Name: "Jane", Email: "jane@example.com"})
+	id, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}

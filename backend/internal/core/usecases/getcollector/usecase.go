@@ -6,16 +6,19 @@ import (
 	"fmt"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
 // Usecase is the getcollector use case.
 type Usecase struct {
-	repo port.CollectorRepository
+	repo outbound.CollectorRepository
 }
 
+var _ inbound.GetCollector = (*Usecase)(nil)
+
 // New returns a use case that gets collectors from repo.
-func New(repo port.CollectorRepository) *Usecase {
+func New(repo outbound.CollectorRepository) *Usecase {
 	return &Usecase{repo: repo}
 }
 

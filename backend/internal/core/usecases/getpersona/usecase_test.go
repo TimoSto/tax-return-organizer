@@ -10,7 +10,7 @@ import (
 
 	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getpersona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
@@ -20,7 +20,7 @@ type failingStore struct {
 	err error
 }
 
-func (s failingStore) For(domain.CollectorID) port.PersonaRepository { return failingRepo(s) }
+func (s failingStore) For(domain.CollectorID) outbound.PersonaRepository { return failingRepo(s) }
 
 type failingRepo struct {
 	err error

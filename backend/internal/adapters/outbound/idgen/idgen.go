@@ -10,8 +10,8 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
-// Random generates random ids with crypto/rand. It implements port.CollectorIDGenerator, port.PersonaIDGenerator
-// and port.ItemIDGenerator.
+// Random generates random ids with crypto/rand. It implements outbound.CollectorIDGenerator, outbound.PersonaIDGenerator
+// and outbound.ItemIDGenerator.
 type Random struct{}
 
 // NewCollectorID returns a random, short collector id. It is not guaranteed to be unused.
