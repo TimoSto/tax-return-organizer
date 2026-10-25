@@ -102,6 +102,32 @@ func TestWriteError_InternalErrorIsGeneric(t *testing.T) {
 	}
 }
 
+func TestTenant(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /collectors/{"+httpx.CollectorIDParam+"}", func(w http.ResponseWriter, r *http.Request) {
+		if id, ok := httpx.Tenant(w, r); ok {
+			_, _ = w.Write([]byte(id.String()))
+		}
+	})
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/k7m2", nil))
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "k7m2" {
+		t.Errorf("valid id: status = %d, body = %q, want 200 and k7m2", rec.Code, rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/!", nil))
+
+	var p httpx.Problem
+	_ = json.NewDecoder(rec.Body).Decode(&p)
+
+	if rec.Code != http.StatusBadRequest || p.Code != "invalid_collector_id" {
+		t.Errorf("invalid id: status = %d, code = %q, want 400 invalid_collector_id", rec.Code, p.Code)
+	}
+}
+
 func TestParsePathID(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /c/{id}", func(w http.ResponseWriter, r *http.Request) {

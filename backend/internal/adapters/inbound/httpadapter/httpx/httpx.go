@@ -28,9 +28,6 @@ const CollectorIDParam = "collectorId"
 type Route struct {
 	Pattern string
 	Handler http.Handler
-	// Tenant marks routes that act for a collector: the adapter puts it into the request context
-	// (see tenant.With) before the handler runs.
-	Tenant bool
 }
 
 // ProblemContentType is the media type of every error answer (RFC 9457).
@@ -88,6 +85,13 @@ func WriteProblem(w http.ResponseWriter, r *http.Request, status int, code, deta
 	if err := json.NewEncoder(w).Encode(p); err != nil {
 		slog.ErrorContext(r.Context(), "write response", "error", err)
 	}
+}
+
+// Tenant returns the collector the request acts for, which handlers pass to the use cases. Today it is the
+// {collectorId} path value; once there is authentication, only this function changes: the tenant then comes from
+// the authenticated principal. On failure it answers (normally 400) and returns false.
+func Tenant(w http.ResponseWriter, r *http.Request) (domain.CollectorID, bool) {
+	return ParsePathID(w, r, CollectorIDParam, domain.ParseCollectorID)
 }
 
 // ParsePathID parses the path value param with parse. On failure it answers with the (domain) error parse

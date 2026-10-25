@@ -47,21 +47,25 @@ type valueSpecResponse struct {
 
 // Getter retrieves a persona of the collector the request acts for by its id.
 type Getter interface {
-	Execute(ctx context.Context, id domain.PersonaID) (*domain.Persona, error)
+	Execute(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error)
 }
 
 // Get is GET /collectors/{collectorId}/personas/{id}.
 func Get(getter Getter) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas/{" + idParam + "}",
-		Tenant:  true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			collectorID, ok := httpx.Tenant(w, r)
+			if !ok {
+				return
+			}
+
 			id, ok := httpx.ParsePathID(w, r, idParam, domain.ParsePersonaID)
 			if !ok {
 				return
 			}
 
-			p, err := getter.Execute(r.Context(), id)
+			p, err := getter.Execute(r.Context(), collectorID, id)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

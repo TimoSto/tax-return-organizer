@@ -7,7 +7,6 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 )
 
 // Usecase is the getpersona use case.
@@ -20,13 +19,8 @@ func New(personas port.PersonaStore) *Usecase {
 	return &Usecase{personas: personas}
 }
 
-// Execute retrieves a persona of the collector the context acts for by its id.
-func (u *Usecase) Execute(ctx context.Context, id domain.PersonaID) (*domain.Persona, error) {
-	collectorID, err := tenant.Require(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get persona: %w", err)
-	}
-
+// Execute retrieves a persona of the collector by its id.
+func (u *Usecase) Execute(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error) {
 	p, err := u.personas.For(collectorID).GetPersona(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get persona: %w", err)

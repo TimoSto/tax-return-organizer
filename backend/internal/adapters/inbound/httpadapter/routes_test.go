@@ -20,17 +20,21 @@ func (stubDeps) Execute(context.Context, createcollector.Command) (domain.Collec
 
 type stubGetCollector struct{}
 
-func (stubGetCollector) Execute(context.Context) (*domain.Collector, error) { return nil, nil }
+func (stubGetCollector) Execute(context.Context, domain.CollectorID) (*domain.Collector, error) {
+	return nil, nil
+}
 
 type stubGetPersona struct{}
 
-func (stubGetPersona) Execute(context.Context, domain.PersonaID) (*domain.Persona, error) {
+func (stubGetPersona) Execute(context.Context, domain.CollectorID, domain.PersonaID) (*domain.Persona, error) {
 	return nil, nil
 }
 
 type stubListPersonas struct{}
 
-func (stubListPersonas) Execute(context.Context) ([]*domain.Persona, error) { return nil, nil }
+func (stubListPersonas) Execute(context.Context, domain.CollectorID) ([]*domain.Persona, error) {
+	return nil, nil
+}
 
 type stubPinger struct{}
 

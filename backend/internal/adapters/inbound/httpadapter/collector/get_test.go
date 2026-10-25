@@ -10,21 +10,19 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-type getFunc func(context.Context) (*domain.Collector, error)
+type getFunc func(context.Context, domain.CollectorID) (*domain.Collector, error)
 
-func (f getFunc) Execute(ctx context.Context) (*domain.Collector, error) {
-	return f(ctx)
+func (f getFunc) Execute(ctx context.Context, id domain.CollectorID) (*domain.Collector, error) {
+	return f(ctx, id)
 }
 
 func doGet(t *testing.T, get getFunc, method string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors/"+testID.String(), nil)
-	req = req.WithContext(tenant.With(req.Context(), testID))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := collector.Get(get)
@@ -35,12 +33,20 @@ func doGet(t *testing.T, get getFunc, method string) *httptest.ResponseRecorder 
 }
 
 func TestGetCollector_OK(t *testing.T) {
-	rec := doGet(t, func(context.Context) (*domain.Collector, error) {
+	var gotID domain.CollectorID
+
+	rec := doGet(t, func(_ context.Context, id domain.CollectorID) (*domain.Collector, error) {
+		gotID = id
+
 		return domaintest.Collector(testID, "Jane", "jane@example.com"), nil
 	}, http.MethodGet)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	if gotID != testID {
+		t.Errorf("use case got collector %v, want %v", gotID, testID)
 	}
 
 	want := `{"id":"` + testID.String() + `","name":"Jane","email":"jane@example.com"}`
@@ -61,7 +67,7 @@ func TestGetCollector_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := doGet(t, func(context.Context) (*domain.Collector, error) {
+			rec := doGet(t, func(context.Context, domain.CollectorID) (*domain.Collector, error) {
 				return nil, tt.portErr
 			}, http.MethodGet)
 

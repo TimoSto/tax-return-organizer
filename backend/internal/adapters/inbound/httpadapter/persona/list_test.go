@@ -10,21 +10,19 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-type listFunc func(context.Context) ([]*domain.Persona, error)
+type listFunc func(context.Context, domain.CollectorID) ([]*domain.Persona, error)
 
-func (f listFunc) Execute(ctx context.Context) ([]*domain.Persona, error) {
-	return f(ctx)
+func (f listFunc) Execute(ctx context.Context, id domain.CollectorID) ([]*domain.Persona, error) {
+	return f(ctx, id)
 }
 
 func doList(t *testing.T, list listFunc, method string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors/"+testCollectorID.String()+"/personas", nil)
-	req = req.WithContext(tenant.With(req.Context(), testCollectorID))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := persona.List(list)
@@ -35,12 +33,20 @@ func doList(t *testing.T, list listFunc, method string) *httptest.ResponseRecord
 }
 
 func TestListPersonas_OK(t *testing.T) {
-	rec := doList(t, func(context.Context) ([]*domain.Persona, error) {
+	var gotCollector domain.CollectorID
+
+	rec := doList(t, func(_ context.Context, id domain.CollectorID) ([]*domain.Persona, error) {
+		gotCollector = id
+
 		return []*domain.Persona{domaintest.Persona(testID, testCollectorID, "Employed", "Has a job")}, nil
 	}, http.MethodGet)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	if gotCollector != testCollectorID {
+		t.Errorf("use case got collector %v, want %v", gotCollector, testCollectorID)
 	}
 
 	want := `{"personas":[{"id":"` + testID.String() + `","collectorId":"` + testCollectorID.String() +
@@ -51,7 +57,7 @@ func TestListPersonas_OK(t *testing.T) {
 }
 
 func TestListPersonas_EmptyIsNotNull(t *testing.T) {
-	rec := doList(t, func(context.Context) ([]*domain.Persona, error) {
+	rec := doList(t, func(context.Context, domain.CollectorID) ([]*domain.Persona, error) {
 		return nil, nil
 	}, http.MethodGet)
 
@@ -69,7 +75,7 @@ func TestListPersonas_Errors(t *testing.T) {
 		{"unknown collector", domain.ErrCollectorNotFound, http.StatusNotFound},
 		{"other error", errors.New("boom"), http.StatusInternalServerError},
 	} {
-		rec := doList(t, func(context.Context) ([]*domain.Persona, error) {
+		rec := doList(t, func(context.Context, domain.CollectorID) ([]*domain.Persona, error) {
 			return nil, tc.err
 		}, http.MethodGet)
 

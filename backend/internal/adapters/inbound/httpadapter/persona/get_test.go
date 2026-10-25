@@ -12,7 +12,6 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/tenant"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
@@ -20,17 +19,16 @@ const testCollectorID domain.CollectorID = "k7m2"
 
 var testID = domain.PersonaID(uuid.MustParse("3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b"))
 
-type getFunc func(context.Context, domain.PersonaID) (*domain.Persona, error)
+type getFunc func(context.Context, domain.CollectorID, domain.PersonaID) (*domain.Persona, error)
 
-func (f getFunc) Execute(ctx context.Context, id domain.PersonaID) (*domain.Persona, error) {
-	return f(ctx, id)
+func (f getFunc) Execute(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error) {
+	return f(ctx, collectorID, id)
 }
 
 func doGet(t *testing.T, get getFunc, method, id string) *httptest.ResponseRecorder {
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors/"+testCollectorID.String()+"/personas/"+id, nil)
-	req = req.WithContext(tenant.With(req.Context(), testCollectorID))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := persona.Get(get)
@@ -41,16 +39,23 @@ func doGet(t *testing.T, get getFunc, method, id string) *httptest.ResponseRecor
 }
 
 func TestGetPersona_OK(t *testing.T) {
-	var gotID domain.PersonaID
+	var (
+		gotID        domain.PersonaID
+		gotCollector domain.CollectorID
+	)
 
-	rec := doGet(t, func(_ context.Context, id domain.PersonaID) (*domain.Persona, error) {
-		gotID = id
+	rec := doGet(t, func(_ context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error) {
+		gotID, gotCollector = id, collectorID
 
 		return domaintest.Persona(testID, testCollectorID, "Employed", "Has a job"), nil
 	}, http.MethodGet, testID.String())
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	if gotCollector != testCollectorID {
+		t.Errorf("use case got collector %v, want %v", gotCollector, testCollectorID)
 	}
 
 	if gotID != testID {
@@ -78,7 +83,7 @@ func TestGetPersona_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := doGet(t, func(context.Context, domain.PersonaID) (*domain.Persona, error) {
+			rec := doGet(t, func(context.Context, domain.CollectorID, domain.PersonaID) (*domain.Persona, error) {
 				return nil, tt.portErr
 			}, http.MethodGet, tt.id)
 
@@ -100,7 +105,7 @@ func TestGetPersona_MethodNotAllowed(t *testing.T) {
 func TestGetPersona_Items(t *testing.T) {
 	docID, dataID := domaintest.ItemID(), domaintest.ItemID()
 
-	rec := doGet(t, func(context.Context, domain.PersonaID) (*domain.Persona, error) {
+	rec := doGet(t, func(context.Context, domain.CollectorID, domain.PersonaID) (*domain.Persona, error) {
 		return domaintest.Persona(testID, testCollectorID, "Employed", "",
 			domaintest.Item(docID, "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 				{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
