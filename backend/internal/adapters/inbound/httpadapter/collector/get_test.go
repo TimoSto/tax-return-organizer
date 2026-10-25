@@ -24,7 +24,7 @@ func doGet(t *testing.T, get getFunc, method string) *httptest.ResponseRecorder 
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors/"+testID.String(), nil)
-	req = req.WithContext(tenant.WithCollector(req.Context(), testID))
+	req = req.WithContext(tenant.With(req.Context(), testID))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := collector.Get(get)

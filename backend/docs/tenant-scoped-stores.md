@@ -31,7 +31,7 @@ type Repositories struct {
 A use case reads the tenant from the context and asks the store for a bound repository:
 
 ```go
-collectorID, err := tenant.RequireCollectorFrom(ctx)
+collectorID, err := tenant.Require(ctx)
 ...
 p, err := u.personas.For(collectorID).GetPersona(ctx, id)
 ```
@@ -54,7 +54,7 @@ Nothing is stored per tenant. There is one store per process, wired once on the 
 2. **Postgres** (`internal/adapters/outbound/postgres/<x>`): `Store{db pgdb.DBTX}` with `NewStore(db)`, `For(id)` returning `&Repository{db, collectorID}`. Every query filters on `r.collectorID` (`WHERE <table>.collector_id = $n`). Reject a mismatching entity in the save method with `port.ErrTenantMismatch`. Add `var _ port.XStore = (*Store)(nil)` and the same for the repository.
 3. **Fake** (`internal/adapters/outbound/fake/<x>`): a `Store` owning the data and mutex; `For` returns a view that filters on the bound id.
 4. **Wiring**: add `X: pgx.NewStore(db)` to `postgresRepositories` in `internal/backend/backend.go`, and to the repository literal in `cmd/e2e/main.go`.
-5. **Use cases**: depend on `port.XStore` and call `u.xs.For(collectorID)` after `tenant.RequireCollectorFrom(ctx)`. Never pass a collector id from request input other than the one in the tenant context.
+5. **Use cases**: depend on `port.XStore` and call `u.xs.For(collectorID)` after `tenant.Require(ctx)`. Never pass a collector id from request input other than the one in the tenant context.
 6. **Contract tests** (`internal/core/port/porttest`): take a store factory (`func(t, collectors ...domain.CollectorID) port.XStore`), save each entity through `store.For(entity.CollectorID())`, and include an isolation test. Copy `TestPersonaRepositoryIsolation`: another collector cannot get by id, does not list, and a foreign save fails with `port.ErrTenantMismatch` and changes nothing. Run it from both the fake and the postgres test packages.
 7. **Test doubles in use case tests**: a store stub with `For` returning a repository stub (see `failingStore` in `usecases/getpersona/usecase_test.go`).
 

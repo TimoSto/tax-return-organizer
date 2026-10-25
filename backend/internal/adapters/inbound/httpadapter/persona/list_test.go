@@ -24,7 +24,7 @@ func doList(t *testing.T, list listFunc, method string) *httptest.ResponseRecord
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/collectors/"+testCollectorID.String()+"/personas", nil)
-	req = req.WithContext(tenant.WithCollector(req.Context(), testCollectorID))
+	req = req.WithContext(tenant.With(req.Context(), testCollectorID))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := persona.List(list)

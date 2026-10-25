@@ -93,7 +93,7 @@ func withTenant(r httpx.Route, resolve tenantResolver) http.Handler {
 			return
 		}
 
-		r.Handler.ServeHTTP(w, req.WithContext(tenant.WithCollector(req.Context(), id)))
+		r.Handler.ServeHTTP(w, req.WithContext(tenant.With(req.Context(), id)))
 	})
 }
 
