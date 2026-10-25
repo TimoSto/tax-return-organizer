@@ -60,13 +60,15 @@ func Run(ctx context.Context, cfg Config) error {
 		return fmt.Errorf("config: %w", err)
 	}
 
-	if err := postgres.Migrate(ctx, cfg.DatabaseURL); err != nil {
-		return fmt.Errorf("migrate: %w", err)
+	if !cfg.SkipMigrate {
+		if err := postgres.Migrate(ctx, cfg.DatabaseURL); err != nil {
+			return fmt.Errorf("migrate: %w", err)
+		}
 	}
 
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	pool, err := newPool(ctx, cfg)
 	if err != nil {
-		return fmt.Errorf("connect to database: %w", err)
+		return err
 	}
 	defer pool.Close()
 
@@ -76,6 +78,52 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 
 	return serve(ctx, newServer(cfg.HTTPAddr, handler))
+}
+
+// Migrate applies the pending schema migrations and returns, for running them as a separate job
+// with DDL rights while the app itself runs with MIGRATE_ON_START=false.
+func Migrate(ctx context.Context, cfg Config) error {
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+
+	if err := postgres.Migrate(ctx, cfg.DatabaseURL); err != nil {
+		return fmt.Errorf("migrate: %w", err)
+	}
+
+	return nil
+}
+
+// newPool opens the connection pool tuned by cfg and fails fast if the database is unreachable.
+func newPool(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
+	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse database url: %w", err)
+	}
+
+	if cfg.MaxConns > 0 {
+		poolCfg.MaxConns = cfg.MaxConns
+	}
+
+	if cfg.MaxConnLifetime > 0 {
+		poolCfg.MaxConnLifetime = cfg.MaxConnLifetime
+	}
+
+	if cfg.HealthCheckPeriod > 0 {
+		poolCfg.HealthCheckPeriod = cfg.HealthCheckPeriod
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	if err != nil {
+		return nil, fmt.Errorf("connect to database: %w", err)
+	}
+
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("connect to database: %w", err)
+	}
+
+	return pool, nil
 }
 
 func newServer(addr string, handler http.Handler) *http.Server {
