@@ -46,7 +46,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 
 | Package | Role |
 | --- | --- |
-| `core/domain` | Entities and their invariants (`Collector`, `Persona`, `ItemDefinition`, `Email`, ids), plus the `domain.Error` type with its kinds (invalid, not found, conflict) and the sentinel errors. Strict import allow-list (`domain-allowlist`). |
+| `core/domain` | Entities and their invariants (`Collector`, `Persona`, `ItemDefinition`, `Email`, ids), the caller of a use case (`Actor` with its `Role`), plus the `domain.Error` type with its kinds (invalid, not found, conflict, forbidden) and the sentinel errors. Strict import allow-list (`domain-allowlist`). |
 | `core/personatemplate` | Predefined personas, the `Locale`/`Localized` types they are written in, the built-in content (`Predefined`), and `Instantiate`, which copies a template into a collector-owned persona. See [Where `personatemplate` lives](#where-personatemplate-lives). |
 | `core/port/inbound` | What the core offers: one interface per use case (`CreateCollector`, `GetPersona`, ...) plus their input types (`CreateCollectorCommand`). Inbound adapters depend on these only. Allow-listed to `domain` (`inbound-ports-allowlist`). |
 | `core/port/outbound` | What the core needs from the outside: repositories and stores, `Transactor`, id generators. `testutil/porttest` holds contract tests shared by every repository implementation. |
@@ -61,11 +61,11 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 
 ## Request flow
 
-1. A handler in `httpadapter/<resource>` decodes the request and resolves the collector it acts for with `httpx.Tenant` (today from the URL, later from the authenticated principal).
-2. The handler calls a use case through its inbound port (for example `inbound.GetPersona`), passing the collector id as an explicit argument.
-3. The use case asks the store for a repository bound to the collector (`personas.For(collectorID)`) and works with domain entities. It does not check that the collector exists, the repository does (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Writes that span several repositories run inside `Transactor.InTx`.
+1. A handler in `httpadapter/<resource>` decodes the request and gets the caller with `httpx.Actor` (today an employee of the collector in the URL, later the authenticated user, see [Actors and authorization](#actors-and-authorization)).
+2. The handler calls a use case through its inbound port (for example `inbound.GetPersona`), passing the `domain.Actor` as an explicit argument.
+3. The use case decides whether the actor may do this (`actor.RequireStaff()`, ...), asks the store for a repository bound to the actor's collector (`personas.For(actor.CollectorID())`) and works with domain entities. It does not check that the collector exists, the repository does (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Writes that span several repositories run inside `Transactor.InTx`.
 4. The Postgres repository executes the query, always filtered by the bound collector.
-5. Errors travel back up as values. `httpx` maps `domain.Error` kinds to status codes (invalid → 400, not found → 404, conflict → 409). Anything else is logged and becomes a generic 500, so internal details never reach the client. A domain error carries only its kind and an English message. The stable machine-readable code clients switch on (`collector_not_found`, ...) is API contract and lives in the adapter, in the table in `httpx/problemcodes.go`. A new sentinel needs an entry there and the code in the `Problem.code` enum of `api/openapi.yaml`; tests fail if either is missing.
+5. Errors travel back up as values. `httpx` maps `domain.Error` kinds to status codes (invalid → 400, not found → 404, conflict → 409, forbidden → 403). Anything else is logged and becomes a generic 500, so internal details never reach the client. A domain error carries only its kind and an English message. The stable machine-readable code clients switch on (`collector_not_found`, ...) is API contract and lives in the adapter, in the table in `httpx/problemcodes.go`. A new sentinel needs an entry there and the code in the `Problem.code` enum of `api/openapi.yaml`; tests fail if either is missing.
    Wrap errors once: use cases name the operation (`get collector: ...`), repositories only name the failing step (`query collector: ...`) and return sentinel errors bare.
 
 ## How the layering is enforced
@@ -90,6 +90,19 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 - **The content is code, not infrastructure.** The list of predefined personas is static business knowledge. It lives in `personatemplate.Predefined()`, with no port or adapter. `createcollector.New` takes the templates as plain data, so tests can pass their own.
 - **`Instantiate` is pure.** It takes the persona id and the item ids from the caller (`createcollector` draws them through `outbound.IDGenerator`), so `personatemplate` needs no id interface and does no I/O-flavoured work.
 - **Possible later extraction.** `Locale`, `Localized` and `ParseLocale` are not template specific (`createcollector` parses the request locale with them). If locales get more uses, move them to a small `core/locale` package.
+
+### Actors and authorization
+
+Use cases that act within a collector take the caller as a `domain.Actor`: the user (`UserID`), its `Role` and the collector it belongs to. The tenant of the use case is always `actor.CollectorID()`, so a handler cannot pass a tenant that does not belong to the caller. A collector is a company with several employees (`RoleStaff`), and its clients (`RoleClient`) log in to the same tenant; a client logs in as itself, so its user id is its client id. There is one staff role for now.
+
+**The core decides what an actor may do**, in the use case or in a policy method on `Actor` (`RequireStaff`), so the use case tests cover the rules. Two kinds of refusal:
+
+- An actor who may not use a **kind** of resource gets `domain.ErrForbidden` (403), checked before any repository is asked. Example: clients never see personas.
+- An actor who may not see a **specific** object gets that object's not-found error, the same as another tenant's id (no existence oracle). Example, later: a client asking for another client's tax year.
+
+`Actor` has unexported fields and is made with `NewStaffActor` or `NewClientActor`. The zero `Actor` has no role and no collector, so it is denied everything.
+
+**Who resolves the actor.** The inbound adapter only authenticates: checking a token or session and getting "subject S of issuer I" is infrastructure. Which collector a user belongs to, its role and which client it is are business data in the database. The HTTP adapter cannot reach them (handlers must not import `port/outbound`), and it must not decide them, or authorization would again live outside the core. With authentication, the auth middleware will call an inbound port `inbound.ResolveActor` (a use case on an `outbound.UserRepository`) and put the returned actor on the request context. `httpx.Actor` takes it from there and the handler passes it as an argument. The core never reads the actor from the context. Until then `httpx.Actor` builds an employee of the `{collectorId}` collector without a user id.
 
 ### Tenant-scoped stores
 
@@ -126,7 +139,7 @@ Every repository interface has a Postgres and a fake implementation. Both run th
 
 ### No authentication yet
 
-The tenant is taken from the URL today. The seam is already in place: use cases receive the collector id as an argument and only `httpx.Tenant` resolves it, so authentication will change that one function, not the use cases.
+Every caller is treated as an employee of the collector in the URL today. The seam is already in place: use cases receive a `domain.Actor` and enforce the rules themselves, and only `httpx.Actor` builds it. Authentication changes that function and adds the auth middleware with `ResolveActor` (see [Actors and authorization](#actors-and-authorization)), not the use cases.
 
 ## Adding things
 

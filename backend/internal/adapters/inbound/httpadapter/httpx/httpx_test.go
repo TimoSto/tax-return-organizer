@@ -51,6 +51,7 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrCollectorNotFound, http.StatusNotFound},
 		{domain.ErrPersonaNotFound, http.StatusNotFound},
 		{domain.ErrItemNotFound, http.StatusNotFound},
+		{fmt.Errorf("get persona: %w", domain.ErrForbidden), http.StatusForbidden},
 		{errors.New("database down"), http.StatusInternalServerError},
 	} {
 		t.Run(tc.err.Error(), func(t *testing.T) {
@@ -102,19 +103,22 @@ func TestWriteError_InternalErrorIsGeneric(t *testing.T) {
 	}
 }
 
-func TestTenant(t *testing.T) {
+// Until there is authentication, the actor is an employee of the collector in the path.
+func TestActor(t *testing.T) {
+	var got domain.Actor
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /collectors/{"+httpx.CollectorIDParam+"}", func(w http.ResponseWriter, r *http.Request) {
-		if id, ok := httpx.Tenant(w, r); ok {
-			_, _ = w.Write([]byte(id.String()))
+		if a, ok := httpx.Actor(w, r); ok {
+			got = a
 		}
 	})
 
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/k7m2", nil))
 
-	if rec.Code != http.StatusOK || rec.Body.String() != "k7m2" {
-		t.Errorf("valid id: status = %d, body = %q, want 200 and k7m2", rec.Code, rec.Body.String())
+	if want := domain.NewStaffActor("k7m2", domain.UserID{}); rec.Code != http.StatusOK || got != want {
+		t.Errorf("valid id: status = %d, actor = %+v, want 200 and %+v", rec.Code, got, want)
 	}
 
 	rec = httptest.NewRecorder()

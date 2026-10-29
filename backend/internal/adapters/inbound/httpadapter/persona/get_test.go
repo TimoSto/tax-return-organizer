@@ -19,10 +19,10 @@ const testCollectorID domain.CollectorID = "k7m2"
 
 var testID = domain.PersonaID(uuid.MustParse("3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b"))
 
-type getFunc func(context.Context, domain.CollectorID, domain.PersonaID) (*domain.Persona, error)
+type getFunc func(context.Context, domain.Actor, domain.PersonaID) (*domain.Persona, error)
 
-func (f getFunc) Execute(ctx context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error) {
-	return f(ctx, collectorID, id)
+func (f getFunc) Execute(ctx context.Context, actor domain.Actor, id domain.PersonaID) (*domain.Persona, error) {
+	return f(ctx, actor, id)
 }
 
 func doGet(t *testing.T, get getFunc, method, id string) *httptest.ResponseRecorder {
@@ -44,8 +44,8 @@ func TestGetPersona_OK(t *testing.T) {
 		gotCollector domain.CollectorID
 	)
 
-	rec := doGet(t, func(_ context.Context, collectorID domain.CollectorID, id domain.PersonaID) (*domain.Persona, error) {
-		gotID, gotCollector = id, collectorID
+	rec := doGet(t, func(_ context.Context, actor domain.Actor, id domain.PersonaID) (*domain.Persona, error) {
+		gotID, gotCollector = id, actor.CollectorID()
 
 		return domaintest.Persona(testID, testCollectorID, "Employed", "Has a job"), nil
 	}, http.MethodGet, testID.String())
@@ -78,12 +78,13 @@ func TestGetPersona_Errors(t *testing.T) {
 	}{
 		{"invalid persona id", "not-a-uuid", nil, http.StatusBadRequest},
 		{"not found", testID.String(), domain.ErrPersonaNotFound, http.StatusNotFound},
+		{"forbidden", testID.String(), domain.ErrForbidden, http.StatusForbidden},
 		{"internal", testID.String(), errors.New("db down"), http.StatusInternalServerError},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := doGet(t, func(context.Context, domain.CollectorID, domain.PersonaID) (*domain.Persona, error) {
+			rec := doGet(t, func(context.Context, domain.Actor, domain.PersonaID) (*domain.Persona, error) {
 				return nil, tt.portErr
 			}, http.MethodGet, tt.id)
 
@@ -105,7 +106,7 @@ func TestGetPersona_MethodNotAllowed(t *testing.T) {
 func TestGetPersona_Items(t *testing.T) {
 	docID, dataID := domaintest.ItemID(), domaintest.ItemID()
 
-	rec := doGet(t, func(context.Context, domain.CollectorID, domain.PersonaID) (*domain.Persona, error) {
+	rec := doGet(t, func(context.Context, domain.Actor, domain.PersonaID) (*domain.Persona, error) {
 		return domaintest.Persona(testID, testCollectorID, "Employed", "",
 			domaintest.Item(docID, "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 				{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},

@@ -13,10 +13,10 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-type listFunc func(context.Context, domain.CollectorID) ([]*domain.Persona, error)
+type listFunc func(context.Context, domain.Actor) ([]*domain.Persona, error)
 
-func (f listFunc) Execute(ctx context.Context, id domain.CollectorID) ([]*domain.Persona, error) {
-	return f(ctx, id)
+func (f listFunc) Execute(ctx context.Context, actor domain.Actor) ([]*domain.Persona, error) {
+	return f(ctx, actor)
 }
 
 func doList(t *testing.T, list listFunc, method string) *httptest.ResponseRecorder {
@@ -35,8 +35,8 @@ func doList(t *testing.T, list listFunc, method string) *httptest.ResponseRecord
 func TestListPersonas_OK(t *testing.T) {
 	var gotCollector domain.CollectorID
 
-	rec := doList(t, func(_ context.Context, id domain.CollectorID) ([]*domain.Persona, error) {
-		gotCollector = id
+	rec := doList(t, func(_ context.Context, actor domain.Actor) ([]*domain.Persona, error) {
+		gotCollector = actor.CollectorID()
 
 		return []*domain.Persona{domaintest.Persona(testID, testCollectorID, "Employed", "Has a job")}, nil
 	}, http.MethodGet)
@@ -57,7 +57,7 @@ func TestListPersonas_OK(t *testing.T) {
 }
 
 func TestListPersonas_EmptyIsNotNull(t *testing.T) {
-	rec := doList(t, func(context.Context, domain.CollectorID) ([]*domain.Persona, error) {
+	rec := doList(t, func(context.Context, domain.Actor) ([]*domain.Persona, error) {
 		return nil, nil
 	}, http.MethodGet)
 
@@ -73,9 +73,10 @@ func TestListPersonas_Errors(t *testing.T) {
 		want int
 	}{
 		{"unknown collector", domain.ErrCollectorNotFound, http.StatusNotFound},
+		{"forbidden", domain.ErrForbidden, http.StatusForbidden},
 		{"other error", errors.New("boom"), http.StatusInternalServerError},
 	} {
-		rec := doList(t, func(context.Context, domain.CollectorID) ([]*domain.Persona, error) {
+		rec := doList(t, func(context.Context, domain.Actor) ([]*domain.Persona, error) {
 			return nil, tc.err
 		}, http.MethodGet)
 

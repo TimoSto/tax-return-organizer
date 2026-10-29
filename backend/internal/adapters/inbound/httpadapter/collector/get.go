@@ -18,12 +18,12 @@ func Get(getter inbound.GetCollector) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			collectorID, ok := httpx.Tenant(w, r)
+			actor, ok := httpx.Actor(w, r)
 			if !ok {
 				return
 			}
 
-			c, err := getter.Execute(r.Context(), collectorID)
+			c, err := getter.Execute(r.Context(), actor)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

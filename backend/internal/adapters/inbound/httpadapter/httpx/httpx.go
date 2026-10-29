@@ -87,11 +87,18 @@ func WriteProblem(w http.ResponseWriter, r *http.Request, status int, code, deta
 	}
 }
 
-// Tenant returns the collector the request acts for, which handlers pass to the use cases. Today it is the
-// {collectorId} path value; once there is authentication, only this function changes: the tenant then comes from
-// the authenticated principal. On failure it answers (normally 400) and returns false.
-func Tenant(w http.ResponseWriter, r *http.Request) (domain.CollectorID, bool) {
-	return ParsePathID(w, r, CollectorIDParam, domain.ParseCollectorID)
+// Actor returns the caller of the request, which handlers pass to the use cases; the use cases decide what it may
+// do. There is no authentication yet, so it is an employee (with no user id) of the {collectorId} collector.
+// Once there is authentication, only this function changes: the auth middleware authenticates the request, has the
+// core resolve the user to an actor, and puts it on the request context, from where this function takes it.
+// On failure it answers (normally 400) and returns false.
+func Actor(w http.ResponseWriter, r *http.Request) (domain.Actor, bool) {
+	collectorID, ok := ParsePathID(w, r, CollectorIDParam, domain.ParseCollectorID)
+	if !ok {
+		return domain.Actor{}, false
+	}
+
+	return domain.NewStaffActor(collectorID, domain.UserID{}), true
 }
 
 // ParsePathID parses the path value param with parse. On failure it answers with the (domain) error parse
@@ -175,6 +182,8 @@ func statusFor(k domain.ErrorKind) int {
 		return http.StatusNotFound
 	case domain.ErrorConflict:
 		return http.StatusConflict
+	case domain.ErrorForbidden:
+		return http.StatusForbidden
 	default:
 		return http.StatusInternalServerError
 	}

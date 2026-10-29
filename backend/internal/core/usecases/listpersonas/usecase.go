@@ -22,10 +22,15 @@ func New(personas outbound.PersonaStore) *Usecase {
 	return &Usecase{personas: personas}
 }
 
-// Execute retrieves all personas of the collector.
-// It returns domain.ErrCollectorNotFound if that collector does not exist.
-func (u *Usecase) Execute(ctx context.Context, collectorID domain.CollectorID) ([]*domain.Persona, error) {
-	personas, err := u.personas.For(collectorID).ListPersonas(ctx)
+// Execute retrieves all personas of the actor's collector. Only staff may: clients never see personas.
+// It returns domain.ErrForbidden for any other actor, before the collector is looked at, and
+// domain.ErrCollectorNotFound if the collector does not exist.
+func (u *Usecase) Execute(ctx context.Context, actor domain.Actor) ([]*domain.Persona, error) {
+	if err := actor.RequireStaff(); err != nil {
+		return nil, fmt.Errorf("list personas: %w", err)
+	}
+
+	personas, err := u.personas.For(actor.CollectorID()).ListPersonas(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list personas: %w", err)
 	}

@@ -20,19 +20,19 @@ func (stubDeps) Execute(context.Context, inbound.CreateCollectorCommand) (domain
 
 type stubGetCollector struct{}
 
-func (stubGetCollector) Execute(context.Context, domain.CollectorID) (*domain.Collector, error) {
+func (stubGetCollector) Execute(context.Context, domain.Actor) (*domain.Collector, error) {
 	return nil, nil
 }
 
 type stubGetPersona struct{}
 
-func (stubGetPersona) Execute(context.Context, domain.CollectorID, domain.PersonaID) (*domain.Persona, error) {
+func (stubGetPersona) Execute(context.Context, domain.Actor, domain.PersonaID) (*domain.Persona, error) {
 	return nil, nil
 }
 
 type stubListPersonas struct{}
 
-func (stubListPersonas) Execute(context.Context, domain.CollectorID) ([]*domain.Persona, error) {
+func (stubListPersonas) Execute(context.Context, domain.Actor) ([]*domain.Persona, error) {
 	return nil, nil
 }
 
