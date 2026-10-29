@@ -49,8 +49,9 @@ func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 	emptyFields := domaintest.Item(domaintest.ItemID(), "Tax notice", domain.RecurrenceAnnually,
 		domain.DocumentSpec{MetadataFields: []domain.MetadataField{}})
 	withEmptyFields := personaWithItems(aliceID, "Empty fields", "", emptyFields)
-	stolenItem := personaWithItems(aliceID, "Stolen item", "", payslip) // payslip belongs to employed
-	// item ids are unique across all personas
+	// Item ids are unique per persona only: these reuse the id of employed's payslip.
+	sharedItem := personaWithItems(aliceID, "Shared item", "", payslip)
+	bobsPayslip := personaWithItems(bobID, "Bob's payslip", "", payslip)
 	bobsDays := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly, days.Spec())
 	bobs := personaWithItems(bobID, "Self-employed", "Freelancer", bobsDays)
 
@@ -114,12 +115,25 @@ func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 			exp:          employed,
 		},
 		{
-			name:         "Saving an item id used by another persona is rejected",
-			saves:        []*domain.Persona{employed, stolenItem},
-			saveErr:      domain.ErrItemIDTaken,
+			name:         "Another persona may use the same item id",
+			saves:        []*domain.Persona{employed, sharedItem},
 			getCollector: aliceID,
-			getID:        stolenItem.ID(),
-			expErr:       domain.ErrPersonaNotFound,
+			getID:        sharedItem.ID(),
+			exp:          sharedItem,
+		},
+		{
+			name:         "Removing an item from one persona keeps it in another persona with the same item id",
+			saves:        []*domain.Persona{employed, sharedItem, employedReduced},
+			getCollector: aliceID,
+			getID:        sharedItem.ID(),
+			exp:          sharedItem,
+		},
+		{
+			name:         "A persona of another collector may use the same item id",
+			saves:        []*domain.Persona{employed, bobsPayslip},
+			getCollector: bobID,
+			getID:        bobsPayslip.ID(),
+			exp:          bobsPayslip,
 		},
 		{
 			name:         "Get unknown persona",
@@ -201,7 +215,6 @@ func TestPersonaRepositoryList(t *testing.T, newStore PersonaStoreFactory) {
 		}})
 	days := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly,
 		domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true})
-	// item ids are unique across all personas
 	bobsDays := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly, days.Spec())
 
 	// Names are compared bytewise, so "Zeta" sorts before "alpha". Equal names fall back to the id.

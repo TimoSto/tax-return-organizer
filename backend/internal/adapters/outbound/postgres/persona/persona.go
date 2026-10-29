@@ -141,11 +141,10 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 	// tells the two causes of "no row" apart, so the collector takes precedence like in the reads.
 	batch.Queue(`SELECT EXISTS (SELECT 1 FROM collectors WHERE id = $1)`, row.CollectorID)
 
-	// Items keep their identity: an item of this persona is updated, any other id is inserted. The insert is
-	// plain on purpose. An id that exists under another persona makes it fail with a unique violation, which
-	// aborts the whole batch, so nothing stays written (a statement that merely affects no row could not undo
-	// the persona upsert before it). The EXISTS guard turns the statement into a no-op if the persona is not
-	// this collector's, the persona upsert has reported that already.
+	// Items keep their identity: an item of this persona is updated, any other id is inserted. Item ids are
+	// unique per persona, so an id that another persona uses is just another row. The EXISTS guard turns the
+	// statement into a no-op if the persona is not this collector's, the persona upsert has reported that
+	// already.
 	for position, item := range items {
 		batch.Queue(`
 			WITH updated AS (
@@ -227,7 +226,8 @@ func readSaveResults(results pgx.BatchResults, items []itemRow) error {
 	return nil
 }
 
-// isItemIDTaken reports whether err is the primary key violation of an item id that exists under another persona.
+// isItemIDTaken reports whether err is the primary key violation of an item id that the persona already uses. The
+// upsert updates such an item instead, so this only happens on a bug.
 func isItemIDTaken(err error) bool {
 	var pgErr *pgconn.PgError
 

@@ -21,7 +21,6 @@ var problemCodes = map[*domain.Error]string{
 	domain.ErrInvalidPersonaID:          "invalid_persona_id",
 	domain.ErrInvalidRecurrence:         "invalid_recurrence",
 	domain.ErrInvalidValueType:          "invalid_value_type",
-	domain.ErrItemIDTaken:               "item_id_taken",
 	domain.ErrItemNotFound:              "item_not_found",
 	domain.ErrItemTitleRequired:         "item_title_required",
 	domain.ErrItemTitleTooLong:          "item_title_too_long",

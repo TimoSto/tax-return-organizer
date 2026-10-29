@@ -50,7 +50,7 @@ func TestWriteError_Status(t *testing.T) {
 		{fmt.Errorf("add item: %w", domain.ErrDuplicateItemID), http.StatusInternalServerError},
 		{outbound.CorruptData("collector 1", domain.ErrInvalidEmail), http.StatusInternalServerError},
 		{fmt.Errorf("get collector: %w", outbound.CorruptData("collector 1", domain.ErrNameRequired)), http.StatusInternalServerError},
-		{domain.ErrItemIDTaken, http.StatusConflict},
+		{domain.ErrItemIDTaken, http.StatusInternalServerError},
 		{personatemplate.ErrInvalidLocale, http.StatusBadRequest},
 		{domain.ErrCollectorIDTaken, http.StatusInternalServerError},
 		{fmt.Errorf("wrapped: %w", domain.ErrSpecMismatch), http.StatusBadRequest},

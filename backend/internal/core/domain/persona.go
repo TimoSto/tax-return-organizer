@@ -20,13 +20,15 @@ var (
 	ErrTooManyItems = conflict("persona has too many item definitions")
 	// ErrItemNotFound is returned when a persona has no item definition with the requested id.
 	ErrItemNotFound = notFound("item definition not found")
-	// ErrItemIDTaken is returned when an item definition id is already used by another persona.
-	ErrItemIDTaken = conflict("item definition id already taken")
 )
 
 // ErrDuplicateItemID is returned when an item definition id is used twice within one persona. Item ids are created by
 // the server, so this is deliberately not a *Error: it signals a bug or corrupt data (a 500), not a client mistake.
 var ErrDuplicateItemID = errors.New("duplicate item definition id")
+
+// ErrItemIDTaken is returned when storing an item definition whose id its persona already uses. Item ids are random
+// and unique per persona only, so a clash is a bug, not a client error: it is a plain error, not a *Error.
+var ErrItemIDTaken = errors.New("item definition id already taken")
 
 // Persona groups the items a client has to provide if they do something tax relevant, e.g. "Employed".
 // It is the aggregate root of its item definitions: they are only read and changed through the persona.

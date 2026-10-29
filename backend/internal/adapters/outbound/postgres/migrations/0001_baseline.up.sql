@@ -13,8 +13,9 @@ CREATE TABLE personas (
 
 CREATE INDEX personas_collector_id_idx ON personas (collector_id);
 
+-- Item ids are unique per persona, not globally, so an id of another persona (or tenant) can never clash.
 CREATE TABLE item_definitions (
-    id            uuid PRIMARY KEY,
+    id            uuid NOT NULL,
     persona_id    uuid NOT NULL REFERENCES personas (id) ON DELETE CASCADE,
     position      int  NOT NULL,
     title         text NOT NULL,
@@ -32,7 +33,8 @@ CREATE TABLE item_definitions (
     CONSTRAINT item_definitions_document_spec_object
         CHECK (document_spec IS NULL OR jsonb_typeof(document_spec) = 'object'),
     CONSTRAINT item_definitions_value_spec_object
-        CHECK (value_spec IS NULL OR jsonb_typeof(value_spec) = 'object')
+        CHECK (value_spec IS NULL OR jsonb_typeof(value_spec) = 'object'),
+    PRIMARY KEY (persona_id, id)
 );
 
 CREATE INDEX item_definitions_persona_id_idx ON item_definitions (persona_id, position);

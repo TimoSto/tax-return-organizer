@@ -60,13 +60,12 @@ type PersonaRepository interface {
 	// A collector without personas yields an empty list, an unknown collector domain.ErrCollectorNotFound.
 	ListPersonas(ctx context.Context) ([]*domain.Persona, error)
 	// SavePersona inserts the persona or, if its id exists already, replaces name, description and items.
-	// Items missing from persona.Items are deleted, the others keep their id.
+	// Items missing from persona.Items are deleted, the others keep their id. Item ids are scoped to their
+	// persona: another persona, of this or any other collector, may use the same item id.
 	// It returns ErrTenantMismatch if the persona belongs to another collector than the repository,
 	// domain.ErrCollectorNotFound if the collector does not exist (even if the id also belongs to another one),
-	// domain.ErrPersonaNotFound if the id belongs to another collector,
-	// domain.ErrItemIDTaken if an item id is already used by another persona (of any collector, which
-	// tells a caller that the id exists elsewhere). Nothing is changed then: the save is atomic on its own,
-	// without the caller wrapping it in a transaction.
+	// or domain.ErrPersonaNotFound if the id belongs to another collector. Nothing is changed then: the save is
+	// atomic on its own, without the caller wrapping it in a transaction.
 	//
 	// There is no concurrency control: SavePersona replaces the whole persona, so the last save wins. Two
 	// people editing the same persona from stale copies silently overwrite each other, and a stale save
