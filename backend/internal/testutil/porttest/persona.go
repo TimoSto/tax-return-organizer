@@ -14,9 +14,8 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-// PersonaStoreFactory returns an empty store for the given test.
-// Implementations that enforce referential integrity (the foreign key to collectors) must make sure the given
-// collectors exist. The repositories themselves do not check collectors, callers do.
+// PersonaStoreFactory returns an empty store for the given test whose only existing collectors are the given ones.
+// Repositories must report every other collector as domain.ErrCollectorNotFound.
 type PersonaStoreFactory func(t *testing.T, collectors ...domain.CollectorID) outbound.PersonaStore
 
 // TestPersonaRepository runs the contract tests against stores created by newStore. Each persona is saved through
@@ -313,6 +312,80 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 			if err != nil || len(got) != 0 {
 				t.Errorf("ListPersonas(%s) = %v, %v, want an empty list", id, got, err)
 			}
+		}
+	})
+}
+
+// TestPersonaRepositoryUnknownCollector runs the contract tests that a repository bound to a collector that does
+// not exist reports domain.ErrCollectorNotFound on every method and saves nothing.
+func TestPersonaRepositoryUnknownCollector(t *testing.T, newStore PersonaStoreFactory) {
+	t.Helper()
+
+	ctx := context.Background()
+
+	const (
+		aliceID   domain.CollectorID = "aaaa"
+		unknownID domain.CollectorID = "zzzz"
+	)
+
+	t.Run("Get reports the unknown collector, not the missing persona", func(t *testing.T) {
+		store := newStore(t, aliceID)
+
+		if _, err := store.For(unknownID).GetPersona(ctx, newPersonaID()); !errors.Is(err, domain.ErrCollectorNotFound) {
+			t.Errorf("GetPersona() error = %v, want %v", err, domain.ErrCollectorNotFound)
+		}
+	})
+
+	t.Run("List reports the unknown collector instead of an empty list", func(t *testing.T) {
+		store := newStore(t, aliceID)
+
+		got, err := store.For(unknownID).ListPersonas(ctx)
+		if !errors.Is(err, domain.ErrCollectorNotFound) {
+			t.Errorf("ListPersonas() = %v, %v, want error %v", got, err, domain.ErrCollectorNotFound)
+		}
+	})
+
+	t.Run("Saving for an unknown collector is rejected and changes nothing", func(t *testing.T) {
+		store := newStore(t, aliceID)
+		item := domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{})
+		orphan := personaWithItems(unknownID, "Orphan", "", item)
+
+		if err := store.For(unknownID).SavePersona(ctx, orphan); !errors.Is(err, domain.ErrCollectorNotFound) {
+			t.Fatalf("SavePersona() error = %v, want %v", err, domain.ErrCollectorNotFound)
+		}
+
+		// The item id was not taken by the rejected save.
+		reuse := personaWithItems(aliceID, "Employed", "", item)
+		mustSave(ctx, t, store.For(aliceID), reuse)
+
+		got, err := store.For(aliceID).ListPersonas(ctx)
+		if err != nil {
+			t.Fatalf("ListPersonas() error = %v", err)
+		}
+
+		if diff := cmp.Diff([]*domain.Persona{reuse}, got, domaintest.CmpOptions()); diff != "" {
+			t.Errorf("ListPersonas() mismatch (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("Saving a persona id of another collector for an unknown collector reports the collector", func(t *testing.T) {
+		store := newStore(t, aliceID)
+		alices := personaWithItems(aliceID, "Employed", "Has a job")
+		mustSave(ctx, t, store.For(aliceID), alices)
+
+		// Both causes apply. The collector takes precedence, like in GetPersona.
+		hijack := variant(alices, "Hijacked", unknownID)
+		if err := store.For(unknownID).SavePersona(ctx, hijack); !errors.Is(err, domain.ErrCollectorNotFound) {
+			t.Fatalf("SavePersona() error = %v, want %v", err, domain.ErrCollectorNotFound)
+		}
+
+		got, err := store.For(aliceID).GetPersona(ctx, alices.ID())
+		if err != nil {
+			t.Fatalf("GetPersona() error = %v", err)
+		}
+
+		if diff := cmp.Diff(alices, got, domaintest.CmpOptions()); diff != "" {
+			t.Errorf("GetPersona() mismatch (-want +got):\n%s", diff)
 		}
 	})
 }

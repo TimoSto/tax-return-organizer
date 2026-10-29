@@ -63,7 +63,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 
 1. A handler in `httpadapter/<resource>` decodes the request and resolves the collector it acts for with `httpx.Tenant` (today from the URL, later from the authenticated principal).
 2. The handler calls a use case through its inbound port (for example `inbound.GetPersona`), passing the collector id as an explicit argument.
-3. The use case first checks that the collector exists (`CollectorRepository.GetCollector`, adapters do not do this, see [tenant-scoped-stores.md](tenant-scoped-stores.md)), then asks the store for a repository bound to it (`personas.For(collectorID)`), and works with domain entities. Writes that span several repositories run inside `Transactor.InTx`.
+3. The use case asks the store for a repository bound to the collector (`personas.For(collectorID)`) and works with domain entities. It does not check that the collector exists, the repository does (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Writes that span several repositories run inside `Transactor.InTx`.
 4. The Postgres repository executes the query, always filtered by the bound collector.
 5. Errors travel back up as values. `httpx` maps `domain.Error` kinds to status codes (invalid → 400, not found → 404, conflict → 409). Anything else is logged and becomes a generic 500, so internal details never reach the client. A domain error carries only its kind and an English message. The stable machine-readable code clients switch on (`collector_not_found`, ...) is API contract and lives in the adapter, in the table in `httpx/problemcodes.go`. A new sentinel needs an entry there and the code in the `Problem.code` enum of `api/openapi.yaml`; tests fail if either is missing.
    Wrap errors once: use cases name the operation (`get collector: ...`), repositories only name the failing step (`query collector: ...`) and return sentinel errors bare.
@@ -95,7 +95,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 
 A *collector* is the tenant. Everything a collector owns is exposed as a `...Store` whose `For(collectorID)` returns a repository bound to that collector, so repository methods never take a collector id and cannot reach another tenant's rows. Only `CollectorRepository`, the tenant root, is unscoped. The full rules, the cost and the checklist for a new resource are in [tenant-scoped-stores.md](tenant-scoped-stores.md).
 
-Use cases, not adapters, check that the collector exists (`CollectorRepository.GetCollector` before touching a store), so every adapter behaves the same, including the in-memory fakes. Foreign keys in Postgres are only a fallback: they protect integrity if a use case forgets the check or a race slips through, but the business error (`collector_not_found`) never comes from a database constraint. A violated FK surfaces as a 500, which means a bug.
+Referential integrity belongs to the storage, not to the use cases: a tenant-scoped repository returns `domain.ErrCollectorNotFound` itself when its collector does not exist. Postgres derives it from the foreign key on writes and from reading through `collectors` on reads, so a check cannot be forgotten and costs no extra query. The in-memory fakes emulate it, and the shared contract tests make every adapter behave the same. Deleting a collector will rely on `ON DELETE CASCADE` in the same spirit.
 
 ### Inbound and outbound ports
 
@@ -105,7 +105,7 @@ Use cases still return domain entities to the adapter. If a read ever needs a pr
 
 ### Small, pass-through use cases are kept on purpose
 
-Some use cases (`getcollector`, `getpersona`) do little more than check the collector and call a repository with the tenant they are given. They stay. Handlers talk only to use cases and never to `port` (enforced by depguard), so every endpoint goes through the same seam, where authorization, auditing or extra rules can be added later without touching the handlers. Dropping the thin ones would give the HTTP layer two ways to reach the core and would blur the rule that handlers do not know repositories.
+Some use cases (`getcollector`, `getpersona`) do little more than call a repository with the tenant they are given. They stay. Handlers talk only to use cases and never to `port` (enforced by depguard), so every endpoint goes through the same seam, where authorization, auditing or extra rules can be added later without touching the handlers. Dropping the thin ones would give the HTTP layer two ways to reach the core and would blur the rule that handlers do not know repositories.
 
 ### Ids are created outside the domain
 

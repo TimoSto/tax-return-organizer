@@ -15,8 +15,12 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
-// uniqueViolation is the SQLSTATE of a unique or primary key violation.
-const uniqueViolation = "23505"
+const (
+	// uniqueViolation is the SQLSTATE of a unique or primary key violation.
+	uniqueViolation = "23505"
+	// foreignKeyViolation is the SQLSTATE of a foreign key violation.
+	foreignKeyViolation = "23503"
+)
 
 var (
 	_ outbound.PersonaStore      = (*Store)(nil)
@@ -45,14 +49,16 @@ type Repository struct {
 }
 
 // GetPersona implements outbound.PersonaRepository.
-// Persona and items are read in one statement, so a concurrent SavePersona can never show up half-applied.
+// Collector, persona and items are read in one statement, so a concurrent SavePersona can never show up
+// half-applied. The query starts from the collector, so an unknown collector yields no row at all.
 func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
-		FROM personas p
+		FROM collectors c
+		LEFT JOIN personas p ON p.collector_id = c.id AND p.id = $1
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
-		WHERE p.id = $1 AND p.collector_id = $2
+		WHERE c.id = $2
 		ORDER BY i.position`, uuid.UUID(id), string(r.collectorID))
 	if err != nil {
 		return nil, fmt.Errorf("query persona: %w", err)
@@ -72,14 +78,16 @@ func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*doma
 }
 
 // ListPersonas implements outbound.PersonaRepository.
-// Names sort bytewise (collation C), like the in-memory repository. An unknown collector yields an empty list, callers check the collector.
+// Names sort bytewise (collation C), like the in-memory repository. The query starts from the collector, so a
+// collector without personas yields one row with NULL persona columns and an unknown collector no row.
 func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
-		FROM personas p
+		FROM collectors c
+		LEFT JOIN personas p ON p.collector_id = c.id
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
-		WHERE p.collector_id = $1
+		WHERE c.id = $1
 		ORDER BY p.name COLLATE "C", p.id, i.position`, string(r.collectorID))
 	if err != nil {
 		return nil, fmt.Errorf("query personas: %w", err)
@@ -128,6 +136,11 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 		WHERE personas.collector_id = EXCLUDED.collector_id`,
 		row.ID, row.CollectorID, row.Name, row.Description)
 
+	// An unknown collector makes the upsert fail on the foreign key, unless the persona id exists already: then
+	// the insert turns into the guarded update, which affects no row and checks no foreign key. This statement
+	// tells the two causes of "no row" apart, so the collector takes precedence like in the reads.
+	batch.Queue(`SELECT EXISTS (SELECT 1 FROM collectors WHERE id = $1)`, row.CollectorID)
+
 	// Items keep their identity: an item of this persona is updated, any other id is inserted. The insert is
 	// plain on purpose. An id that exists under another persona makes it fail with a unique violation, which
 	// aborts the whole batch, so nothing stays written (a statement that merely affects no row could not undo
@@ -172,14 +185,28 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 }
 
 // readSaveResults checks the result of every statement queued by SavePersona, in order. An error aborts the
-// implicit transaction, so returning early leaves nothing written.
+// implicit transaction, so returning early leaves nothing written. Returning early because the upsert affected
+// no row is safe too: the guards of the item statements turn them into no-ops.
 func readSaveResults(results pgx.BatchResults, items []itemRow) error {
 	tag, err := results.Exec()
 	if err != nil {
+		if isCollectorMissing(err) {
+			return domain.ErrCollectorNotFound
+		}
+
 		return fmt.Errorf("upsert persona: %w", err)
 	}
 
+	var collectorExists bool
+	if err := results.QueryRow().Scan(&collectorExists); err != nil {
+		return fmt.Errorf("check collector: %w", err)
+	}
+
 	if tag.RowsAffected() == 0 {
+		if !collectorExists {
+			return domain.ErrCollectorNotFound
+		}
+
 		return domain.ErrPersonaNotFound
 	}
 
@@ -207,9 +234,19 @@ func isItemIDTaken(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == "item_definitions_pkey"
 }
 
-// scanPersonas reads rows of persona and item columns ordered by persona.
+// isCollectorMissing reports whether err is the foreign key violation of a persona whose collector does not exist.
+func isCollectorMissing(err error) bool {
+	var pgErr *pgconn.PgError
+
+	return errors.As(err, &pgErr) && pgErr.Code == foreignKeyViolation && pgErr.ConstraintName == "personas_collector_id_fkey"
+}
+
+// scanPersonas reads rows of persona and item columns ordered by persona, as selected from collectors LEFT JOIN
+// personas. It returns domain.ErrCollectorNotFound if there is no row, so the collector does not exist. A row with
+// NULL persona columns only shows that the collector exists.
 func scanPersonas(rows pgx.Rows) ([]*domain.Persona, error) {
 	personas := make([]*domain.Persona, 0)
+	collectorFound := false
 
 	var (
 		current *personaRow
@@ -234,14 +271,23 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, error) {
 
 	for rows.Next() {
 		var (
-			p    personaRow
+			np   nullablePersonaRow
 			item nullableItemRow
 		)
 
-		if err := rows.Scan(&p.ID, &p.CollectorID, &p.Name, &p.Description,
+		if err := rows.Scan(&np.ID, &np.CollectorID, &np.Name, &np.Description,
 			&item.ID, &item.Title, &item.Kind, &item.Recurrence, &item.DocumentSpec, &item.ValueSpec); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
+
+		collectorFound = true
+
+		// The collector has no (matching) persona.
+		if np.ID == nil {
+			continue
+		}
+
+		p := np.toRow()
 
 		if current == nil || current.ID != p.ID {
 			if err := flush(); err != nil {
@@ -269,6 +315,10 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, error) {
 		return nil, fmt.Errorf("read rows: %w", err)
 	}
 
+	if !collectorFound {
+		return nil, domain.ErrCollectorNotFound
+	}
+
 	if err := flush(); err != nil {
 		return nil, err
 	}
@@ -282,6 +332,20 @@ type personaRow struct {
 	CollectorID string
 	Name        string
 	Description string
+}
+
+// nullablePersonaRow scans the persona columns of a LEFT JOIN, which are all NULL for a collector without
+// (matching) personas. Only ID is checked for NULL, the other columns are NOT NULL once a persona exists.
+type nullablePersonaRow struct {
+	ID          *uuid.UUID
+	CollectorID *string
+	Name        *string
+	Description *string
+}
+
+// toRow must only be called when ID is not nil.
+func (r nullablePersonaRow) toRow() personaRow {
+	return personaRow{ID: *r.ID, CollectorID: *r.CollectorID, Name: *r.Name, Description: *r.Description}
 }
 
 func newPersonaRow(p *domain.Persona) personaRow {

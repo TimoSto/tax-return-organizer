@@ -17,15 +17,15 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-// newFakeRepositories returns in-memory repositories. The persona repository accepts personas of the stored
-// collectors, and of collector k7m2, which is stored up front.
+// newFakeRepositories returns in-memory repositories. The persona store accepts personas of the stored collectors
+// only, collector k7m2 is stored up front.
 func newFakeRepositories() outbound.Repositories {
 	collectors := fakecollector.NewRepository()
 	if err := collectors.SaveCollector(context.Background(), domaintest.Collector("k7m2", "K", "k@example.com")); err != nil {
 		panic(err)
 	}
 
-	return outbound.Repositories{Collectors: collectors, Personas: fakepersona.NewStore()}
+	return outbound.Repositories{Collectors: collectors, Personas: fakepersona.NewStore(collectors)}
 }
 
 type pinger struct{ err error }

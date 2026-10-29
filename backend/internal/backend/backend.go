@@ -49,8 +49,8 @@ func wire(repos outbound.Repositories, tx outbound.Transactor, ready health.Ping
 	return httpadapter.NewHandler(httpadapter.Deps{
 		CreateCollector: createcollector.New(tx, personatemplate.Predefined(), idgen.Random{}),
 		GetCollector:    getcollector.New(repos.Collectors),
-		GetPersona:      getpersona.New(repos.Collectors, repos.Personas),
-		ListPersonas:    listpersonas.New(repos.Collectors, repos.Personas),
+		GetPersona:      getpersona.New(repos.Personas),
+		ListPersonas:    listpersonas.New(repos.Personas),
 		Readiness:       ready,
 	})
 }

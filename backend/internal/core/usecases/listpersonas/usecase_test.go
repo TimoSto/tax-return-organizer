@@ -34,8 +34,8 @@ func (r failingRepo) ListPersonas(context.Context) ([]*domain.Persona, error) { 
 
 func (failingRepo) SavePersona(context.Context, *domain.Persona) error { return nil }
 
-// seededCollectors returns a collector repository that holds the collectors k7m2 and bbbb.
-func seededCollectors(t *testing.T) outbound.CollectorRepository {
+// seededStore returns a persona store for the collectors k7m2 and bbbb.
+func seededStore(t *testing.T) *fakepersona.Store {
 	t.Helper()
 
 	repo := fakecollector.NewRepository()
@@ -46,11 +46,11 @@ func seededCollectors(t *testing.T) outbound.CollectorRepository {
 		}
 	}
 
-	return repo
+	return fakepersona.NewStore(repo)
 }
 
 func TestExecute_Success(t *testing.T) {
-	collectors, store := seededCollectors(t), fakepersona.NewStore()
+	store := seededStore(t)
 	ctx := context.Background()
 	employed := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "Has a job")
 	letting := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Letting", "")
@@ -62,7 +62,7 @@ func TestExecute_Success(t *testing.T) {
 		}
 	}
 
-	got, err := listpersonas.New(collectors, store).Execute(ctx, "k7m2")
+	got, err := listpersonas.New(store).Execute(ctx, "k7m2")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -72,8 +72,9 @@ func TestExecute_Success(t *testing.T) {
 	}
 }
 
+// The store reports the unknown collector, the use case passes it on.
 func TestExecute_UnknownCollector(t *testing.T) {
-	got, err := listpersonas.New(fakecollector.NewRepository(), fakepersona.NewStore()).Execute(context.Background(), "k7m2")
+	got, err := listpersonas.New(seededStore(t)).Execute(context.Background(), "zzzz")
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
@@ -86,7 +87,7 @@ func TestExecute_UnknownCollector(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := listpersonas.New(seededCollectors(t), failingStore{err: boom}).Execute(context.Background(), "k7m2")
+	_, err := listpersonas.New(failingStore{err: boom}).Execute(context.Background(), "k7m2")
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want wrapped %v", err, boom)
 	}

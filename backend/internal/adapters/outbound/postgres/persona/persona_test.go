@@ -2,7 +2,6 @@ package persona_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -11,7 +10,6 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/porttest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
 )
@@ -47,6 +45,10 @@ func TestPersonaRepositoryList(t *testing.T) {
 
 func TestPersonaRepositoryIsolation(t *testing.T) {
 	porttest.TestPersonaRepositoryIsolation(t, newStore(postgrestest.RequirePool(t)))
+}
+
+func TestPersonaRepositoryUnknownCollector(t *testing.T) {
+	porttest.TestPersonaRepositoryUnknownCollector(t, newStore(postgrestest.RequirePool(t)))
 }
 
 // A JSON null literal passes the "spec matches kind" check, so only the object check can reject it.
@@ -88,21 +90,5 @@ func TestItemDefinitions_SpecsMustBeJSONObjects(t *testing.T) {
 				t.Errorf("insert error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
-	}
-}
-
-// The repository does not check collectors, callers do. A persona for a missing collector hits the foreign key and
-// comes back as an unclassified error (HTTP 500), not as a domain error.
-func TestSavePersona_MissingCollector(t *testing.T) {
-	store := newStore(postgrestest.RequirePool(t))(t)
-
-	err := store.For("zzzz").SavePersona(context.Background(), domaintest.Persona(domaintest.PersonaID(), "zzzz", "Orphan", ""))
-	if err == nil {
-		t.Fatal("SavePersona() error = nil, want a foreign key error")
-	}
-
-	var de *domain.Error
-	if errors.As(err, &de) {
-		t.Errorf("SavePersona() error = %v, want an unclassified error", err)
 	}
 }
