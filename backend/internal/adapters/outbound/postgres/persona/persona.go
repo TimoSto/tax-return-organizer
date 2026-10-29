@@ -136,6 +136,11 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 		WHERE personas.collector_id = EXCLUDED.collector_id`,
 		row.ID, row.CollectorID, row.Name, row.Description)
 
+	// An unknown collector makes the upsert fail on the foreign key, unless the persona id exists already: then
+	// the insert turns into the guarded update, which affects no row and checks no foreign key. This statement
+	// tells the two causes of "no row" apart, so the collector takes precedence like in the reads.
+	batch.Queue(`SELECT EXISTS (SELECT 1 FROM collectors WHERE id = $1)`, row.CollectorID)
+
 	// Items keep their identity: an item of this persona is updated, any other id is inserted. The insert is
 	// plain on purpose. An id that exists under another persona makes it fail with a unique violation, which
 	// aborts the whole batch, so nothing stays written (a statement that merely affects no row could not undo
@@ -180,7 +185,8 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 }
 
 // readSaveResults checks the result of every statement queued by SavePersona, in order. An error aborts the
-// implicit transaction, so returning early leaves nothing written.
+// implicit transaction, so returning early leaves nothing written. Returning early because the upsert affected
+// no row is safe too: the guards of the item statements turn them into no-ops.
 func readSaveResults(results pgx.BatchResults, items []itemRow) error {
 	tag, err := results.Exec()
 	if err != nil {
@@ -191,7 +197,16 @@ func readSaveResults(results pgx.BatchResults, items []itemRow) error {
 		return fmt.Errorf("upsert persona: %w", err)
 	}
 
+	var collectorExists bool
+	if err := results.QueryRow().Scan(&collectorExists); err != nil {
+		return fmt.Errorf("check collector: %w", err)
+	}
+
 	if tag.RowsAffected() == 0 {
+		if !collectorExists {
+			return domain.ErrCollectorNotFound
+		}
+
 		return domain.ErrPersonaNotFound
 	}
 

@@ -367,6 +367,27 @@ func TestPersonaRepositoryUnknownCollector(t *testing.T, newStore PersonaStoreFa
 			t.Errorf("ListPersonas() mismatch (-want +got):\n%s", diff)
 		}
 	})
+
+	t.Run("Saving a persona id of another collector for an unknown collector reports the collector", func(t *testing.T) {
+		store := newStore(t, aliceID)
+		alices := personaWithItems(aliceID, "Employed", "Has a job")
+		mustSave(ctx, t, store.For(aliceID), alices)
+
+		// Both causes apply. The collector takes precedence, like in GetPersona.
+		hijack := variant(alices, "Hijacked", unknownID)
+		if err := store.For(unknownID).SavePersona(ctx, hijack); !errors.Is(err, domain.ErrCollectorNotFound) {
+			t.Fatalf("SavePersona() error = %v, want %v", err, domain.ErrCollectorNotFound)
+		}
+
+		got, err := store.For(aliceID).GetPersona(ctx, alices.ID())
+		if err != nil {
+			t.Fatalf("GetPersona() error = %v", err)
+		}
+
+		if diff := cmp.Diff(alices, got, domaintest.CmpOptions()); diff != "" {
+			t.Errorf("GetPersona() mismatch (-want +got):\n%s", diff)
+		}
+	})
 }
 
 func mustSave(ctx context.Context, t *testing.T, repo outbound.PersonaRepository, p *domain.Persona) {

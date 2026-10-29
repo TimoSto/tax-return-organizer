@@ -62,7 +62,7 @@ type PersonaRepository interface {
 	// SavePersona inserts the persona or, if its id exists already, replaces name, description and items.
 	// Items missing from persona.Items are deleted, the others keep their id.
 	// It returns ErrTenantMismatch if the persona belongs to another collector than the repository,
-	// domain.ErrCollectorNotFound if the collector does not exist,
+	// domain.ErrCollectorNotFound if the collector does not exist (even if the id also belongs to another one),
 	// domain.ErrPersonaNotFound if the id belongs to another collector,
 	// domain.ErrItemIDTaken if an item id is already used by another persona (of any collector, which
 	// tells a caller that the id exists elsewhere). Nothing is changed then: the save is atomic on its own,
