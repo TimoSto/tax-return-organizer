@@ -62,7 +62,7 @@ func TestExecute_Success(t *testing.T) {
 		}
 	}
 
-	got, err := listpersonas.New(store).Execute(ctx, "k7m2")
+	got, err := listpersonas.New(store).Execute(ctx, domaintest.Staff("k7m2"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestExecute_Success(t *testing.T) {
 
 // The store reports the unknown collector, the use case passes it on.
 func TestExecute_UnknownCollector(t *testing.T) {
-	got, err := listpersonas.New(seededStore(t)).Execute(context.Background(), "zzzz")
+	got, err := listpersonas.New(seededStore(t)).Execute(context.Background(), domaintest.Staff("zzzz"))
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
@@ -87,8 +87,40 @@ func TestExecute_UnknownCollector(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := listpersonas.New(failingStore{err: boom}).Execute(context.Background(), "k7m2")
+	_, err := listpersonas.New(failingStore{err: boom}).Execute(context.Background(), domaintest.Staff("k7m2"))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want wrapped %v", err, boom)
+	}
+}
+
+// untouchedStore fails the test if the use case asks it for a repository.
+type untouchedStore struct {
+	t *testing.T
+}
+
+func (s untouchedStore) For(domain.CollectorID) outbound.PersonaRepository {
+	s.t.Helper()
+	s.t.Fatal("store was used, want the actor rejected before")
+
+	return nil
+}
+
+// Only staff may see personas. The actor is rejected before the store is asked, so a client does not even learn
+// whether its collector exists.
+func TestExecute_Forbidden(t *testing.T) {
+	for name, actor := range map[string]domain.Actor{
+		"client": domaintest.Client("k7m2"),
+		"zero":   {},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := listpersonas.New(untouchedStore{t}).Execute(context.Background(), actor)
+			if !errors.Is(err, domain.ErrForbidden) {
+				t.Errorf("err = %v, want %v", err, domain.ErrForbidden)
+			}
+
+			if got != nil {
+				t.Errorf("got %+v, want nil", got)
+			}
+		})
 	}
 }

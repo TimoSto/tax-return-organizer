@@ -13,10 +13,10 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-type getFunc func(context.Context, domain.CollectorID) (*domain.Collector, error)
+type getFunc func(context.Context, domain.Actor) (*domain.Collector, error)
 
-func (f getFunc) Execute(ctx context.Context, id domain.CollectorID) (*domain.Collector, error) {
-	return f(ctx, id)
+func (f getFunc) Execute(ctx context.Context, actor domain.Actor) (*domain.Collector, error) {
+	return f(ctx, actor)
 }
 
 func doGet(t *testing.T, get getFunc, method string) *httptest.ResponseRecorder {
@@ -35,8 +35,8 @@ func doGet(t *testing.T, get getFunc, method string) *httptest.ResponseRecorder 
 func TestGetCollector_OK(t *testing.T) {
 	var gotID domain.CollectorID
 
-	rec := doGet(t, func(_ context.Context, id domain.CollectorID) (*domain.Collector, error) {
-		gotID = id
+	rec := doGet(t, func(_ context.Context, actor domain.Actor) (*domain.Collector, error) {
+		gotID = actor.CollectorID()
 
 		return domaintest.Collector(testID, "Jane", "jane@example.com"), nil
 	}, http.MethodGet)
@@ -67,7 +67,7 @@ func TestGetCollector_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := doGet(t, func(context.Context, domain.CollectorID) (*domain.Collector, error) {
+			rec := doGet(t, func(context.Context, domain.Actor) (*domain.Collector, error) {
 				return nil, tt.portErr
 			}, http.MethodGet)
 

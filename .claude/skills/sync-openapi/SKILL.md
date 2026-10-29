@@ -13,7 +13,7 @@ description: Update backend/api/openapi.yaml so it matches the inbound HTTP hand
 2. For every `httpx.Route` (its `Pattern` is `"METHOD /path"`; `{name}` segments are path parameters) make sure the spec has:
    - the path and method, a unique `operationId` and the path parameters,
    - the request body schema, taken from the `*Request` struct and its `json` tags (`DisallowUnknownFields` is on, so the schema should not allow extras),
-   - one response per status the handler can produce: each `httpx.WriteJSON` status, `400` from `httpx.ParsePathID` and `httpx.Tenant`, and the statuses `httpx.WriteError` maps from domain error kinds (invalid 400, not found 404, conflict 409, anything else 500),
+   - one response per status the handler can produce: each `httpx.WriteJSON` status, `400` from `httpx.ParsePathID` and `httpx.Actor`, and the statuses `httpx.WriteError` maps from domain error kinds (invalid 400, not found 404, conflict 409, forbidden 403, anything else 500),
    - the `Problem.code` enum in `components/schemas/Problem`: it must list exactly `httpx.ProblemCodes()` (the table in `httpx/problemcodes.go` plus the adapter's own codes; `TestOpenAPI_ProblemCodes` checks it),
    - response headers the handler sets (`Location`, `X-Request-ID` from the middleware).
 3. Build schemas from the response structs: non-pointer fields are `required`, pointer fields are `nullable`, slices are never null when the handler initialises them (check). Use the exact `json` names.

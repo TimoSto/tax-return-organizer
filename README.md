@@ -9,7 +9,7 @@ This repository hold services to help you organize documents for your tax return
 
 ### Personas & tenancy
 
-This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. different tax advisories), each managing their own set of Clients. 
+This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. different tax advisories), each managing their own set of Clients. A Collector is a company: several of its employees work in the same tenant. Clients log in to their Collector's tenant as themselves (one login per Client) and only see their own data.
 
 ## Usage by Collector
 

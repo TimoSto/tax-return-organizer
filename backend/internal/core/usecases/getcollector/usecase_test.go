@@ -30,7 +30,7 @@ func TestExecute_Success(t *testing.T) {
 		t.Fatalf("seed collector: %v", err)
 	}
 
-	got, err := getcollector.New(repo).Execute(context.Background(), want.ID())
+	got, err := getcollector.New(repo).Execute(context.Background(), domaintest.Staff(want.ID()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -40,8 +40,35 @@ func TestExecute_Success(t *testing.T) {
 	}
 }
 
+// Clients may see the collector they belong to.
+func TestExecute_Client(t *testing.T) {
+	repo := fakecollector.NewRepository()
+	want := domaintest.Collector("k7m2", "Jane", "jane@example.com")
+
+	if err := repo.SaveCollector(context.Background(), want); err != nil {
+		t.Fatalf("seed collector: %v", err)
+	}
+
+	got, err := getcollector.New(repo).Execute(context.Background(), domaintest.Client(want.ID()))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if *got != *want {
+		t.Errorf("collector = %+v, want %+v", got, want)
+	}
+}
+
+// The zero actor belongs to no collector.
+func TestExecute_ZeroActor(t *testing.T) {
+	_, err := getcollector.New(fakecollector.NewRepository()).Execute(context.Background(), domain.Actor{})
+	if !errors.Is(err, domain.ErrCollectorNotFound) {
+		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
+	}
+}
+
 func TestExecute_NotFound(t *testing.T) {
-	got, err := getcollector.New(fakecollector.NewRepository()).Execute(context.Background(), "k7m2")
+	got, err := getcollector.New(fakecollector.NewRepository()).Execute(context.Background(), domaintest.Staff("k7m2"))
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
@@ -54,7 +81,7 @@ func TestExecute_NotFound(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := getcollector.New(failingRepo{err: boom}).Execute(context.Background(), "k7m2")
+	_, err := getcollector.New(failingRepo{err: boom}).Execute(context.Background(), domaintest.Staff("k7m2"))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want it to wrap %v", err, boom)
 	}

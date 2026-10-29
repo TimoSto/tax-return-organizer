@@ -50,7 +50,7 @@ func Get(getter inbound.GetPersona) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas/{" + idParam + "}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			collectorID, ok := httpx.Tenant(w, r)
+			actor, ok := httpx.Actor(w, r)
 			if !ok {
 				return
 			}
@@ -60,7 +60,7 @@ func Get(getter inbound.GetPersona) httpx.Route {
 				return
 			}
 
-			p, err := getter.Execute(r.Context(), collectorID, id)
+			p, err := getter.Execute(r.Context(), actor, id)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

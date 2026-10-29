@@ -16,12 +16,12 @@ func List(lister inbound.ListPersonas) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /collectors/{collectorId}/personas",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			collectorID, ok := httpx.Tenant(w, r)
+			actor, ok := httpx.Actor(w, r)
 			if !ok {
 				return
 			}
 
-			personas, err := lister.Execute(r.Context(), collectorID)
+			personas, err := lister.Execute(r.Context(), actor)
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

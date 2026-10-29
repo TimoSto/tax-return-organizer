@@ -12,6 +12,8 @@ const (
 	ErrorNotFound
 	// ErrorConflict means the request clashes with existing state.
 	ErrorConflict
+	// ErrorForbidden means the actor may not do this.
+	ErrorForbidden
 )
 
 // Error is a domain error: a business rule that was violated, with a client-safe English message and an ErrorKind.
@@ -54,3 +56,5 @@ func Errors() []*Error {
 func invalid(msg string) *Error  { return NewError(ErrorInvalid, msg) }
 func notFound(msg string) *Error { return NewError(ErrorNotFound, msg) }
 func conflict(msg string) *Error { return NewError(ErrorConflict, msg) }
+
+func forbidden(msg string) *Error { return NewError(ErrorForbidden, msg) }

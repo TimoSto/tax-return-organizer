@@ -52,6 +52,16 @@ func ItemID() domain.ItemID {
 	return domain.ItemID(uuid.New())
 }
 
+// Staff returns an employee of the collector with a random user id.
+func Staff(collectorID domain.CollectorID) domain.Actor {
+	return domain.NewStaffActor(collectorID, domain.UserID(uuid.New()))
+}
+
+// Client returns a client of the collector with a random user id.
+func Client(collectorID domain.CollectorID) domain.Actor {
+	return domain.NewClientActor(collectorID, domain.UserID(uuid.New()))
+}
+
 // CmpOptions makes go-cmp compare entities, which have no exported fields, by their contents. A nil and an empty
 // slice are equal, because repositories may report either.
 func CmpOptions() cmp.Option {
