@@ -15,6 +15,12 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
+)
+
+var (
+	// testCollectorID is the collector the tests act for.
+	testCollectorID = domaintest.CollectorID()
 )
 
 func TestWriteError_Status(t *testing.T) {
@@ -42,11 +48,11 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrTooManyItems, http.StatusConflict},
 		// Server-side faults: a duplicate id comes from our own generator, stored data from our own writes.
 		{fmt.Errorf("add item: %w", domain.ErrDuplicateItemID), http.StatusInternalServerError},
-		{outbound.CorruptData("collector aaaa", domain.ErrInvalidEmail), http.StatusInternalServerError},
-		{fmt.Errorf("get collector: %w", outbound.CorruptData("collector aaaa", domain.ErrNameRequired)), http.StatusInternalServerError},
+		{outbound.CorruptData("collector 1", domain.ErrInvalidEmail), http.StatusInternalServerError},
+		{fmt.Errorf("get collector: %w", outbound.CorruptData("collector 1", domain.ErrNameRequired)), http.StatusInternalServerError},
 		{domain.ErrItemIDTaken, http.StatusConflict},
 		{personatemplate.ErrInvalidLocale, http.StatusBadRequest},
-		{domain.ErrCollectorIDTaken, http.StatusConflict},
+		{domain.ErrCollectorIDTaken, http.StatusInternalServerError},
 		{fmt.Errorf("wrapped: %w", domain.ErrSpecMismatch), http.StatusBadRequest},
 		{domain.ErrCollectorNotFound, http.StatusNotFound},
 		{domain.ErrPersonaNotFound, http.StatusNotFound},
@@ -115,9 +121,9 @@ func TestActor(t *testing.T) {
 	})
 
 	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/k7m2", nil))
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/"+testCollectorID.String(), nil))
 
-	if want := domain.NewStaffActor("k7m2", domain.UserID{}); rec.Code != http.StatusOK || got != want {
+	if want := domain.NewStaffActor(testCollectorID, domain.UserID{}); rec.Code != http.StatusOK || got != want {
 		t.Errorf("valid id: status = %d, actor = %+v, want 200 and %+v", rec.Code, got, want)
 	}
 
@@ -145,7 +151,7 @@ func TestParsePathID(t *testing.T) {
 		path, body string
 		want       int
 	}{
-		{"/c/k7m2", "k7m2", http.StatusOK},
+		{"/c/" + testCollectorID.String(), testCollectorID.String(), http.StatusOK},
 		{"/c/!", "", http.StatusBadRequest},
 	} {
 		rec := httptest.NewRecorder()

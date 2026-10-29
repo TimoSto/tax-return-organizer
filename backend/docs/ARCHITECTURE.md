@@ -56,7 +56,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `personatemplate` 
 | `adapters/outbound/fake/<resource>` | In-memory repositories and transactor for tests. |
 | `adapters/outbound/idgen` | Random id generation (`crypto/rand`), implements the `outbound` id generators. |
 | `internal/backend` | Composition root: `wire()` builds use cases on repositories and returns the HTTP handler. `Run` migrates, connects, serves, shuts down gracefully. |
-| `cmd/docker`, `cmd/e2e` | Entrypoints. `docker` is production; `e2e` (build tag `e2e`) starts a throwaway Postgres and seeds a collector with id `aaaa`. |
+| `cmd/docker`, `cmd/e2e` | Entrypoints. `docker` is production; `e2e` (build tag `e2e`) starts a throwaway Postgres and seeds a collector with id `00000000-0000-4000-8000-00000000aaaa`. |
 | `internal/testutil/{pgtest,postgrestest,porttest,domaintest}` | Test-only helpers (a Postgres testcontainer and its migrated test pool, repository contract tests, domain builders). Must not be imported by production code. The fakes stay next to the real repositories in `adapters/outbound/fake`. |
 
 ## Request flow
@@ -122,7 +122,7 @@ Some use cases (`getcollector`, `getpersona`) do little more than call a reposit
 
 ### Ids are created outside the domain
 
-The domain does not generate ids. `outbound.IDGenerator` creates the ids of new collectors, personas and items, and `adapters/outbound/idgen` implements it with `crypto/rand`. This keeps the domain deterministic. Collector ids are short strings (see the baseline migration), not UUIDs like in the README diagram, and a generated collector id is not guaranteed to be unused. `createcollector` handles a collision (`ErrCollectorIDTaken`).
+The domain does not generate ids. `outbound.IDGenerator` creates the ids of new collectors, personas and items, and `adapters/outbound/idgen` implements it with `crypto/rand`. This keeps the domain deterministic. All ids are random (version 4) UUIDs, so they cannot be guessed and a clash is a bug: `ErrCollectorIDTaken` is a plain error (500), not a client conflict, and `createcollector` does not retry.
 
 ### Transactions
 

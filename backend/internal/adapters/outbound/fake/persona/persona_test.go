@@ -16,7 +16,7 @@ func newStore(t *testing.T, collectors ...domain.CollectorID) outbound.PersonaSt
 	repo := collector.NewRepository()
 
 	for _, id := range collectors {
-		if err := repo.SaveCollector(context.Background(), domaintest.Collector(id, "Collector "+string(id), domain.Email(string(id)+"@example.com"))); err != nil {
+		if err := repo.SaveCollector(context.Background(), domaintest.Collector(id, "Collector "+id.String(), domain.Email(id.String()+"@example.com"))); err != nil {
 			t.Fatalf("seed collector %s: %v", id, err)
 		}
 	}

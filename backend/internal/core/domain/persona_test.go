@@ -25,7 +25,7 @@ func TestNewPersona(t *testing.T) {
 		{name: "Blank name", pName: "  \t", expErr: domain.ErrPersonaNameRequired},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p, err := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", tc.pName, tc.description)
+			p, err := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, tc.pName, tc.description)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("err = %v, want %v", err, tc.expErr)
@@ -39,16 +39,16 @@ func TestNewPersona(t *testing.T) {
 				t.Errorf("persona = %q/%q, want %q/%q", p.Name(), p.Description(), tc.expName, tc.expDesc)
 			}
 
-			if p.CollectorID() != "aaaa" {
-				t.Errorf("collector id = %q, want aaaa", p.CollectorID())
+			if p.CollectorID() != testCollectorID {
+				t.Errorf("collector id = %q, want %q", p.CollectorID(), testCollectorID)
 			}
 		})
 	}
 }
 
 func TestNewPersona_GeneratesUniqueIDs(t *testing.T) {
-	a, _ := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", "A", "")
-	b, _ := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", "A", "")
+	a, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "A", "")
+	b, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "A", "")
 
 	if a.ID() == b.ID() {
 		t.Error("two personas share an id")
@@ -58,7 +58,7 @@ func TestNewPersona_GeneratesUniqueIDs(t *testing.T) {
 func newPersonaWithItems(t *testing.T) (*domain.Persona, domain.ItemDefinition, domain.ItemDefinition) {
 	t.Helper()
 
-	p, err := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", "Employed", "")
+	p, err := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "Employed", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestPersona_AddItemCopiesTheSpec(t *testing.T) {
 }
 
 func TestRehydratePersona(t *testing.T) {
-	id, collectorID := domain.PersonaID(uuid.New()), domain.CollectorID("aaaa")
+	id, collectorID := domain.PersonaID(uuid.New()), testCollectorID
 	item, err := domain.NewItemDefinition(domain.ItemID(uuid.New()), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{})
 	if err != nil {
 		t.Fatal(err)

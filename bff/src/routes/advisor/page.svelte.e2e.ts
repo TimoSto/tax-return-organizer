@@ -10,8 +10,8 @@ test.beforeAll(async () => {
 	backend = createServer((req, res) => {
 		res.setHeader('Content-Type', 'application/json');
 
-		if (req.method === 'GET' && req.url === '/collectors/aaaa') {
-			res.end(JSON.stringify({ id: 'aaaa', name: 'Mock Collector', email: 'mock@example.com' }));
+		if (req.method === 'GET' && req.url === '/collectors/00000000-0000-4000-8000-00000000aaaa') {
+			res.end(JSON.stringify({ id: '00000000-0000-4000-8000-00000000aaaa', name: 'Mock Collector', email: 'mock@example.com' }));
 
 			return;
 		}

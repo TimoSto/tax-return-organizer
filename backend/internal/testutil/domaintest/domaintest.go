@@ -42,6 +42,11 @@ func Persona(
 	return p
 }
 
+// CollectorID returns a random collector id.
+func CollectorID() domain.CollectorID {
+	return domain.CollectorID(uuid.New())
+}
+
 // PersonaID returns a random persona id.
 func PersonaID() domain.PersonaID {
 	return domain.PersonaID(uuid.New())

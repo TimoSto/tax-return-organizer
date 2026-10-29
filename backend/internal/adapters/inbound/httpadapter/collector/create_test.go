@@ -13,9 +13,10 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-const testID domain.CollectorID = "k7m2"
+var testID = domaintest.CollectorID()
 
 type createFunc func(context.Context, inbound.CreateCollectorCommand) (domain.CollectorID, error)
 
@@ -82,7 +83,7 @@ func TestCreateCollector_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := do(t, func(context.Context, inbound.CreateCollectorCommand) (domain.CollectorID, error) {
-				return "", tt.portErr
+				return domain.CollectorID{}, tt.portErr
 			}, http.MethodPost, tt.body)
 
 			if rec.Code != tt.want {
