@@ -122,7 +122,7 @@ Some use cases (`getcollector`, `getpersona`) do little more than call a reposit
 
 ### Ids are created outside the domain
 
-The domain does not generate ids. `outbound.IDGenerator` creates the ids of new collectors, personas and items, and `adapters/outbound/idgen` implements it with `crypto/rand`. This keeps the domain deterministic. All ids are random (version 4) UUIDs, so they cannot be guessed and a clash is a bug: `ErrCollectorIDTaken` is a plain error (500), not a client conflict, and `createcollector` does not retry.
+The domain does not generate ids. `outbound.IDGenerator` creates the ids of new collectors, personas and items, and `adapters/outbound/idgen` implements it with `crypto/rand`. This keeps the domain deterministic. All ids are random (version 4) UUIDs, so they cannot be guessed and a clash is a bug: `ErrCollectorIDTaken` is a plain error (500), not a client conflict, and `createcollector` does not retry. Item ids are unique per persona only (primary key `(persona_id, id)`), so another persona or tenant may use the same id, and `ErrItemIDTaken` is a plain error as well.
 
 ### Transactions
 

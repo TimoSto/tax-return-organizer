@@ -100,18 +100,6 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 		return domain.ErrPersonaNotFound
 	}
 
-	for id, other := range r.store.personas {
-		if id == persona.ID() {
-			continue
-		}
-
-		for _, item := range persona.Items() {
-			if slices.ContainsFunc(other.Items(), func(o domain.ItemDefinition) bool { return o.ID() == item.ID() }) {
-				return domain.ErrItemIDTaken
-			}
-		}
-	}
-
 	r.store.personas[persona.ID()] = *clone(persona)
 
 	return nil

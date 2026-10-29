@@ -66,5 +66,5 @@ Nothing is stored per tenant. There is one store per process, wired once on the 
 
 ## Known limits
 
-- Ids that are unique across all tenants (item definition ids) still produce `domain.ErrItemIDTaken` when a save reuses another tenant's id, which tells the caller that the id exists elsewhere. Prefer ids that cannot clash (random UUIDs) and consider scoping uniqueness per parent.
+- Child ids are unique per parent, not globally: `item_definitions` has the primary key `(persona_id, id)`, so an id that another persona or tenant uses never clashes and a save cannot reveal that it exists. Follow the same rule for new child tables. A clash within one parent is a bug and a plain error (500), like `domain.ErrItemIDTaken`.
 - The pattern is enforced by types, not by the database. Postgres row-level security (`SET LOCAL app.collector_id` per transaction in `pgdb.Transactor.InTx`) would add a database-level layer; it is not implemented.
