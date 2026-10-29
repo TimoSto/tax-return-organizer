@@ -48,26 +48,25 @@ type PersonaStore interface {
 // definitions, which are part of the persona. Personas, and the ids of their items, of other collectors are not
 // visible through it.
 //
-// The repository does not check that the collector exists, and what it does for an unknown one is not part of the
-// contract: reads see no personas, saving may be accepted (the in-memory fake) or fail on a foreign key (Postgres).
-// Use cases verify the collector through CollectorRepository before they use a store, so every adapter behaves the
-// same for them. The foreign key is only a safety net.
+// Referential integrity is the repository's job, not the caller's: every method returns domain.ErrCollectorNotFound
+// if the bound collector does not exist, so use cases need no check of their own. Postgres gets this from the
+// foreign key (writes) and from reading through the collectors table (reads), the in-memory fake emulates it.
 type PersonaRepository interface {
 	// GetPersona returns the persona with all its items in their stored order.
-	// It returns domain.ErrPersonaNotFound if the collector has no persona with the given id,
-	// which includes personas that belong to another collector.
+	// It returns domain.ErrCollectorNotFound if the collector does not exist, otherwise domain.ErrPersonaNotFound
+	// if the collector has no persona with the given id, which includes personas that belong to another collector.
 	GetPersona(ctx context.Context, id domain.PersonaID) (*domain.Persona, error)
 	// ListPersonas returns all personas of the collector with their items, ordered by name and then id.
-	// A collector without personas yields an empty list.
+	// A collector without personas yields an empty list, an unknown collector domain.ErrCollectorNotFound.
 	ListPersonas(ctx context.Context) ([]*domain.Persona, error)
 	// SavePersona inserts the persona or, if its id exists already, replaces name, description and items.
 	// Items missing from persona.Items are deleted, the others keep their id.
 	// It returns ErrTenantMismatch if the persona belongs to another collector than the repository,
+	// domain.ErrCollectorNotFound if the collector does not exist,
 	// domain.ErrPersonaNotFound if the id belongs to another collector,
 	// domain.ErrItemIDTaken if an item id is already used by another persona (of any collector, which
 	// tells a caller that the id exists elsewhere). Nothing is changed then: the save is atomic on its own,
 	// without the caller wrapping it in a transaction.
-	// The collector is not checked here, see the PersonaRepository comment.
 	//
 	// There is no concurrency control: SavePersona replaces the whole persona, so the last save wins. Two
 	// people editing the same persona from stale copies silently overwrite each other, and a stale save

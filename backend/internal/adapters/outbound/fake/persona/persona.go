@@ -19,14 +19,16 @@ var (
 )
 
 // Store is an in-memory outbound.PersonaStore. A persona is stored as one object including its items.
+// It emulates the foreign key of the Postgres store by looking the collector up in collectors.
 type Store struct {
-	mu       sync.RWMutex
-	personas map[domain.PersonaID]domain.Persona
+	mu         sync.RWMutex
+	personas   map[domain.PersonaID]domain.Persona
+	collectors outbound.CollectorRepository
 }
 
-// NewStore returns an empty store.
-func NewStore() *Store {
-	return &Store{personas: make(map[domain.PersonaID]domain.Persona)}
+// NewStore returns an empty store whose personas belong to the collectors in collectors.
+func NewStore(collectors outbound.CollectorRepository) *Store {
+	return &Store{personas: make(map[domain.PersonaID]domain.Persona), collectors: collectors}
 }
 
 // For implements outbound.PersonaStore. The repositories of all collectors share the storage of the store.
@@ -41,7 +43,11 @@ type Repository struct {
 }
 
 // GetPersona implements outbound.PersonaRepository.
-func (r *Repository) GetPersona(_ context.Context, id domain.PersonaID) (*domain.Persona, error) {
+func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*domain.Persona, error) {
+	if err := r.checkCollector(ctx); err != nil {
+		return nil, err
+	}
+
 	r.store.mu.RLock()
 	defer r.store.mu.RUnlock()
 
@@ -54,7 +60,11 @@ func (r *Repository) GetPersona(_ context.Context, id domain.PersonaID) (*domain
 }
 
 // ListPersonas implements outbound.PersonaRepository.
-func (r *Repository) ListPersonas(_ context.Context) ([]*domain.Persona, error) {
+func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error) {
+	if err := r.checkCollector(ctx); err != nil {
+		return nil, err
+	}
+
 	r.store.mu.RLock()
 	defer r.store.mu.RUnlock()
 
@@ -74,9 +84,13 @@ func (r *Repository) ListPersonas(_ context.Context) ([]*domain.Persona, error) 
 }
 
 // SavePersona implements outbound.PersonaRepository.
-func (r *Repository) SavePersona(_ context.Context, persona *domain.Persona) error {
+func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) error {
 	if persona.CollectorID() != r.collectorID {
 		return fmt.Errorf("save persona %s: %w", persona.ID(), outbound.ErrTenantMismatch)
+	}
+
+	if err := r.checkCollector(ctx); err != nil {
+		return err
 	}
 
 	r.store.mu.Lock()
@@ -101,6 +115,13 @@ func (r *Repository) SavePersona(_ context.Context, persona *domain.Persona) err
 	r.store.personas[persona.ID()] = *clone(persona)
 
 	return nil
+}
+
+// checkCollector returns domain.ErrCollectorNotFound if the bound collector does not exist.
+func (r *Repository) checkCollector(ctx context.Context) error {
+	_, err := r.store.collectors.GetCollector(ctx, r.collectorID)
+
+	return err
 }
 
 // clone copies p deeply, so callers and the repository never share items or specs. Persona.Items and

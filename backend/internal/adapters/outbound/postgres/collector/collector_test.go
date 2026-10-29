@@ -79,8 +79,9 @@ func TestSaveCollector_RolledBackWhenPersonaSaveFails(t *testing.T) {
 		t.Errorf("GetCollector(aaaa) err = %v, want %v: the collector was not rolled back", err, domain.ErrCollectorNotFound)
 	}
 
-	if _, err := persona.NewStore(pool).For("aaaa").GetPersona(ctx, clashing.ID()); !errors.Is(err, domain.ErrPersonaNotFound) {
-		t.Errorf("GetPersona err = %v, want %v", err, domain.ErrPersonaNotFound)
+	// With the collector rolled back, the store reports it missing before looking for the persona.
+	if _, err := persona.NewStore(pool).For("aaaa").GetPersona(ctx, clashing.ID()); !errors.Is(err, domain.ErrCollectorNotFound) {
+		t.Errorf("GetPersona err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
 
 	// The seeded data of the other collector is untouched.

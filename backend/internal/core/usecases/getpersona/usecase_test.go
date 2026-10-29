@@ -35,8 +35,8 @@ func (failingRepo) ListPersonas(context.Context) ([]*domain.Persona, error) { re
 
 func (failingRepo) SavePersona(context.Context, *domain.Persona) error { return nil }
 
-// seededCollectors returns a collector repository that holds the collectors k7m2 and bbbb.
-func seededCollectors(t *testing.T) outbound.CollectorRepository {
+// seededStore returns a persona store for the collectors k7m2 and bbbb.
+func seededStore(t *testing.T) *fakepersona.Store {
 	t.Helper()
 
 	repo := fakecollector.NewRepository()
@@ -47,11 +47,11 @@ func seededCollectors(t *testing.T) outbound.CollectorRepository {
 		}
 	}
 
-	return repo
+	return fakepersona.NewStore(repo)
 }
 
 func TestExecute_Success(t *testing.T) {
-	store := fakepersona.NewStore()
+	store := seededStore(t)
 	id := domaintest.PersonaID()
 	want := domaintest.Persona(id, "k7m2", "Employed", "Has a job",
 		domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}))
@@ -60,7 +60,7 @@ func TestExecute_Success(t *testing.T) {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	got, err := getpersona.New(seededCollectors(t), store).Execute(context.Background(), want.CollectorID(), want.ID())
+	got, err := getpersona.New(store).Execute(context.Background(), want.CollectorID(), want.ID())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_NotFound(t *testing.T) {
-	got, err := getpersona.New(seededCollectors(t), fakepersona.NewStore()).Execute(context.Background(), "k7m2", domain.PersonaID(uuid.New()))
+	got, err := getpersona.New(seededStore(t)).Execute(context.Background(), "k7m2", domain.PersonaID(uuid.New()))
 	if !errors.Is(err, domain.ErrPersonaNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrPersonaNotFound)
 	}
@@ -82,30 +82,22 @@ func TestExecute_NotFound(t *testing.T) {
 }
 
 func TestExecute_OtherCollector(t *testing.T) {
-	store := fakepersona.NewStore()
+	store := seededStore(t)
 	p := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "")
 
 	if err := store.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	_, err := getpersona.New(seededCollectors(t), store).Execute(context.Background(), "bbbb", p.ID())
+	_, err := getpersona.New(store).Execute(context.Background(), "bbbb", p.ID())
 	if !errors.Is(err, domain.ErrPersonaNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrPersonaNotFound)
 	}
 }
 
+// The store reports the unknown collector, the use case passes it on.
 func TestExecute_UnknownCollector(t *testing.T) {
-	store := fakepersona.NewStore()
-	p := domaintest.Persona(domaintest.PersonaID(), "zzzz", "Employed", "")
-
-	// The fake persona store does not check the collector, so the persona exists for "zzzz": only the use case
-	// can tell that the collector does not.
-	if err := store.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
-		t.Fatalf("seed persona: %v", err)
-	}
-
-	got, err := getpersona.New(seededCollectors(t), store).Execute(context.Background(), "zzzz", p.ID())
+	got, err := getpersona.New(seededStore(t)).Execute(context.Background(), "zzzz", domaintest.PersonaID())
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
@@ -118,7 +110,7 @@ func TestExecute_UnknownCollector(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := getpersona.New(seededCollectors(t), failingStore{err: boom}).Execute(context.Background(), "k7m2", domain.PersonaID(uuid.New()))
+	_, err := getpersona.New(failingStore{err: boom}).Execute(context.Background(), "k7m2", domain.PersonaID(uuid.New()))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want it to wrap %v", err, boom)
 	}
