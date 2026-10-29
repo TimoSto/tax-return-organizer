@@ -34,11 +34,11 @@ This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. d
 - Select a Client
 - Enter a year (e.g. 2021)
 - Assign Personas to this Client
-    - The Personas are only referenced, so a change in a Persona object immediately reflecs on the Client
+    - The tax year keeps a reference to its Personas only for display and for updating the list (see below). Changing a Persona afterwards never changes an existing tax year
 - Generate List of documents and data the Client needs to provide
     - For documents metadata can be specified, which the client needs to fill out
     - For data an optional free-text unit (e.g. *EUR*, *days*, *km*), a type (text, number, date or yes/no) and whether it is required can be specified (validation rules come later, see "Not in the first MVP")
-- If Persona changes, add possibility to update this list, but not necessity (not possible on a closed tax year)
+- If a Persona changes, add the possibility to update this list explicitly, but no necessity (not possible on a closed tax year)
 
 ### Usecase *"Close Client Tax Year"*:
 
@@ -210,7 +210,7 @@ classDiagram
     ValueSpec ..> ValueType
 
     Client "1" --> "*" ClientTaxYear : has
-    ClientTaxYear "*" --> "*" Persona : references
+    ClientTaxYear "*" ..> "*" Persona : references (display only)
     ClientTaxYear "1" --> "*" RequiredItem : lists
     ItemDefinition "0..1" <.. "*" RequiredItem : generated from (snapshot)
     RequiredItem "1" --> "*" Document : holds
@@ -218,7 +218,8 @@ classDiagram
 ```
 
 Notes:
-- **Persona assignment is a live reference, generated items are snapshots.** A `ClientTaxYear` only references its `Persona`s, so renaming a persona or adding a definition shows up on the client immediately. `Generate()` expands each `ItemDefinition` of each assigned persona into `RequiredItem`s (12 for `monthly`, 4 `quarterly`, 2 `semiannually`, 1 `annually`, distinguished by `PeriodIndex`) and copies title, kind and spec into the item. Later edits to a persona therefore never silently change an existing list; `SyncItems()` is the explicit, optional way to pull in new definitions (it only adds items and leaves existing ones untouched).
+- **A tax year is a snapshot of its personas.** Once created, a `ClientTaxYear` does not depend on the `Persona` objects any more: it references them only for display (which personas a year was made from) and for `SyncItems()`. `Generate()` expands each `ItemDefinition` of each assigned persona into `RequiredItem`s (12 for `monthly`, 4 `quarterly`, 2 `semiannually`, 1 `annually`, distinguished by `PeriodIndex`) and copies title, kind and spec into the item. Later edits to a persona therefore never silently change an existing list; `SyncItems()` is the explicit, optional way to pull in new definitions (it only adds items and leaves existing ones untouched).
+- **References to personas and definitions are soft.** `RequiredItem.DefinitionID` and the tax year's persona references have no cascading (`ON DELETE CASCADE`) or restricting (`ON DELETE RESTRICT`) foreign key to `item_definitions` or `personas`. Editing or deleting a persona or definition therefore never changes, deletes or blocks client data, and a dangling id only means that the definition is gone. This is also why personas need no optimistic locking: concurrent edits of one persona by several employees of a collector are rare and the last save wins, but no save can lose client data.
 - **Persona is the aggregate root of its item definitions.** `ItemDefinition`s are only read and changed through their `Persona` and are loaded and saved together with it, so there is no separate item repository. The order of `Items` is the order the collector arranged. An item keeps its `ID` across edits (`RequiredItem.DefinitionID` points at it) and its kind cannot change after creation; `UpdateItem` only replaces title, recurrence and spec.
 - **The client never sees personas.** A `RequiredItem` carries everything needed to render it (title, kind, spec, state), so the client view works on items alone. `DefinitionID` is only a back-reference used by `SyncItems()`.
 - **Two kinds of items.** `document` items are satisfied by uploaded `Document`s, `data` items by a single `DataEntry` whose `Value` has the type given by `ValueSpec.Type`. `Unit` is an optional free-text display label set by the collector (e.g. *EUR*, *days*, *km*) and is purely descriptive: the backend does no conversion, so EUR is a `number` with unit `EUR` stored as e.g. `12.50`, not cents. `Done()` is derived, there is no separate flag: documents → at least one `Document`; data → a `DataEntry` exists, or the spec is not `Required`. A `bool` entry of `false` still counts as entered; only a missing entry is outstanding.

@@ -67,11 +67,10 @@ type PersonaRepository interface {
 	// or domain.ErrPersonaNotFound if the id belongs to another collector. Nothing is changed then: the save is
 	// atomic on its own, without the caller wrapping it in a transaction.
 	//
-	// There is no concurrency control: SavePersona replaces the whole persona, so the last save wins. Two
-	// people editing the same persona from stale copies silently overwrite each other, and a stale save
-	// also deletes the items the other person added meanwhile. That is acceptable while personas are edited
-	// rarely by one person per collector. Before that changes, or before client data refers to item
-	// definitions (deleting one would then lose that data), add optimistic locking: a persona version that
-	// the client sends back, saved with "UPDATE ... WHERE version = $n" and answered with 409 on a mismatch.
+	// There is no concurrency control on purpose: SavePersona replaces the whole persona, so the last save
+	// wins, and a stale save also deletes the items another employee added meanwhile. Concurrent edits of one
+	// persona are rare and accepted. Client data never depends on a persona: a tax year copies the item
+	// definitions when it is created and refers to them only softly, so no save can lose client data (see
+	// "Personas have no optimistic locking" in docs/ARCHITECTURE.md).
 	SavePersona(ctx context.Context, persona *domain.Persona) error
 }
