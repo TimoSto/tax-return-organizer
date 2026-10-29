@@ -17,11 +17,18 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
+var (
+	// testCollectorID is the collector the tests act for.
+	testCollectorID = domaintest.CollectorID()
+	// unknownCollectorID is a collector that is never stored.
+	unknownCollectorID = domaintest.CollectorID()
+)
+
 // newFakeRepositories returns in-memory repositories. The persona store accepts personas of the stored collectors
-// only, collector k7m2 is stored up front.
+// only, collector testCollectorID is stored up front.
 func newFakeRepositories() outbound.Repositories {
 	collectors := fakecollector.NewRepository()
-	if err := collectors.SaveCollector(context.Background(), domaintest.Collector("k7m2", "K", "k@example.com")); err != nil {
+	if err := collectors.SaveCollector(context.Background(), domaintest.Collector(testCollectorID, "K", "k@example.com")); err != nil {
 		panic(err)
 	}
 
@@ -122,7 +129,7 @@ func TestWire_GetCollector_NotFound(t *testing.T) {
 	h := wireFake(newFakeRepositories())
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/zzzz", nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/"+unknownCollectorID.String(), nil))
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
@@ -131,7 +138,7 @@ func TestWire_GetCollector_NotFound(t *testing.T) {
 
 func TestWire_GetPersona(t *testing.T) {
 	repos := newFakeRepositories()
-	p := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "")
+	p := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Employed", "")
 
 	if err := repos.Personas.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
@@ -143,8 +150,8 @@ func TestWire_GetPersona(t *testing.T) {
 		name, path string
 		want       int
 	}{
-		{"found", "/collectors/k7m2/personas/" + p.ID().String(), http.StatusOK},
-		{"other collector", "/collectors/bbbb/personas/" + p.ID().String(), http.StatusNotFound},
+		{"found", "/collectors/" + testCollectorID.String() + "/personas/" + p.ID().String(), http.StatusOK},
+		{"other collector", "/collectors/" + unknownCollectorID.String() + "/personas/" + p.ID().String(), http.StatusNotFound},
 	} {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
@@ -157,7 +164,7 @@ func TestWire_GetPersona(t *testing.T) {
 
 func TestWire_ListPersonas(t *testing.T) {
 	repos := newFakeRepositories()
-	p := domaintest.Persona(domaintest.PersonaID(), "k7m2", "Employed", "")
+	p := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Employed", "")
 
 	if err := repos.Personas.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
@@ -169,8 +176,8 @@ func TestWire_ListPersonas(t *testing.T) {
 		name, path string
 		want       int
 	}{
-		{"found", "/collectors/k7m2/personas", http.StatusOK},
-		{"unknown collector", "/collectors/bbbb/personas", http.StatusNotFound},
+		{"found", "/collectors/" + testCollectorID.String() + "/personas", http.StatusOK},
+		{"unknown collector", "/collectors/" + unknownCollectorID.String() + "/personas", http.StatusNotFound},
 	} {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))

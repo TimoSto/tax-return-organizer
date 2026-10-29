@@ -59,7 +59,7 @@ func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*doma
 		LEFT JOIN personas p ON p.collector_id = c.id AND p.id = $1
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
 		WHERE c.id = $2
-		ORDER BY i.position`, uuid.UUID(id), string(r.collectorID))
+		ORDER BY i.position`, uuid.UUID(id), uuid.UUID(r.collectorID))
 	if err != nil {
 		return nil, fmt.Errorf("query persona: %w", err)
 	}
@@ -88,7 +88,7 @@ func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error
 		LEFT JOIN personas p ON p.collector_id = c.id
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
 		WHERE c.id = $1
-		ORDER BY p.name COLLATE "C", p.id, i.position`, string(r.collectorID))
+		ORDER BY p.name COLLATE "C", p.id, i.position`, uuid.UUID(r.collectorID))
 	if err != nil {
 		return nil, fmt.Errorf("query personas: %w", err)
 	}
@@ -329,7 +329,7 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, error) {
 // personaRow mirrors the personas table and keeps SQL concerns out of the domain type.
 type personaRow struct {
 	ID          uuid.UUID
-	CollectorID string
+	CollectorID uuid.UUID
 	Name        string
 	Description string
 }
@@ -338,7 +338,7 @@ type personaRow struct {
 // (matching) personas. Only ID is checked for NULL, the other columns are NOT NULL once a persona exists.
 type nullablePersonaRow struct {
 	ID          *uuid.UUID
-	CollectorID *string
+	CollectorID *uuid.UUID
 	Name        *string
 	Description *string
 }
@@ -350,7 +350,7 @@ func (r nullablePersonaRow) toRow() personaRow {
 
 func newPersonaRow(p *domain.Persona) personaRow {
 	return personaRow{
-		ID: uuid.UUID(p.ID()), CollectorID: string(p.CollectorID()), Name: p.Name(), Description: p.Description(),
+		ID: uuid.UUID(p.ID()), CollectorID: uuid.UUID(p.CollectorID()), Name: p.Name(), Description: p.Description(),
 	}
 }
 

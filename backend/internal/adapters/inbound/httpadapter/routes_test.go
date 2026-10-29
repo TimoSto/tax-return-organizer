@@ -15,7 +15,7 @@ import (
 type stubDeps struct{}
 
 func (stubDeps) Execute(context.Context, inbound.CreateCollectorCommand) (domain.CollectorID, error) {
-	return "", nil
+	return domain.CollectorID{}, nil
 }
 
 type stubGetCollector struct{}

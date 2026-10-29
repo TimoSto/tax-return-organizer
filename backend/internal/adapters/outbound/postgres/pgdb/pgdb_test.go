@@ -21,6 +21,11 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
 )
 
+var (
+	// testCollectorID is the collector the tests act for.
+	testCollectorID = domaintest.CollectorID()
+)
+
 func repositories(db pgdb.DBTX) outbound.Repositories {
 	return outbound.Repositories{Collectors: pgcollector.NewRepository(db), Personas: pgpersona.NewStore(db)}
 }
@@ -53,7 +58,7 @@ func TestInTx_CommitsOnSuccess(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
 	err := tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
-		return r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com"))
+		return r.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com"))
 	})
 	if err != nil {
 		t.Fatalf("InTx: %v", err)
@@ -69,7 +74,7 @@ func TestInTx_RollsBackOnError(t *testing.T) {
 	boom := errors.New("boom")
 
 	err := tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
-		if err := r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
+		if err := r.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com")); err != nil {
 			return err
 		}
 
@@ -91,7 +96,7 @@ func TestInTx_RollsBackOnPanic(t *testing.T) {
 		defer func() { _ = recover() }()
 
 		_ = tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
-			if err := r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
+			if err := r.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com")); err != nil {
 				return err
 			}
 
@@ -110,16 +115,16 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 	boom := errors.New("boom")
 
 	err := tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
-		if err := r.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
+		if err := r.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com")); err != nil {
 			return err
 		}
 
-		p, err := domain.NewPersona(domain.PersonaID(uuid.New()), "aaaa", "Employed", "")
+		p, err := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "Employed", "")
 		if err != nil {
 			return err
 		}
 
-		if err := r.Personas.For("aaaa").SavePersona(ctx, p); err != nil {
+		if err := r.Personas.For(testCollectorID).SavePersona(ctx, p); err != nil {
 			return err
 		}
 
@@ -212,40 +217,29 @@ func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
 	}
 }
 
-// A taken id aborts the Postgres transaction, so the retry must run in a new one and still succeed.
-func TestCreateCollector_RetriesAfterTakenID(t *testing.T) {
+// Collector ids are random UUIDs, so a taken id is a bug: it fails without a retry and stores nothing.
+func TestCreateCollector_TakenIDFails(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
-	if _, err := pool.Exec(context.Background(), `INSERT INTO collectors (id, name, email) VALUES ('aaaa', 'A', 'a@example.com')`); err != nil {
+	if _, err := pool.Exec(context.Background(), `INSERT INTO collectors (id, name, email) VALUES ($1, 'A', 'a@example.com')`, uuid.UUID(testCollectorID)); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 
-	ids := []domain.CollectorID{"aaaa", "bbbb"}
-	uc := createcollector.New(tx, personatemplate.Predefined(), &sequenceIDs{ids: ids})
+	uc := createcollector.New(tx, personatemplate.Predefined(), fixedIDs{id: testCollectorID})
 
-	id, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
-	if err != nil {
-		t.Fatalf("Execute: %v", err)
+	if _, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"}); !errors.Is(err, domain.ErrCollectorIDTaken) {
+		t.Fatalf("err = %v, want it to wrap %v", err, domain.ErrCollectorIDTaken)
 	}
 
-	if id != "bbbb" {
-		t.Errorf("id = %q, want bbbb", id)
-	}
-
-	if n := countCollectors(t, pool); n != 2 {
-		t.Errorf("collectors = %d, want 2", n)
+	if n := countCollectors(t, pool); n != 1 {
+		t.Errorf("collectors = %d, want 1", n)
 	}
 }
 
-// sequenceIDs hands out the given collector ids in order.
-type sequenceIDs struct {
+// fixedIDs draws the collector id id and random ids otherwise.
+type fixedIDs struct {
 	idgen.Random
-	ids []domain.CollectorID
+	id domain.CollectorID
 }
 
-func (s *sequenceIDs) NewCollectorID() (domain.CollectorID, error) {
-	id := s.ids[0]
-	s.ids = s.ids[1:]
-
-	return id, nil
-}
+func (f fixedIDs) NewCollectorID() (domain.CollectorID, error) { return f.id, nil }

@@ -12,17 +12,11 @@ func TestParseCollectorID(t *testing.T) {
 		in      string
 		wantErr error
 	}{
-		{"aaaa", nil},
-		{"k7m2", nil},
-		{"zz99", nil},
+		{"5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f", nil},
 		{"", domain.ErrInvalidCollectorID},
-		{"aaa", domain.ErrInvalidCollectorID},
-		{"aaaaa", domain.ErrInvalidCollectorID},
-		{"AAAA", domain.ErrInvalidCollectorID},
-		{"aa0a", domain.ErrInvalidCollectorID},
-		{"aa1a", domain.ErrInvalidCollectorID},
-		{"aaoa", domain.ErrInvalidCollectorID},
-		{"aa-a", domain.ErrInvalidCollectorID},
+		{"aaaa", domain.ErrInvalidCollectorID},
+		{"5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0", domain.ErrInvalidCollectorID},
+		{"5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0g", domain.ErrInvalidCollectorID},
 	}
 
 	for _, tt := range tests {

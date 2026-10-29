@@ -5,6 +5,12 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	pt "github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
+)
+
+var (
+	// testCollectorID is the collector the tests act for.
+	testCollectorID = domaintest.CollectorID()
 )
 
 func TestInstantiate_RejectsBrokenItemTemplates(t *testing.T) {
@@ -32,7 +38,7 @@ func TestInstantiate_UsesTheGivenIDs(t *testing.T) {
 		},
 	}
 
-	p, err := tmpl.Instantiate("k7m2", pt.LocaleEN, personaID, itemIDs)
+	p, err := tmpl.Instantiate(testCollectorID, pt.LocaleEN, personaID, itemIDs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +51,7 @@ func TestInstantiate_UsesTheGivenIDs(t *testing.T) {
 func TestInstantiate_RejectsWrongNumberOfItemIDs(t *testing.T) {
 	tmpl := pt.Predefined()[0]
 
-	if _, err := tmpl.Instantiate("k7m2", pt.LocaleEN, domain.PersonaID{1}, nil); err == nil {
+	if _, err := tmpl.Instantiate(testCollectorID, pt.LocaleEN, domain.PersonaID{1}, nil); err == nil {
 		t.Error("expected an error")
 	}
 }

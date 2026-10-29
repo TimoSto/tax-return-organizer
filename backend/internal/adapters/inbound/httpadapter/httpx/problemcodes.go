@@ -12,7 +12,6 @@ import (
 // here (TestProblemCodes fails otherwise) and the code in the Problem.code enum of api/openapi.yaml
 // (TestOpenAPI_ProblemCodes fails otherwise).
 var problemCodes = map[*domain.Error]string{
-	domain.ErrCollectorIDTaken:          "collector_id_taken",
 	domain.ErrCollectorNotFound:         "collector_not_found",
 	domain.ErrDuplicateMetadataField:    "duplicate_metadata_field",
 	domain.ErrForbidden:                 "forbidden",

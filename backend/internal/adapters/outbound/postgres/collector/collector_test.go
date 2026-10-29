@@ -17,6 +17,13 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
 )
 
+var (
+	// testCollectorID is the collector the tests act for.
+	testCollectorID = domaintest.CollectorID()
+	// otherCollectorID is another collector, which owns data the tests must not see.
+	otherCollectorID = domaintest.CollectorID()
+)
+
 func TestCollectorRepository(t *testing.T) {
 	pool := postgrestest.RequirePool(t)
 
@@ -39,12 +46,12 @@ func TestSaveCollector_RolledBackWhenPersonaSaveFails(t *testing.T) {
 		t.Fatalf("truncate: %v", err)
 	}
 
-	// bbbb owns a persona with an item, whose id aaaa's persona then tries to reuse.
-	if err := collector.NewRepository(pool).SaveCollector(ctx, domaintest.Collector("bbbb", "B", "b@example.com")); err != nil {
+	// otherCollectorID owns a persona with an item, whose id testCollectorID's persona then tries to reuse.
+	if err := collector.NewRepository(pool).SaveCollector(ctx, domaintest.Collector(otherCollectorID, "B", "b@example.com")); err != nil {
 		t.Fatalf("seed collector: %v", err)
 	}
 
-	existing, err := domain.NewPersona(domain.PersonaID(uuid.New()), "bbbb", "Employed", "")
+	existing, err := domain.NewPersona(domain.PersonaID(uuid.New()), otherCollectorID, "Employed", "")
 	if err != nil {
 		t.Fatalf("new persona: %v", err)
 	}
@@ -54,38 +61,38 @@ func TestSaveCollector_RolledBackWhenPersonaSaveFails(t *testing.T) {
 		t.Fatalf("add item: %v", err)
 	}
 
-	if err := persona.NewStore(pool).For("bbbb").SavePersona(ctx, existing); err != nil {
+	if err := persona.NewStore(pool).For(otherCollectorID).SavePersona(ctx, existing); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	clashing := domaintest.Persona(domaintest.PersonaID(), "aaaa", "Employed", "", item)
+	clashing := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Employed", "", item)
 
 	tx := pgdb.NewTransactor(pool, func(db pgdb.DBTX) outbound.Repositories {
 		return outbound.Repositories{Collectors: collector.NewRepository(db), Personas: persona.NewStore(db)}
 	})
 
 	err = tx.InTx(ctx, func(ctx context.Context, repos outbound.Repositories) error {
-		if err := repos.Collectors.SaveCollector(ctx, domaintest.Collector("aaaa", "A", "a@example.com")); err != nil {
+		if err := repos.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com")); err != nil {
 			return err
 		}
 
-		return repos.Personas.For("aaaa").SavePersona(ctx, clashing)
+		return repos.Personas.For(testCollectorID).SavePersona(ctx, clashing)
 	})
 	if !errors.Is(err, domain.ErrItemIDTaken) {
 		t.Fatalf("err = %v, want %v", err, domain.ErrItemIDTaken)
 	}
 
-	if _, err := collector.NewRepository(pool).GetCollector(ctx, "aaaa"); !errors.Is(err, domain.ErrCollectorNotFound) {
-		t.Errorf("GetCollector(aaaa) err = %v, want %v: the collector was not rolled back", err, domain.ErrCollectorNotFound)
+	if _, err := collector.NewRepository(pool).GetCollector(ctx, testCollectorID); !errors.Is(err, domain.ErrCollectorNotFound) {
+		t.Errorf("GetCollector(testCollectorID) err = %v, want %v: the collector was not rolled back", err, domain.ErrCollectorNotFound)
 	}
 
 	// With the collector rolled back, the store reports it missing before looking for the persona.
-	if _, err := persona.NewStore(pool).For("aaaa").GetPersona(ctx, clashing.ID()); !errors.Is(err, domain.ErrCollectorNotFound) {
+	if _, err := persona.NewStore(pool).For(testCollectorID).GetPersona(ctx, clashing.ID()); !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("GetPersona err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
 
 	// The seeded data of the other collector is untouched.
-	got, err := persona.NewStore(pool).For("bbbb").GetPersona(ctx, existing.ID())
+	got, err := persona.NewStore(pool).For(otherCollectorID).GetPersona(ctx, existing.ID())
 	if err != nil {
 		t.Fatalf("seeded persona lost: %v", err)
 	}

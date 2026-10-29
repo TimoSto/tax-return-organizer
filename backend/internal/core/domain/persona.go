@@ -51,9 +51,8 @@ func NewPersona(id PersonaID, collectorID CollectorID, name, description string)
 func RehydratePersona(
 	id PersonaID, collectorID CollectorID, name, description string, items []ItemDefinition,
 ) (*Persona, error) {
-	collectorID, err := ParseCollectorID(string(collectorID))
-	if err != nil {
-		return nil, err
+	if collectorID == (CollectorID{}) {
+		return nil, ErrInvalidCollectorID
 	}
 
 	name, description = strings.TrimSpace(name), strings.TrimSpace(description)

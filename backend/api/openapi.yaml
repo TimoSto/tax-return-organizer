@@ -73,7 +73,7 @@ paths:
               description: Path of the new collector.
               schema:
                 type: string
-                example: /collectors/k7m2
+                example: /collectors/5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
@@ -126,8 +126,8 @@ paths:
           required: true
           schema:
             type: string
-            pattern: "^[2-9a-hj-km-np-z]{4}$"
-            example: k7m2
+            format: uuid
+            example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
       responses:
         "200":
           description: The collector.
@@ -176,8 +176,8 @@ paths:
           required: true
           schema:
             type: string
-            pattern: "^[2-9a-hj-km-np-z]{4}$"
-            example: k7m2
+            format: uuid
+            example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
       responses:
         "200":
           description: The personas of the collector. Empty if it has none.
@@ -235,8 +235,8 @@ paths:
           required: true
           schema:
             type: string
-            pattern: "^[2-9a-hj-km-np-z]{4}$"
-            example: k7m2
+            format: uuid
+            example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
         - name: id
           in: path
           required: true
@@ -323,16 +323,16 @@ components:
       properties:
         id:
           type: string
-          pattern: "^[2-9a-hj-km-np-z]{4}$"
-          example: k7m2
+          format: uuid
+          example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
     GetCollectorResponse:
       type: object
       required: [id, name, email]
       properties:
         id:
           type: string
-          pattern: "^[2-9a-hj-km-np-z]{4}$"
-          example: k7m2
+          format: uuid
+          example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
         name:
           type: string
           example: Jane Doe
@@ -357,8 +357,8 @@ components:
           format: uuid
         collectorId:
           type: string
-          pattern: "^[2-9a-hj-km-np-z]{4}$"
-          example: k7m2
+          format: uuid
+          example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
         name:
           type: string
           example: Employed
@@ -449,7 +449,7 @@ components:
         code:
           type: string
           description: Stable machine-readable identifier, the key for translations.
-          enum: [collector_not_found, collector_id_taken, forbidden, collector_name_required, collector_name_too_long, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, invalid_item_id, persona_not_found, persona_name_required, persona_name_too_long, persona_description_too_long, too_many_items, item_not_found, item_id_taken, item_title_required, item_title_too_long, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, metadata_field_name_too_long, too_many_metadata_fields, unit_too_long, duplicate_metadata_field, invalid_request_body, request_body_too_large, unsupported_media_type, internal_error]
+          enum: [collector_not_found, forbidden, collector_name_required, collector_name_too_long, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, invalid_item_id, persona_not_found, persona_name_required, persona_name_too_long, persona_description_too_long, too_many_items, item_not_found, item_id_taken, item_title_required, item_title_too_long, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, metadata_field_name_too_long, too_many_metadata_fields, unit_too_long, duplicate_metadata_field, invalid_request_body, request_body_too_large, unsupported_media_type, internal_error]
         requestId:
           type: string
           description: The X-Request-ID of the response.

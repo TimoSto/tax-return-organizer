@@ -7,7 +7,7 @@ export const variables = defineEnvVars({
 	},
 	// TODO: remove once the tenant is derived from the authenticated user.
 	TENANT_ID: {
-		schema: (value) => value ?? 'aaaa',
+		schema: (value) => value ?? '00000000-0000-4000-8000-00000000aaaa',
 		description: 'Collector id used as tenantID until authentication exists.'
 	}
 });

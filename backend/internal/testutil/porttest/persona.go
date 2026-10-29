@@ -25,9 +25,9 @@ func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 
 	ctx := context.Background()
 
-	const (
-		aliceID domain.CollectorID = "aaaa"
-		bobID   domain.CollectorID = "bbbb"
+	var (
+		aliceID = domaintest.CollectorID()
+		bobID   = domaintest.CollectorID()
 	)
 
 	payslip := domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly,
@@ -189,10 +189,10 @@ func TestPersonaRepositoryList(t *testing.T, newStore PersonaStoreFactory) {
 
 	ctx := context.Background()
 
-	const (
-		aliceID domain.CollectorID = "aaaa"
-		bobID   domain.CollectorID = "bbbb"
-		noneID  domain.CollectorID = "cccc"
+	var (
+		aliceID = domaintest.CollectorID()
+		bobID   = domaintest.CollectorID()
+		noneID  = domaintest.CollectorID()
 	)
 
 	payslip := domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly,
@@ -268,9 +268,9 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 
 	ctx := context.Background()
 
-	const (
-		aliceID domain.CollectorID = "aaaa"
-		bobID   domain.CollectorID = "bbbb"
+	var (
+		aliceID = domaintest.CollectorID()
+		bobID   = domaintest.CollectorID()
 	)
 
 	alices := personaWithItems(aliceID, "Employed", "Has a job")
@@ -323,9 +323,9 @@ func TestPersonaRepositoryUnknownCollector(t *testing.T, newStore PersonaStoreFa
 
 	ctx := context.Background()
 
-	const (
-		aliceID   domain.CollectorID = "aaaa"
-		unknownID domain.CollectorID = "zzzz"
+	var (
+		aliceID   = domaintest.CollectorID()
+		unknownID = domaintest.CollectorID()
 	)
 
 	t.Run("Get reports the unknown collector, not the missing persona", func(t *testing.T) {

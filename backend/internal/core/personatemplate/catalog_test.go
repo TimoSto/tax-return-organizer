@@ -75,5 +75,5 @@ func instantiate(tmpl pt.PersonaTemplate, l pt.Locale) (*domain.Persona, error) 
 		}
 	}
 
-	return tmpl.Instantiate("k7m2", l, personaID, itemIDs)
+	return tmpl.Instantiate(testCollectorID, l, personaID, itemIDs)
 }

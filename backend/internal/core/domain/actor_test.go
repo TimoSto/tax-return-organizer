@@ -20,9 +20,9 @@ func TestActor(t *testing.T) {
 		user      domain.UserID
 		staffErr  error
 	}{
-		{"staff", domain.NewStaffActor("k7m2", user), domain.RoleStaff, "k7m2", user, nil},
-		{"client", domain.NewClientActor("k7m2", user), domain.RoleClient, "k7m2", user, domain.ErrForbidden},
-		{"zero", domain.Actor{}, 0, "", domain.UserID{}, domain.ErrForbidden},
+		{"staff", domain.NewStaffActor(testCollectorID, user), domain.RoleStaff, testCollectorID, user, nil},
+		{"client", domain.NewClientActor(testCollectorID, user), domain.RoleClient, testCollectorID, user, domain.ErrForbidden},
+		{"zero", domain.Actor{}, 0, domain.CollectorID{}, domain.UserID{}, domain.ErrForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a := tc.actor

@@ -10,8 +10,14 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/porttest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
+)
+
+var (
+	// testCollectorID is the collector the tests act for.
+	testCollectorID = domaintest.CollectorID()
 )
 
 func newStore(pool *pgxpool.Pool) porttest.PersonaStoreFactory {
@@ -26,7 +32,7 @@ func newStore(pool *pgxpool.Pool) porttest.PersonaStoreFactory {
 		for _, id := range collectors {
 			if _, err := pool.Exec(ctx,
 				`INSERT INTO collectors (id, name, email) VALUES ($1, $2, $3)`,
-				string(id), "Collector "+string(id), string(id)+"@example.com"); err != nil {
+				uuid.UUID(id), "Collector "+id.String(), id.String()+"@example.com"); err != nil {
 				t.Fatalf("seed collector %s: %v", id, err)
 			}
 		}
@@ -62,11 +68,11 @@ func TestItemDefinitions_SpecsMustBeJSONObjects(t *testing.T) {
 
 	personaID := uuid.New()
 
-	if _, err := pool.Exec(ctx, `INSERT INTO collectors (id, name, email) VALUES ('aaaa', 'A', 'a@example.com')`); err != nil {
+	if _, err := pool.Exec(ctx, `INSERT INTO collectors (id, name, email) VALUES ($1, 'A', 'a@example.com')`, uuid.UUID(testCollectorID)); err != nil {
 		t.Fatalf("seed collector: %v", err)
 	}
 
-	if _, err := pool.Exec(ctx, `INSERT INTO personas (id, collector_id, name) VALUES ($1, 'aaaa', 'Employed')`, personaID); err != nil {
+	if _, err := pool.Exec(ctx, `INSERT INTO personas (id, collector_id, name) VALUES ($1, $2, 'Employed')`, personaID, uuid.UUID(testCollectorID)); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 

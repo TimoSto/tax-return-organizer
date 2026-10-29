@@ -3,7 +3,6 @@ package createcollector
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
@@ -11,9 +10,6 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
-
-// maxIDAttempts bounds the retries when a randomly drawn collector id is already taken.
-const maxIDAttempts = 5
 
 // Usecase is the createcollector use case.
 type Usecase struct {
@@ -35,55 +31,37 @@ func New(tx outbound.Transactor, templates []personatemplate.PersonaTemplate, id
 func (u *Usecase) Execute(ctx context.Context, cmd inbound.CreateCollectorCommand) (domain.CollectorID, error) {
 	locale, err := personatemplate.ParseLocale(cmd.Locale)
 	if err != nil {
-		return "", err
+		return domain.CollectorID{}, err
 	}
 
-	// The persona and item ids do not depend on the collector id, so they are drawn once and survive a retry.
+	id, err := u.ids.NewCollectorID()
+	if err != nil {
+		return domain.CollectorID{}, err
+	}
+
 	ids, err := u.newPersonaIDs()
 	if err != nil {
-		return "", err
+		return domain.CollectorID{}, err
 	}
 
-	return u.withFreeCollectorID(func(id domain.CollectorID) error {
-		c, err := domain.NewCollector(id, cmd.Name, cmd.Email)
-		if err != nil {
-			return err
-		}
+	c, err := domain.NewCollector(id, cmd.Name, cmd.Email)
+	if err != nil {
+		return domain.CollectorID{}, err
+	}
 
-		personas, err := u.personas(id, locale, ids)
-		if err != nil {
-			return err
-		}
+	personas, err := u.personas(id, locale, ids)
+	if err != nil {
+		return domain.CollectorID{}, err
+	}
 
-		return u.tx.InTx(ctx, func(ctx context.Context, repos outbound.Repositories) error {
-			return save(ctx, repos, c, personas)
-		})
+	err = u.tx.InTx(ctx, func(ctx context.Context, repos outbound.Repositories) error {
+		return save(ctx, repos, c, personas)
 	})
-}
-
-// withFreeCollectorID calls create with a freshly drawn collector id until the id is not taken, and returns it.
-// Collector ids are short, so a draw can hit an existing one. create must be safe to repeat: one transaction per
-// attempt, since a taken id is a unique violation, which aborts the transaction in Postgres.
-func (u *Usecase) withFreeCollectorID(create func(domain.CollectorID) error) (domain.CollectorID, error) {
-	for range maxIDAttempts {
-		id, err := u.ids.NewCollectorID()
-		if err != nil {
-			return "", err
-		}
-
-		err = create(id)
-		if errors.Is(err, domain.ErrCollectorIDTaken) {
-			continue
-		}
-
-		if err != nil {
-			return "", err
-		}
-
-		return id, nil
+	if err != nil {
+		return domain.CollectorID{}, err
 	}
 
-	return "", fmt.Errorf("save collector: no free id after %d attempts", maxIDAttempts)
+	return id, nil
 }
 
 // personaIDs are the ids of one persona from a template and of its items, in the order of the template's items.

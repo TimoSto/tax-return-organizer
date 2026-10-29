@@ -22,8 +22,8 @@ func TestCollectorRepository(t *testing.T, newRepo CollectorRepositoryFactory) {
 
 	ctx := context.Background()
 
-	alice := domaintest.Collector("aaaa", "Alice", "alice@example.com")
-	bob := domaintest.Collector("bbbb", "Bob", "bob@example.com")
+	alice := domaintest.Collector(domaintest.CollectorID(), "Alice", "alice@example.com")
+	bob := domaintest.Collector(domaintest.CollectorID(), "Bob", "bob@example.com")
 	aliceClone := domaintest.Collector(alice.ID(), "Alice Clone", "clone@example.com")
 
 	for _, tc := range []struct {
@@ -43,7 +43,7 @@ func TestCollectorRepository(t *testing.T, newRepo CollectorRepositoryFactory) {
 		{
 			name:   "Get unknown collector",
 			saves:  []*domain.Collector{alice},
-			getID:  "cccc",
+			getID:  domaintest.CollectorID(),
 			expErr: domain.ErrCollectorNotFound,
 		},
 		{

@@ -2,14 +2,16 @@
 package domain
 
 import (
+	"errors"
 	"strings"
 )
 
 var (
 	// ErrCollectorNotFound is returned when a collector does not exist.
 	ErrCollectorNotFound = notFound("collector not found")
-	// ErrCollectorIDTaken is returned when saving a collector whose id is already in use.
-	ErrCollectorIDTaken = conflict("collector id already taken")
+	// ErrCollectorIDTaken is returned when saving a collector whose id is already in use. Collector ids are random
+	// UUIDs, so a clash is a bug, not a client error: it is a plain error, not a *Error.
+	ErrCollectorIDTaken = errors.New("collector id already taken")
 	// ErrNameRequired is returned for a blank collector name.
 	ErrNameRequired = invalid("collector name is required")
 	// ErrNameTooLong is returned for a collector name longer than MaxCollectorNameLength.
@@ -37,9 +39,8 @@ func NewCollector(id CollectorID, name, email string) (*Collector, error) {
 // RehydrateCollector rebuilds a collector that was stored earlier, e.g. when a repository loads it. It applies the
 // same rules as NewCollector, so corrupt stored data is reported instead of becoming an invalid collector.
 func RehydrateCollector(id CollectorID, name string, email Email) (*Collector, error) {
-	id, err := ParseCollectorID(string(id))
-	if err != nil {
-		return nil, err
+	if id == (CollectorID{}) {
+		return nil, ErrInvalidCollectorID
 	}
 
 	name = strings.TrimSpace(name)
