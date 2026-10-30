@@ -2,7 +2,6 @@
 package personatemplate
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
@@ -17,14 +16,39 @@ type PersonaTemplate struct {
 	Items       []ItemTemplate
 }
 
-// ItemTemplate is a predefined item definition. A document item has MetadataFields, a data item has Value.
+// ItemTemplate is a predefined item definition. Its kind follows from Spec.
 type ItemTemplate struct {
-	Title          locale.Localized
-	Kind           domain.Kind
-	Recurrence     domain.Recurrence
-	MetadataFields []MetadataFieldTemplate
-	Value          *domain.ValueSpec
+	Title      locale.Localized
+	Recurrence domain.Recurrence
+	Spec       ItemSpecTemplate
 }
+
+// ItemSpecTemplate is what a predefined item asks for, the localized counterpart of domain.ItemSpec. It is a sum
+// type that only DocumentSpecTemplate (a document item) and ValueSpecTemplate (a data item) implement.
+type ItemSpecTemplate interface {
+	// spec returns the domain spec with all texts in locale l.
+	spec(l locale.Locale) domain.ItemSpec
+}
+
+// DocumentSpecTemplate makes a document item.
+type DocumentSpecTemplate struct {
+	// MetadataFields may be nil or empty if the document has none.
+	MetadataFields []MetadataFieldTemplate
+}
+
+func (s DocumentSpecTemplate) spec(l locale.Locale) domain.ItemSpec {
+	doc := domain.DocumentSpec{}
+	for _, f := range s.MetadataFields {
+		doc.MetadataFields = append(doc.MetadataFields, domain.MetadataField{Name: f.Name.For(l), ValueSpec: f.ValueSpec})
+	}
+
+	return doc
+}
+
+// ValueSpecTemplate makes a data item. A value spec has no texts to localize, so it is a domain.ValueSpec.
+type ValueSpecTemplate domain.ValueSpec
+
+func (s ValueSpecTemplate) spec(locale.Locale) domain.ItemSpec { return domain.ValueSpec(s) }
 
 // MetadataFieldTemplate is a predefined metadata field of a document item.
 type MetadataFieldTemplate struct {
@@ -45,35 +69,14 @@ func (t PersonaTemplate) Instantiate(collectorID domain.CollectorID, l locale.Lo
 	}
 
 	for i, it := range t.Items {
-		spec, err := it.spec(l)
-		if err != nil {
-			return nil, fmt.Errorf("item %q: %w", it.Title.For(locale.DefaultLocale), err)
+		if it.Spec == nil {
+			return nil, fmt.Errorf("item template %q has no spec", it.Title.For(locale.DefaultLocale))
 		}
 
-		if _, err := p.AddItem(itemIDs[i], it.Title.For(l), it.Recurrence, spec); err != nil {
+		if _, err := p.AddItem(itemIDs[i], it.Title.For(l), it.Recurrence, it.Spec.spec(l)); err != nil {
 			return nil, err
 		}
 	}
 
 	return p, nil
-}
-
-func (it ItemTemplate) spec(l locale.Locale) (domain.ItemSpec, error) {
-	switch it.Kind {
-	case domain.KindDocument:
-		doc := domain.DocumentSpec{}
-		for _, f := range it.MetadataFields {
-			doc.MetadataFields = append(doc.MetadataFields, domain.MetadataField{Name: f.Name.For(l), ValueSpec: f.ValueSpec})
-		}
-
-		return doc, nil
-	case domain.KindData:
-		if it.Value == nil {
-			return nil, errors.New("data item template has no value")
-		}
-
-		return *it.Value, nil
-	default:
-		return nil, fmt.Errorf("unknown item kind %q", it.Kind)
-	}
 }

@@ -42,8 +42,10 @@ func TestPredefined_AllTextsTranslated(t *testing.T) {
 		for _, it := range tmpl.Items {
 			check("item title", it.Title)
 
-			for _, f := range it.MetadataFields {
-				check("metadata field of "+it.Title.For(locale.DefaultLocale), f.Name)
+			if doc, ok := it.Spec.(pt.DocumentSpecTemplate); ok {
+				for _, f := range doc.MetadataFields {
+					check("metadata field of "+it.Title.For(locale.DefaultLocale), f.Name)
+				}
 			}
 		}
 	}
