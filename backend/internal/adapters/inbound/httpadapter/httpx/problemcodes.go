@@ -4,7 +4,7 @@ import (
 	"slices"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 )
 
 // problemCodes maps every domain error to the stable code clients see in Problem.Code. The codes are part of the
@@ -37,7 +37,7 @@ var problemCodes = map[*domain.Error]string{
 	domain.ErrTooManyItems:              "too_many_items",
 	domain.ErrTooManyMetadataFields:     "too_many_metadata_fields",
 	domain.ErrUnitTooLong:               "unit_too_long",
-	personatemplate.ErrInvalidLocale:    "invalid_locale",
+	locale.ErrInvalidLocale:             "invalid_locale",
 }
 
 // codeFor returns the code of a domain error.

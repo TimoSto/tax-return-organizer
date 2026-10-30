@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 	pt "github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
@@ -15,12 +16,12 @@ var (
 
 func TestInstantiate_RejectsBrokenItemTemplates(t *testing.T) {
 	for name, it := range map[string]pt.ItemTemplate{
-		"data item without value": {Title: pt.Localized{pt.LocaleEN: "x"}, Kind: domain.KindData, Recurrence: domain.RecurrenceMonthly},
-		"unknown kind":            {Title: pt.Localized{pt.LocaleEN: "x"}, Kind: "other", Recurrence: domain.RecurrenceMonthly},
+		"data item without value": {Title: locale.Localized{locale.LocaleEN: "x"}, Kind: domain.KindData, Recurrence: domain.RecurrenceMonthly},
+		"unknown kind":            {Title: locale.Localized{locale.LocaleEN: "x"}, Kind: "other", Recurrence: domain.RecurrenceMonthly},
 	} {
-		tmpl := pt.PersonaTemplate{Name: pt.Localized{pt.LocaleEN: "p"}, Items: []pt.ItemTemplate{it}}
+		tmpl := pt.PersonaTemplate{Name: locale.Localized{locale.LocaleEN: "p"}, Items: []pt.ItemTemplate{it}}
 
-		if _, err := instantiate(tmpl, pt.LocaleEN); err == nil {
+		if _, err := instantiate(tmpl, locale.LocaleEN); err == nil {
 			t.Errorf("%s: expected an error", name)
 		}
 	}
@@ -31,14 +32,14 @@ func TestInstantiate_UsesTheGivenIDs(t *testing.T) {
 	itemIDs := []domain.ItemID{{2}, {3}}
 
 	tmpl := pt.PersonaTemplate{
-		Name: pt.Localized{pt.LocaleEN: "p"},
+		Name: locale.Localized{locale.LocaleEN: "p"},
 		Items: []pt.ItemTemplate{
-			{Title: pt.Localized{pt.LocaleEN: "a"}, Kind: domain.KindDocument, Recurrence: domain.RecurrenceMonthly},
-			{Title: pt.Localized{pt.LocaleEN: "b"}, Kind: domain.KindDocument, Recurrence: domain.RecurrenceMonthly},
+			{Title: locale.Localized{locale.LocaleEN: "a"}, Kind: domain.KindDocument, Recurrence: domain.RecurrenceMonthly},
+			{Title: locale.Localized{locale.LocaleEN: "b"}, Kind: domain.KindDocument, Recurrence: domain.RecurrenceMonthly},
 		},
 	}
 
-	p, err := tmpl.Instantiate(testCollectorID, pt.LocaleEN, personaID, itemIDs)
+	p, err := tmpl.Instantiate(testCollectorID, locale.LocaleEN, personaID, itemIDs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +52,7 @@ func TestInstantiate_UsesTheGivenIDs(t *testing.T) {
 func TestInstantiate_RejectsWrongNumberOfItemIDs(t *testing.T) {
 	tmpl := pt.Predefined()[0]
 
-	if _, err := tmpl.Instantiate(testCollectorID, pt.LocaleEN, domain.PersonaID{1}, nil); err == nil {
+	if _, err := tmpl.Instantiate(testCollectorID, locale.LocaleEN, domain.PersonaID{1}, nil); err == nil {
 		t.Error("expected an error")
 	}
 }

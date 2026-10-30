@@ -5,15 +5,16 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 	pt "github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 )
 
 func TestPredefined_InstantiateInEveryLocale(t *testing.T) {
-	for _, l := range pt.Locales() {
+	for _, l := range locale.Locales() {
 		for _, tmpl := range pt.Predefined() {
 			p, err := instantiate(tmpl, l)
 			if err != nil {
-				t.Errorf("%s/%s: %v", l, tmpl.Name.For(pt.DefaultLocale), err)
+				t.Errorf("%s/%s: %v", l, tmpl.Name.For(locale.DefaultLocale), err)
 
 				continue
 			}
@@ -26,8 +27,8 @@ func TestPredefined_InstantiateInEveryLocale(t *testing.T) {
 }
 
 func TestPredefined_AllTextsTranslated(t *testing.T) {
-	check := func(what string, text pt.Localized) {
-		for _, l := range pt.Locales() {
+	check := func(what string, text locale.Localized) {
+		for _, l := range locale.Locales() {
 			if text[l] == "" {
 				t.Errorf("%s has no %s text", what, l)
 			}
@@ -36,20 +37,20 @@ func TestPredefined_AllTextsTranslated(t *testing.T) {
 
 	for _, tmpl := range pt.Predefined() {
 		check("persona name", tmpl.Name)
-		check("description of "+tmpl.Name.For(pt.DefaultLocale), tmpl.Description)
+		check("description of "+tmpl.Name.For(locale.DefaultLocale), tmpl.Description)
 
 		for _, it := range tmpl.Items {
 			check("item title", it.Title)
 
 			for _, f := range it.MetadataFields {
-				check("metadata field of "+it.Title.For(pt.DefaultLocale), f.Name)
+				check("metadata field of "+it.Title.For(locale.DefaultLocale), f.Name)
 			}
 		}
 	}
 }
 
 func TestPredefined_InstantiateUsesLocale(t *testing.T) {
-	p, err := instantiate(pt.Predefined()[0], pt.LocaleDE)
+	p, err := instantiate(pt.Predefined()[0], locale.LocaleDE)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +61,7 @@ func TestPredefined_InstantiateUsesLocale(t *testing.T) {
 }
 
 // instantiate copies tmpl to a collector with random ids.
-func instantiate(tmpl pt.PersonaTemplate, l pt.Locale) (*domain.Persona, error) {
+func instantiate(tmpl pt.PersonaTemplate, l locale.Locale) (*domain.Persona, error) {
 	ids := idgen.Random{}
 
 	personaID, err := ids.NewPersonaID()

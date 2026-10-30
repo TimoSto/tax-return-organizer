@@ -1,4 +1,5 @@
-package personatemplate
+// Package locale holds the languages that predefined content is written in and that requests may ask for.
+package locale
 
 import (
 	"fmt"

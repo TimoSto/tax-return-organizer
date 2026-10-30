@@ -11,7 +11,7 @@ import (
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
@@ -50,7 +50,7 @@ func TestWriteError_Status(t *testing.T) {
 		{outbound.CorruptData("collector 1", domain.ErrInvalidEmail), http.StatusInternalServerError},
 		{fmt.Errorf("get collector: %w", outbound.CorruptData("collector 1", domain.ErrNameRequired)), http.StatusInternalServerError},
 		{domain.ErrItemIDTaken, http.StatusInternalServerError},
-		{personatemplate.ErrInvalidLocale, http.StatusBadRequest},
+		{locale.ErrInvalidLocale, http.StatusBadRequest},
 		{domain.ErrCollectorIDTaken, http.StatusInternalServerError},
 		{fmt.Errorf("wrapped: %w", domain.ErrSpecMismatch), http.StatusBadRequest},
 		{domain.ErrCollectorNotFound, http.StatusNotFound},
