@@ -9,8 +9,8 @@ import (
 
 // problemCodes maps every domain error to the stable code clients see in Problem.Code. The codes are part of the
 // API contract: clients switch on them and translate them, so never change one. A new domain error needs an entry
-// here (TestProblemCodes fails otherwise) and the code in the Problem.code enum of api/openapi.yaml
-// (TestOpenAPI_ProblemCodes fails otherwise).
+// here (TestEveryDomainErrorHasAProblemCode in internal/backend fails otherwise) and the code in the Problem.code
+// enum of api/openapi.yaml (TestOpenAPI_ProblemCodes fails otherwise).
 var problemCodes = map[*domain.Error]string{
 	domain.ErrCollectorNotFound:         "collector_not_found",
 	domain.ErrDuplicateMetadataField:    "duplicate_metadata_field",

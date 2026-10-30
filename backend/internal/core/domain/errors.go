@@ -45,7 +45,8 @@ func NewError(kind ErrorKind, msg string) *Error {
 }
 
 // Errors returns all errors made with NewError so far, i.e. all sentinels of the packages loaded. It exists so that
-// adapters can test that they handle every sentinel; production code has no use for it.
+// tests can check that adapters handle every sentinel; production code has no use for it. Only a test binary that
+// links the whole production graph (internal/backend) sees them all.
 func Errors() []*Error {
 	registryMu.Lock()
 	defer registryMu.Unlock()
