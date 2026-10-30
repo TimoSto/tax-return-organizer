@@ -1,6 +1,7 @@
 package personatemplate_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
@@ -14,16 +15,53 @@ var (
 	testCollectorID = domaintest.CollectorID()
 )
 
-func TestInstantiate_RejectsBrokenItemTemplates(t *testing.T) {
-	for name, it := range map[string]pt.ItemTemplate{
-		"data item without value": {Title: locale.Localized{locale.LocaleEN: "x"}, Kind: domain.KindData, Recurrence: domain.RecurrenceMonthly},
-		"unknown kind":            {Title: locale.Localized{locale.LocaleEN: "x"}, Kind: "other", Recurrence: domain.RecurrenceMonthly},
-	} {
-		tmpl := pt.PersonaTemplate{Name: locale.Localized{locale.LocaleEN: "p"}, Items: []pt.ItemTemplate{it}}
+func TestInstantiate_RejectsItemWithoutSpec(t *testing.T) {
+	tmpl := pt.PersonaTemplate{
+		Name:  locale.Localized{locale.LocaleEN: "p"},
+		Items: []pt.ItemTemplate{{Title: locale.Localized{locale.LocaleEN: "x"}, Recurrence: domain.RecurrenceMonthly}},
+	}
 
-		if _, err := instantiate(tmpl, locale.LocaleEN); err == nil {
-			t.Errorf("%s: expected an error", name)
-		}
+	if _, err := instantiate(tmpl, locale.LocaleEN); err == nil {
+		t.Error("expected an error")
+	}
+}
+
+func TestInstantiate_KindFollowsSpec(t *testing.T) {
+	amount := domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "EUR"}
+	tmpl := pt.PersonaTemplate{
+		Name: locale.Localized{locale.LocaleEN: "p"},
+		Items: []pt.ItemTemplate{
+			{
+				Title:      locale.Localized{locale.LocaleEN: "doc"},
+				Recurrence: domain.RecurrenceMonthly,
+				Spec: pt.DocumentSpecTemplate{MetadataFields: []pt.MetadataFieldTemplate{
+					{Name: locale.Localized{locale.LocaleEN: "Amount", locale.LocaleDE: "Betrag"}, ValueSpec: amount},
+				}},
+			},
+			{
+				Title:      locale.Localized{locale.LocaleEN: "data"},
+				Recurrence: domain.RecurrenceMonthly,
+				Spec:       pt.ValueSpecTemplate(amount),
+			},
+		},
+	}
+
+	p, err := instantiate(tmpl, locale.LocaleDE)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	doc, ok := p.Items()[0].Spec().(domain.DocumentSpec)
+	if !ok {
+		t.Fatalf("spec of the document item = %T, want domain.DocumentSpec", p.Items()[0].Spec())
+	}
+
+	if want := []domain.MetadataField{{Name: "Betrag", ValueSpec: amount}}; !slices.Equal(doc.MetadataFields, want) {
+		t.Errorf("metadata fields = %v, want %v", doc.MetadataFields, want)
+	}
+
+	if got := p.Items()[1].Spec(); got != domain.ItemSpec(amount) {
+		t.Errorf("spec of the data item = %#v, want %#v", got, amount)
 	}
 }
 
@@ -34,8 +72,8 @@ func TestInstantiate_UsesTheGivenIDs(t *testing.T) {
 	tmpl := pt.PersonaTemplate{
 		Name: locale.Localized{locale.LocaleEN: "p"},
 		Items: []pt.ItemTemplate{
-			{Title: locale.Localized{locale.LocaleEN: "a"}, Kind: domain.KindDocument, Recurrence: domain.RecurrenceMonthly},
-			{Title: locale.Localized{locale.LocaleEN: "b"}, Kind: domain.KindDocument, Recurrence: domain.RecurrenceMonthly},
+			{Title: locale.Localized{locale.LocaleEN: "a"}, Recurrence: domain.RecurrenceMonthly, Spec: pt.DocumentSpecTemplate{}},
+			{Title: locale.Localized{locale.LocaleEN: "b"}, Recurrence: domain.RecurrenceMonthly, Spec: pt.DocumentSpecTemplate{}},
 		},
 	}
 

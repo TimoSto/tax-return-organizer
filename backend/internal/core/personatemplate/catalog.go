@@ -14,19 +14,18 @@ func Predefined() []PersonaTemplate {
 			Items: []ItemTemplate{
 				{
 					Title:      locale.Localized{locale.LocaleEN: "Payslip", locale.LocaleDE: "Gehaltsabrechnung"},
-					Kind:       domain.KindDocument,
 					Recurrence: domain.RecurrenceMonthly,
+					Spec:       DocumentSpecTemplate{},
 				},
 				{
 					Title:      locale.Localized{locale.LocaleEN: "Annual wage tax statement", locale.LocaleDE: "Lohnsteuerbescheinigung"},
-					Kind:       domain.KindDocument,
 					Recurrence: domain.RecurrenceAnnually,
+					Spec:       DocumentSpecTemplate{},
 				},
 				{
 					Title:      locale.Localized{locale.LocaleEN: "Days worked at the office", locale.LocaleDE: "Arbeitstage im Büro"},
-					Kind:       domain.KindData,
 					Recurrence: domain.RecurrenceAnnually,
-					Value:      &domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
+					Spec:       ValueSpecTemplate{Type: domain.ValueTypeNumber, Unit: "days", Required: true},
 				},
 			},
 		},
@@ -36,17 +35,15 @@ func Predefined() []PersonaTemplate {
 			Items: []ItemTemplate{
 				{
 					Title:      locale.Localized{locale.LocaleEN: "Rent receipt", locale.LocaleDE: "Mietzahlung"},
-					Kind:       domain.KindData,
 					Recurrence: domain.RecurrenceMonthly,
-					Value:      &domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "EUR", Required: true},
+					Spec:       ValueSpecTemplate{Type: domain.ValueTypeNumber, Unit: "EUR", Required: true},
 				},
 				{
 					Title:      locale.Localized{locale.LocaleEN: "Maintenance invoice", locale.LocaleDE: "Handwerkerrechnung"},
-					Kind:       domain.KindDocument,
 					Recurrence: domain.RecurrenceAnnually,
-					MetadataFields: []MetadataFieldTemplate{
+					Spec: DocumentSpecTemplate{MetadataFields: []MetadataFieldTemplate{
 						{Name: locale.Localized{locale.LocaleEN: "Amount", locale.LocaleDE: "Betrag"}, ValueSpec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "EUR", Required: true}},
-					},
+					}},
 				},
 			},
 		},
