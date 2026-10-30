@@ -9,6 +9,7 @@ import (
 	faketransactor "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/transactor"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
@@ -154,8 +155,8 @@ func TestExecute_InvalidLocale(t *testing.T) {
 	repo := fakecollector.NewRepository()
 
 	id, err := newUsecase(repo).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com", Locale: "fr"})
-	if !errors.Is(err, personatemplate.ErrInvalidLocale) {
-		t.Errorf("err = %v, want %v", err, personatemplate.ErrInvalidLocale)
+	if !errors.Is(err, locale.ErrInvalidLocale) {
+		t.Errorf("err = %v, want %v", err, locale.ErrInvalidLocale)
 	}
 
 	if id != (domain.CollectorID{}) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
@@ -29,7 +30,7 @@ func New(tx outbound.Transactor, templates []personatemplate.PersonaTemplate, id
 // Execute creates and persists a collector with the predefined personas in the requested locale and returns its id.
 // The collector and its personas are saved in one transaction: on an error nothing is stored, so a retry is safe.
 func (u *Usecase) Execute(ctx context.Context, cmd inbound.CreateCollectorCommand) (domain.CollectorID, error) {
-	locale, err := personatemplate.ParseLocale(cmd.Locale)
+	l, err := locale.ParseLocale(cmd.Locale)
 	if err != nil {
 		return domain.CollectorID{}, err
 	}
@@ -49,7 +50,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd inbound.CreateCollectorComman
 		return domain.CollectorID{}, err
 	}
 
-	personas, err := u.personas(id, locale, ids)
+	personas, err := u.personas(id, l, ids)
 	if err != nil {
 		return domain.CollectorID{}, err
 	}
@@ -93,13 +94,13 @@ func (u *Usecase) newPersonaIDs() ([]personaIDs, error) {
 }
 
 // personas instantiates a persona per template for the collector.
-func (u *Usecase) personas(id domain.CollectorID, locale personatemplate.Locale, ids []personaIDs) ([]*domain.Persona, error) {
+func (u *Usecase) personas(id domain.CollectorID, l locale.Locale, ids []personaIDs) ([]*domain.Persona, error) {
 	personas := make([]*domain.Persona, 0, len(u.templates))
 
 	for i, tmpl := range u.templates {
-		p, err := tmpl.Instantiate(id, locale, ids[i].persona, ids[i].items)
+		p, err := tmpl.Instantiate(id, l, ids[i].persona, ids[i].items)
 		if err != nil {
-			return nil, fmt.Errorf("instantiate persona %q: %w", tmpl.Name.For(personatemplate.DefaultLocale), err)
+			return nil, fmt.Errorf("instantiate persona %q: %w", tmpl.Name.For(locale.DefaultLocale), err)
 		}
 
 		personas = append(personas, p)

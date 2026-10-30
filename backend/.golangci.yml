@@ -20,7 +20,7 @@ linters:
   settings:
     depguard:
       # Enforces the hexagonal layering. Test files are exempt: they may wire real adapters into the core.
-      # Layers, from the inside: domain <- personatemplate, domain <- port <- usecases. Adapters (inbound, outbound)
+      # Layers, from the inside: domain <- locale <- personatemplate, domain <- port <- usecases. Adapters (inbound, outbound)
       # depend on the core only and never on each other; internal/backend and cmd/ are the composition root.
       # Go's import cycles already rule out the opposite direction (e.g. port -> usecases, pgdb -> a resource).
       # A new resource package (an httpadapter/<x> or postgres/<x> directory) needs a line in the *-isolated rules.
