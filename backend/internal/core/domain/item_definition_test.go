@@ -2,6 +2,7 @@ package domain_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -93,7 +94,7 @@ func TestNewItemDefinition(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			item, err := domain.NewItemDefinition(domain.ItemID(uuid.New()), tc.title, tc.recurrence, tc.spec)
+			item, err := domain.NewItemDefinition(domain.ItemID(uuid.New()), tc.title, tc.recurrence, tc.spec, nil)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("err = %v, want %v", err, tc.expErr)
@@ -112,4 +113,73 @@ func TestNewItemDefinition(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewItemDefinition_InstanceFields(t *testing.T) {
+	iban := domain.MetadataField{Name: "IBAN", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}}
+	bank := domain.MetadataField{Name: "Bank", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText}}
+
+	for _, tc := range []struct {
+		name          string
+		fields        []domain.MetadataField
+		expRepeatable bool
+		expErr        error
+	}{
+		{name: "No instance fields", fields: nil},
+		{name: "Empty instance fields", fields: []domain.MetadataField{}},
+		{name: "Required label", fields: []domain.MetadataField{iban}, expRepeatable: true},
+		{name: "Optional field after the label", fields: []domain.MetadataField{iban, bank}, expRepeatable: true},
+		{name: "Optional label", fields: []domain.MetadataField{bank, iban}, expErr: domain.ErrInstanceLabelNotRequired},
+		{name: "Blank name", fields: []domain.MetadataField{{Name: " ", ValueSpec: iban.ValueSpec}}, expErr: domain.ErrMetadataFieldNameRequired},
+		{name: "Duplicate name", fields: []domain.MetadataField{iban, iban}, expErr: domain.ErrDuplicateMetadataField},
+		{name: "Invalid type", fields: []domain.MetadataField{{Name: "IBAN", ValueSpec: domain.ValueSpec{Required: true}}}, expErr: domain.ErrInvalidValueType},
+		{name: "Too many", fields: tooManyFields(iban), expErr: domain.ErrTooManyMetadataFields},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			item, err := domain.NewItemDefinition(domain.ItemID(uuid.New()), "Bank statement", domain.RecurrenceMonthly,
+				domain.DocumentSpec{}, tc.fields)
+
+			if !errors.Is(err, tc.expErr) {
+				t.Fatalf("err = %v, want %v", err, tc.expErr)
+			}
+
+			if err != nil {
+				return
+			}
+
+			if item.Repeatable() != tc.expRepeatable {
+				t.Errorf("Repeatable() = %v, want %v", item.Repeatable(), tc.expRepeatable)
+			}
+
+			if got := item.InstanceFields(); !tc.expRepeatable && got != nil {
+				t.Errorf("InstanceFields() = %v, want nil", got)
+			}
+		})
+	}
+}
+
+func TestItemDefinition_InstanceFieldsAreCopied(t *testing.T) {
+	fields := []domain.MetadataField{{Name: "IBAN", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}}}
+
+	item, err := domain.NewItemDefinition(domain.ItemID(uuid.New()), "Bank statement", domain.RecurrenceMonthly,
+		domain.DocumentSpec{}, fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fields[0].Name = "Changed"
+	item.InstanceFields()[0].Name = "Changed too"
+
+	if got := item.InstanceFields()[0].Name; got != "IBAN" {
+		t.Errorf("instance field name = %q, want IBAN: the item shares a slice", got)
+	}
+}
+
+func tooManyFields(label domain.MetadataField) []domain.MetadataField {
+	fields := []domain.MetadataField{label}
+	for i := range domain.MaxMetadataFields {
+		fields = append(fields, domain.MetadataField{Name: fmt.Sprintf("Field %d", i), ValueSpec: label.ValueSpec})
+	}
+
+	return fields
 }

@@ -86,11 +86,11 @@ func TestPersona_AddItem_RejectsDuplicateID(t *testing.T) {
 	p, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "Employed", "")
 	id := newItemID()
 
-	if _, err := p.AddItem(id, "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}); err != nil {
+	if _, err := p.AddItem(id, "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := p.AddItem(id, "Other", domain.RecurrenceMonthly, domain.DocumentSpec{})
+	_, err := p.AddItem(id, "Other", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil)
 	if !errors.Is(err, domain.ErrDuplicateItemID) {
 		t.Errorf("error = %v, want ErrDuplicateItemID", err)
 	}
@@ -110,12 +110,12 @@ func TestPersona_AddItem_BoundsItemCount(t *testing.T) {
 	p, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "Employed", "")
 
 	for range domain.MaxItemsPerPersona {
-		if _, err := p.AddItem(newItemID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}); err != nil {
+		if _, err := p.AddItem(newItemID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if _, err := p.AddItem(newItemID(), "One too many", domain.RecurrenceMonthly, domain.DocumentSpec{}); !errors.Is(err, domain.ErrTooManyItems) {
+	if _, err := p.AddItem(newItemID(), "One too many", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil); !errors.Is(err, domain.ErrTooManyItems) {
 		t.Errorf("error = %v, want ErrTooManyItems", err)
 	}
 }
@@ -123,7 +123,7 @@ func TestPersona_AddItem_BoundsItemCount(t *testing.T) {
 func TestRehydratePersona_RejectsDuplicateIDsAndTooManyItems(t *testing.T) {
 	spec := domain.DocumentSpec{}
 	id := newItemID()
-	item, _ := domain.NewItemDefinition(id, "Payslip", domain.RecurrenceMonthly, spec)
+	item, _ := domain.NewItemDefinition(id, "Payslip", domain.RecurrenceMonthly, spec, nil)
 	pid := domain.PersonaID(uuid.New())
 
 	if _, err := domain.RehydratePersona(pid, testCollectorID, "Employed", "", []domain.ItemDefinition{item, item}); !errors.Is(err, domain.ErrDuplicateItemID) {
@@ -132,7 +132,7 @@ func TestRehydratePersona_RejectsDuplicateIDsAndTooManyItems(t *testing.T) {
 
 	items := make([]domain.ItemDefinition, domain.MaxItemsPerPersona+1)
 	for i := range items {
-		items[i], _ = domain.NewItemDefinition(newItemID(), "Payslip", domain.RecurrenceMonthly, spec)
+		items[i], _ = domain.NewItemDefinition(newItemID(), "Payslip", domain.RecurrenceMonthly, spec, nil)
 	}
 
 	if _, err := domain.RehydratePersona(pid, testCollectorID, "Employed", "", items); !errors.Is(err, domain.ErrTooManyItems) {
@@ -147,11 +147,11 @@ func TestRehydratePersona_RejectsDuplicateIDsAndTooManyItems(t *testing.T) {
 func TestNewItemDefinition_BoundsTitle(t *testing.T) {
 	spec := domain.DocumentSpec{}
 
-	if _, err := domain.NewItemDefinition(newItemID(), runes(domain.MaxItemTitleLength), domain.RecurrenceMonthly, spec); err != nil {
+	if _, err := domain.NewItemDefinition(newItemID(), runes(domain.MaxItemTitleLength), domain.RecurrenceMonthly, spec, nil); err != nil {
 		t.Errorf("title at the limit: %v", err)
 	}
 
-	if _, err := domain.NewItemDefinition(newItemID(), runes(domain.MaxItemTitleLength+1), domain.RecurrenceMonthly, spec); !errors.Is(err, domain.ErrItemTitleTooLong) {
+	if _, err := domain.NewItemDefinition(newItemID(), runes(domain.MaxItemTitleLength+1), domain.RecurrenceMonthly, spec, nil); !errors.Is(err, domain.ErrItemTitleTooLong) {
 		t.Errorf("title over the limit: error = %v, want ErrItemTitleTooLong", err)
 	}
 }

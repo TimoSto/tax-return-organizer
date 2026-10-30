@@ -23,6 +23,7 @@ This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. d
 - Client Personas represent the documents and information a client has to provide, if they do things, that are tax relevant
 - Examples would be *Employed*, *Letting*, *Self-employed* or *ETF investing*
 - The collector defines which documents and data (in form of defined structural data) the Personas need to provide and if the data needs to be provided monthly, quarterly, semi-annualy or annualy
+- An item can be marked as repeatable when a client may have to provide it several times, e.g. a bank statement per bank account. For such an item the collector defines instance fields (e.g. *IBAN*); the first one labels the instance
 - Some Client Personas should come preconfigured as templates
 
 ### Usecase *"Create a Client"*:
@@ -38,6 +39,9 @@ This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. d
 - Generate List of documents and data the Client needs to provide
     - For documents metadata can be specified, which the client needs to fill out
     - For data an optional free-text unit (e.g. *EUR*, *days*, *km*), a type (text, number, date or yes/no) and whether it is required can be specified (validation rules come later, see "Not in the first MVP")
+- For each repeatable item, set its instances and fill their instance fields (e.g. three bank accounts with their IBANs). Each instance becomes its own set of items in the list
+    - The instances of the previous tax year are copied as defaults
+    - On an open tax year instances can be added, edited and removed later (removing only while none of its items holds files or data)
 - If a Persona changes, add the possibility to update this list explicitly, but no necessity (not possible on a closed tax year)
 
 ### Usecase *"Close Client Tax Year"*:
@@ -51,6 +55,7 @@ This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. d
 
 - The Client needs to see all files and data they need to provide for a tax year
 - They should not see the *Persona* layer, only the documents and data
+- Each instance of a repeatable item is shown as a separate item, labeled with the value the collector entered (e.g. the bank account number)
 - They need to see which items are still open and which are satisfied
 
 ### Usecase *"Upload files"*:

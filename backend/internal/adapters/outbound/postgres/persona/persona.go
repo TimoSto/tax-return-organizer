@@ -54,7 +54,7 @@ type Repository struct {
 func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
-		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
+		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec, i.instance_fields
 		FROM collectors c
 		LEFT JOIN personas p ON p.collector_id = c.id AND p.id = $1
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
@@ -83,7 +83,7 @@ func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*doma
 func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
-		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec
+		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec, i.instance_fields
 		FROM collectors c
 		LEFT JOIN personas p ON p.collector_id = c.id
 		LEFT JOIN item_definitions i ON i.persona_id = p.id
@@ -149,15 +149,16 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 		batch.Queue(`
 			WITH updated AS (
 				UPDATE item_definitions SET position = $3, title = $4, kind = $5, recurrence = $6,
-					document_spec = $7, value_spec = $8
+					document_spec = $7, value_spec = $8, instance_fields = $10
 				WHERE id = $1 AND persona_id = $2
 				RETURNING 1)
-			INSERT INTO item_definitions (id, persona_id, position, title, kind, recurrence, document_spec, value_spec)
-			SELECT $1, $2, $3, $4, $5, $6, $7, $8
+			INSERT INTO item_definitions (
+				id, persona_id, position, title, kind, recurrence, document_spec, value_spec, instance_fields)
+			SELECT $1, $2, $3, $4, $5, $6, $7, $8, $10
 			WHERE NOT EXISTS (SELECT 1 FROM updated)
 			  AND EXISTS (SELECT 1 FROM personas WHERE id = $2 AND collector_id = $9)`,
 			item.ID, row.ID, position, item.Title, item.Kind, item.Recurrence, item.DocumentSpec, item.ValueSpec,
-			row.CollectorID)
+			row.CollectorID, item.InstanceFields)
 
 		ids = append(ids, item.ID)
 	}
@@ -276,7 +277,8 @@ func scanPersonas(rows pgx.Rows) ([]*domain.Persona, error) {
 		)
 
 		if err := rows.Scan(&np.ID, &np.CollectorID, &np.Name, &np.Description,
-			&item.ID, &item.Title, &item.Kind, &item.Recurrence, &item.DocumentSpec, &item.ValueSpec); err != nil {
+			&item.ID, &item.Title, &item.Kind, &item.Recurrence, &item.DocumentSpec, &item.ValueSpec,
+			&item.InstanceFields); err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
 		}
 

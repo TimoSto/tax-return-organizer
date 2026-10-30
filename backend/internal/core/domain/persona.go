@@ -114,8 +114,11 @@ func (p *Persona) Items() []ItemDefinition {
 	return items
 }
 
-// AddItem validates the input, appends a new item definition and returns it.
-func (p *Persona) AddItem(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
+// AddItem validates the input, appends a new item definition and returns it. instanceFields make the item
+// repeatable, they may be nil.
+func (p *Persona) AddItem(
+	id ItemID, title string, recurrence Recurrence, spec ItemSpec, instanceFields []MetadataField,
+) (ItemDefinition, error) {
 	if len(p.items) >= MaxItemsPerPersona {
 		return ItemDefinition{}, ErrTooManyItems
 	}
@@ -124,7 +127,7 @@ func (p *Persona) AddItem(id ItemID, title string, recurrence Recurrence, spec I
 		return ItemDefinition{}, fmt.Errorf("%w: %s", ErrDuplicateItemID, id)
 	}
 
-	item, err := NewItemDefinition(id, title, recurrence, spec)
+	item, err := NewItemDefinition(id, title, recurrence, spec, instanceFields)
 	if err != nil {
 		return ItemDefinition{}, err
 	}
@@ -134,9 +137,11 @@ func (p *Persona) AddItem(id ItemID, title string, recurrence Recurrence, spec I
 	return cloneItem(item), nil
 }
 
-// UpdateItem replaces title, recurrence and spec of an item. The id and the kind stay the same,
-// so the spec has to be of the item's kind.
-func (p *Persona) UpdateItem(id ItemID, title string, recurrence Recurrence, spec ItemSpec) error {
+// UpdateItem replaces title, recurrence, spec and instance fields of an item. The id and the kind stay the same,
+// so the spec has to be of the item's kind. Existing tax years keep the instance fields they were generated with.
+func (p *Persona) UpdateItem(
+	id ItemID, title string, recurrence Recurrence, spec ItemSpec, instanceFields []MetadataField,
+) error {
 	i := p.itemIndex(id)
 	if i < 0 {
 		return fmt.Errorf("%w: %s", ErrItemNotFound, id)
@@ -146,7 +151,7 @@ func (p *Persona) UpdateItem(id ItemID, title string, recurrence Recurrence, spe
 		return fmt.Errorf("%w: a %s item cannot get a %s spec", ErrSpecMismatch, p.items[i].Kind(), spec.Kind())
 	}
 
-	updated, err := NewItemDefinition(id, title, recurrence, spec)
+	updated, err := NewItemDefinition(id, title, recurrence, spec, instanceFields)
 	if err != nil {
 		return err
 	}
@@ -174,6 +179,7 @@ func (p *Persona) itemIndex(id ItemID) int {
 
 func cloneItem(item ItemDefinition) ItemDefinition {
 	item.spec = cloneSpec(item.spec)
+	item.instanceFields = cloneFields(item.instanceFields)
 
 	return item
 }

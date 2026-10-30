@@ -21,6 +21,8 @@ type ItemTemplate struct {
 	Title      locale.Localized
 	Recurrence domain.Recurrence
 	Spec       ItemSpecTemplate
+	// InstanceFields make the item repeatable, the first one labels an instance. May be nil.
+	InstanceFields []MetadataFieldTemplate
 }
 
 // ItemSpecTemplate is what a predefined item asks for, the localized counterpart of domain.ItemSpec. It is a sum
@@ -37,12 +39,7 @@ type DocumentSpecTemplate struct {
 }
 
 func (s DocumentSpecTemplate) spec(l locale.Locale) domain.ItemSpec {
-	doc := domain.DocumentSpec{}
-	for _, f := range s.MetadataFields {
-		doc.MetadataFields = append(doc.MetadataFields, domain.MetadataField{Name: f.Name.For(l), ValueSpec: f.ValueSpec})
-	}
-
-	return doc
+	return domain.DocumentSpec{MetadataFields: fields(s.MetadataFields, l)}
 }
 
 // ValueSpecTemplate makes a data item. A value spec has no texts to localize, so it is a domain.ValueSpec.
@@ -50,10 +47,20 @@ type ValueSpecTemplate domain.ValueSpec
 
 func (s ValueSpecTemplate) spec(locale.Locale) domain.ItemSpec { return domain.ValueSpec(s) }
 
-// MetadataFieldTemplate is a predefined metadata field of a document item.
+// MetadataFieldTemplate is a predefined metadata field of a document item or instance field of a repeatable item.
 type MetadataFieldTemplate struct {
 	Name      locale.Localized
 	ValueSpec domain.ValueSpec
+}
+
+// fields returns the domain fields with their names in locale l, or nil if there are none.
+func fields(ts []MetadataFieldTemplate, l locale.Locale) []domain.MetadataField {
+	var fs []domain.MetadataField
+	for _, f := range ts {
+		fs = append(fs, domain.MetadataField{Name: f.Name.For(l), ValueSpec: f.ValueSpec})
+	}
+
+	return fs
 }
 
 // Instantiate creates a persona of the collector from the template, with all texts in locale l.
@@ -73,7 +80,7 @@ func (t PersonaTemplate) Instantiate(collectorID domain.CollectorID, l locale.Lo
 			return nil, fmt.Errorf("item template %q has no spec", it.Title.For(locale.DefaultLocale))
 		}
 
-		if _, err := p.AddItem(itemIDs[i], it.Title.For(l), it.Recurrence, it.Spec.spec(l)); err != nil {
+		if _, err := p.AddItem(itemIDs[i], it.Title.For(l), it.Recurrence, it.Spec.spec(l), fields(it.InstanceFields, l)); err != nil {
 			return nil, err
 		}
 	}

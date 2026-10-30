@@ -17,6 +17,9 @@ var (
 	ErrSpecRequired = invalid("item spec is required")
 	// ErrSpecMismatch is returned when an update gives an item a spec of another kind.
 	ErrSpecMismatch = invalid("spec does not match item kind")
+	// ErrInstanceLabelNotRequired is returned for a repeatable item whose first instance field, the label, is not
+	// required.
+	ErrInstanceLabelNotRequired = invalid("the first instance field must be required")
 )
 
 // Kind tells whether an item is satisfied by uploaded documents or by an entered value.
@@ -64,15 +67,23 @@ func (r Recurrence) Periods() int {
 // ItemDefinition is something a persona asks the client to provide. What exactly is asked for, and with it the
 // kind of the item, is given by its spec. Instances are immutable and always valid; create them with
 // NewItemDefinition or RehydrateItemDefinition.
+//
+// An item with instance fields is repeatable: the client provides it once per instance (e.g. a bank statement per
+// bank account). The instances are set per tax year by the collector, who fills the instance fields for each of
+// them. The first instance field labels the instance, so it must be required.
 type ItemDefinition struct {
-	id         ItemID
-	title      string
-	recurrence Recurrence
-	spec       ItemSpec
+	id             ItemID
+	title          string
+	recurrence     Recurrence
+	spec           ItemSpec
+	instanceFields []MetadataField
 }
 
-// NewItemDefinition validates the input and returns an item definition with the given id.
-func NewItemDefinition(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
+// NewItemDefinition validates the input and returns an item definition with the given id. instanceFields may be
+// nil or empty for an item that is not repeatable.
+func NewItemDefinition(
+	id ItemID, title string, recurrence Recurrence, spec ItemSpec, instanceFields []MetadataField,
+) (ItemDefinition, error) {
 	title = strings.TrimSpace(title)
 
 	if title == "" {
@@ -95,7 +106,13 @@ func NewItemDefinition(id ItemID, title string, recurrence Recurrence, spec Item
 		return ItemDefinition{}, err
 	}
 
-	return ItemDefinition{id: id, title: title, recurrence: recurrence, spec: cloneSpec(spec)}, nil
+	if err := validateInstanceFields(instanceFields); err != nil {
+		return ItemDefinition{}, err
+	}
+
+	return ItemDefinition{
+		id: id, title: title, recurrence: recurrence, spec: cloneSpec(spec), instanceFields: cloneFields(instanceFields),
+	}, nil
 }
 
 // RehydrateItemDefinition rebuilds an item definition that was stored earlier, e.g. when a repository loads it.
@@ -104,8 +121,10 @@ func NewItemDefinition(id ItemID, title string, recurrence Recurrence, spec Item
 //
 // It currently just calls NewItemDefinition. It is kept as its own entry point for the upcoming UpdateItem use case,
 // where rebuilding a stored item and creating a new one may follow different rules.
-func RehydrateItemDefinition(id ItemID, title string, recurrence Recurrence, spec ItemSpec) (ItemDefinition, error) {
-	return NewItemDefinition(id, title, recurrence, spec)
+func RehydrateItemDefinition(
+	id ItemID, title string, recurrence Recurrence, spec ItemSpec, instanceFields []MetadataField,
+) (ItemDefinition, error) {
+	return NewItemDefinition(id, title, recurrence, spec, instanceFields)
 }
 
 // ID returns the id of the item.
@@ -120,6 +139,13 @@ func (i ItemDefinition) Recurrence() Recurrence { return i.recurrence }
 // Spec returns what the item asks for. The result is a copy: changing it does not change the item.
 func (i ItemDefinition) Spec() ItemSpec { return cloneSpec(i.spec) }
 
+// InstanceFields returns the fields the collector fills per instance of a repeatable item, the label first. It is
+// nil for an item that is not repeatable. The result is a copy: changing it does not change the item.
+func (i ItemDefinition) InstanceFields() []MetadataField { return cloneFields(i.instanceFields) }
+
+// Repeatable reports whether the client provides the item once per instance.
+func (i ItemDefinition) Repeatable() bool { return len(i.instanceFields) > 0 }
+
 // Kind tells whether the item is satisfied by uploaded documents or by an entered value.
 // It is empty for the zero ItemDefinition, which is not a valid item.
 func (i ItemDefinition) Kind() Kind {
@@ -128,6 +154,28 @@ func (i ItemDefinition) Kind() Kind {
 	}
 
 	return i.spec.Kind()
+}
+
+// validateInstanceFields checks the instance fields like metadata fields, and that the label is required.
+func validateInstanceFields(fields []MetadataField) error {
+	if err := validateFields(fields); err != nil {
+		return fmt.Errorf("instance fields: %w", err)
+	}
+
+	if len(fields) > 0 && !fields[0].ValueSpec.Required {
+		return fmt.Errorf("%w: %q", ErrInstanceLabelNotRequired, strings.TrimSpace(fields[0].Name))
+	}
+
+	return nil
+}
+
+// cloneFields copies fields and normalizes an empty list to nil, so a single item has one representation.
+func cloneFields(fields []MetadataField) []MetadataField {
+	if len(fields) == 0 {
+		return nil
+	}
+
+	return slices.Clone(fields)
 }
 
 // cloneSpec copies the parts of a spec that reference memory, so specs are never shared between items and callers.

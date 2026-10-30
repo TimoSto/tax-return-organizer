@@ -24,6 +24,8 @@ CREATE TABLE item_definitions (
     recurrence    text NOT NULL,
     document_spec jsonb,
     value_spec    jsonb,
+    -- Instance fields make an item repeatable (see ItemDefinition in the domain). An empty array is a single item.
+    instance_fields jsonb NOT NULL DEFAULT '[]',
     -- A document item carries a document spec, a data item a value spec, never both.
     CONSTRAINT item_definitions_spec_matches_kind CHECK (
         (kind = 'document' AND document_spec IS NOT NULL AND value_spec IS NULL)
@@ -34,6 +36,8 @@ CREATE TABLE item_definitions (
         CHECK (document_spec IS NULL OR jsonb_typeof(document_spec) = 'object'),
     CONSTRAINT item_definitions_value_spec_object
         CHECK (value_spec IS NULL OR jsonb_typeof(value_spec) = 'object'),
+    CONSTRAINT item_definitions_instance_fields_array
+        CHECK (jsonb_typeof(instance_fields) = 'array'),
     PRIMARY KEY (persona_id, id)
 );
 

@@ -65,6 +65,37 @@ func TestInstantiate_KindFollowsSpec(t *testing.T) {
 	}
 }
 
+func TestInstantiate_LocalizesInstanceFields(t *testing.T) {
+	label := domain.ValueSpec{Type: domain.ValueTypeText, Required: true}
+	tmpl := pt.PersonaTemplate{
+		Name: locale.Localized{locale.LocaleEN: "p"},
+		Items: []pt.ItemTemplate{
+			{
+				Title:      locale.Localized{locale.LocaleEN: "Bank statement"},
+				Recurrence: domain.RecurrenceMonthly,
+				Spec:       pt.DocumentSpecTemplate{},
+				InstanceFields: []pt.MetadataFieldTemplate{
+					{Name: locale.Localized{locale.LocaleEN: "Account number", locale.LocaleDE: "Kontonummer"}, ValueSpec: label},
+				},
+			},
+			{Title: locale.Localized{locale.LocaleEN: "Single"}, Recurrence: domain.RecurrenceMonthly, Spec: pt.DocumentSpecTemplate{}},
+		},
+	}
+
+	p, err := instantiate(tmpl, locale.LocaleDE)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := p.Items()[0].InstanceFields(), []domain.MetadataField{{Name: "Kontonummer", ValueSpec: label}}; !slices.Equal(got, want) {
+		t.Errorf("instance fields = %v, want %v", got, want)
+	}
+
+	if p.Items()[1].Repeatable() {
+		t.Error("an item template without instance fields became repeatable")
+	}
+}
+
 func TestInstantiate_UsesTheGivenIDs(t *testing.T) {
 	personaID := domain.PersonaID{1}
 	itemIDs := []domain.ItemID{{2}, {3}}

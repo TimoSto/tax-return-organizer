@@ -111,8 +111,9 @@ func TestGetPersona_Items(t *testing.T) {
 			domaintest.Item(docID, "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 				{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
 			}}),
-			domaintest.Item(dataID, "Commuting days", domain.RecurrenceAnnually,
-				domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days"}),
+			domaintest.Item(dataID, "Account balance", domain.RecurrenceAnnually,
+				domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "EUR"},
+				domain.MetadataField{Name: "IBAN", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}}),
 		), nil
 	}, http.MethodGet, testID.String())
 
@@ -122,9 +123,11 @@ func TestGetPersona_Items(t *testing.T) {
 
 	want := `"items":[` +
 		`{"id":"` + docID.String() + `","title":"Payslip","kind":"document","recurrence":"monthly",` +
-		`"documentSpec":{"metadataFields":[{"name":"Employer","valueSpec":{"type":"text","unit":"","required":true}}]},"valueSpec":null},` +
-		`{"id":"` + dataID.String() + `","title":"Commuting days","kind":"data","recurrence":"annually",` +
-		`"documentSpec":null,"valueSpec":{"type":"number","unit":"days","required":false}}]`
+		`"documentSpec":{"metadataFields":[{"name":"Employer","valueSpec":{"type":"text","unit":"","required":true}}]},"valueSpec":null,` +
+		`"instanceFields":[]},` +
+		`{"id":"` + dataID.String() + `","title":"Account balance","kind":"data","recurrence":"annually",` +
+		`"documentSpec":null,"valueSpec":{"type":"number","unit":"EUR","required":false},` +
+		`"instanceFields":[{"name":"IBAN","valueSpec":{"type":"text","unit":"","required":true}}]}]`
 	if got := rec.Body.String(); !strings.Contains(got, want) {
 		t.Errorf("body = %s, want it to contain %s", got, want)
 	}

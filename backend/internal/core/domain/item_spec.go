@@ -78,7 +78,8 @@ func (ValueSpec) Kind() Kind { return KindData }
 
 func (ValueSpec) isItemSpec() {}
 
-// MetadataField is a value the client enters for an uploaded document.
+// MetadataField is a named, typed value: one the client enters for an uploaded document, or one the collector
+// enters for an instance of a repeatable item.
 type MetadataField struct {
 	Name      string
 	ValueSpec ValueSpec
@@ -97,13 +98,19 @@ func (DocumentSpec) isItemSpec() {}
 
 // Validate checks that all metadata fields have a unique, non-blank name and a valid spec.
 func (s DocumentSpec) Validate() error {
-	if len(s.MetadataFields) > MaxMetadataFields {
+	return validateFields(s.MetadataFields)
+}
+
+// validateFields checks that there are at most MaxMetadataFields fields and that all of them have a unique,
+// non-blank name and a valid spec.
+func validateFields(fields []MetadataField) error {
+	if len(fields) > MaxMetadataFields {
 		return ErrTooManyMetadataFields
 	}
 
-	seen := make(map[string]bool, len(s.MetadataFields))
+	seen := make(map[string]bool, len(fields))
 
-	for _, f := range s.MetadataFields {
+	for _, f := range fields {
 		name := strings.TrimSpace(f.Name)
 		if name == "" {
 			return ErrMetadataFieldNameRequired

@@ -15,6 +15,7 @@ var problemCodes = map[*domain.Error]string{
 	domain.ErrCollectorNotFound:         "collector_not_found",
 	domain.ErrDuplicateMetadataField:    "duplicate_metadata_field",
 	domain.ErrForbidden:                 "forbidden",
+	domain.ErrInstanceLabelNotRequired:  "instance_label_not_required",
 	domain.ErrInvalidCollectorID:        "invalid_collector_id",
 	domain.ErrInvalidEmail:              "invalid_email",
 	domain.ErrInvalidItemID:             "invalid_item_id",
