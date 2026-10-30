@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -198,39 +197,6 @@ func TestWriteError_ProblemShape(t *testing.T) {
 
 	if got != want {
 		t.Errorf("problem = %+v, want %+v", got, want)
-	}
-}
-
-// Every domain error must reach the client with its own, unique snake_case code and a 4xx status.
-func TestWriteError_EveryDomainErrorHasACode(t *testing.T) {
-	snake := regexp.MustCompile(`^[a-z]+(_[a-z]+)*$`)
-	seen := map[string]*domain.Error{}
-
-	for _, de := range domain.Errors() {
-		rec := httptest.NewRecorder()
-
-		httpx.WriteError(rec, httptest.NewRequest(http.MethodGet, "/", nil), de)
-
-		var p httpx.Problem
-		if err := json.NewDecoder(rec.Body).Decode(&p); err != nil {
-			t.Fatal(err)
-		}
-
-		if rec.Code >= 500 || p.Code == httpx.CodeInternal {
-			t.Errorf("%v: status %d, code %q: no problem code in httpx/problemcodes.go?", de, rec.Code, p.Code)
-
-			continue
-		}
-
-		if !snake.MatchString(p.Code) {
-			t.Errorf("%v: code %q is not snake_case", de, p.Code)
-		}
-
-		if prev, dup := seen[p.Code]; dup {
-			t.Errorf("code %q used by %v and %v", p.Code, prev, de)
-		}
-
-		seen[p.Code] = de
 	}
 }
 

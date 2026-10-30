@@ -6,17 +6,14 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
-// The table must list exactly the domain errors that exist: no sentinel without a code, no code for a sentinel
-// that is gone.
-func TestProblemCodes_MatchDomainErrors(t *testing.T) {
+// The table must not keep a code for a sentinel that is gone. The other direction, no sentinel without a code, is
+// TestEveryDomainErrorHasAProblemCode in internal/backend: only there are all sentinels registered. This direction
+// works here, since this package imports every package the table refers to.
+func TestProblemCodes_OnlyDomainErrors(t *testing.T) {
 	registered := map[*domain.Error]bool{}
 
 	for _, de := range domain.Errors() {
 		registered[de] = true
-
-		if _, ok := problemCodes[de]; !ok {
-			t.Errorf("%v has no entry in problemCodes", de)
-		}
 	}
 
 	for de, code := range problemCodes {
