@@ -81,18 +81,6 @@ linters:
               desc: repositories implement core ports and must not call use cases
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/backend
               desc: adapters must not depend on the composition root
-        fake-adapters:
-          files:
-            - "**/internal/adapters/outbound/fake/**"
-          deny:
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres
-              desc: the fake and postgres repositories must not import each other
-        postgres-adapters:
-          files:
-            - "**/internal/adapters/outbound/postgres/**"
-          deny:
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake
-              desc: the fake and postgres repositories must not import each other
         httpx:
           files:
             - "**/internal/adapters/inbound/httpadapter/httpx/**"
@@ -127,8 +115,6 @@ linters:
             - "!$test"
             - "!**/internal/testutil/**"
           deny:
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake
-              desc: fakes are for tests
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/testutil
               desc: test helpers (domaintest, porttest, postgrestest, pgtest)
         http-no-ports:

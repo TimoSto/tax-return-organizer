@@ -34,7 +34,7 @@ flowchart TB
     end
 
     subgraph OUT["Outbound adapters"]
-        out["adapters/outbound/<br/>postgres, fake, idgen"]
+        out["adapters/outbound/<br/>postgres, idgen"]
     end
 
     root["Composition root: internal/backend + cmd/*"]
@@ -60,11 +60,10 @@ Arrows show imports. Dependencies point inwards: `domain` ← `locale` ← `pers
 | `core/usecases/<name>` | One package per use case, `New(deps).Execute(...)`. Use cases do not import each other. |
 | `adapters/inbound/httpadapter` | Routes, middleware, and one subpackage per resource (`collector`, `persona`, `health`). `httpx` holds shared helpers (JSON, error to status mapping). |
 | `adapters/outbound/postgres/<resource>` | Repository implementations on pgx. `pgdb` abstracts pool vs. transaction, `migrations` are embedded SQL. |
-| `adapters/outbound/fake/<resource>` | In-memory repositories and transactor for tests. |
 | `adapters/outbound/idgen` | Random id generation (`crypto/rand`), implements the `outbound` id generators. |
 | `internal/backend` | Composition root: `wire()` builds use cases on repositories and returns the HTTP handler. `Run` migrates, connects, serves, shuts down gracefully. |
 | `cmd/docker`, `cmd/e2e` | Entrypoints. `docker` is production; `e2e` (build tag `e2e`) starts a throwaway Postgres and seeds a collector with id `00000000-0000-4000-8000-00000000aaaa`. |
-| `internal/testutil/{pgtest,postgrestest,porttest,domaintest}` | Test-only helpers (a Postgres testcontainer and its migrated test pool, repository contract tests, domain builders). Must not be imported by production code. The fakes stay next to the real repositories in `adapters/outbound/fake`. |
+| `internal/testutil/{pgtest,postgrestest,porttest,domaintest}` | Test-only helpers (a Postgres testcontainer and its migrated test pool, repository contract tests, domain builders). Must not be imported by production code. |
 
 ## Request flow
 
@@ -83,8 +82,8 @@ Arrows show imports. Dependencies point inwards: `domain` ← `locale` ← `pers
 - The core must not import adapters, `internal/backend`, `net/http`, `database/sql`, pgx, the migration tool, testcontainers or the logging package. It returns errors and does not log.
 - Use cases must not import each other. Shared logic goes into the domain.
 - Inbound and outbound adapters must not import each other, and neither may import the composition root. Handlers may not import `port/outbound` or any `usecases` package: they talk to the use cases through `port/inbound`, not to repositories.
-- `fake` and `postgres` must not import each other. Each `httpadapter/<x>` and `postgres/<x>` resource package is isolated from its siblings by a `*-isolated` rule.
-- Fakes and test helpers (`adapters/outbound/fake` and everything under `internal/testutil`) must not be imported from production code. Test files are exempt, so they can wire real adapters into the core.
+- Each `httpadapter/<x>` and `postgres/<x>` resource package is isolated from its siblings by a `*-isolated` rule.
+- Test helpers (everything under `internal/testutil`) must not be imported from production code. Test files are exempt, so they can wire real adapters into the core.
 
 ## Design decisions and nuances
 
@@ -115,7 +114,7 @@ Use cases that act within a collector take the caller as a `domain.Actor`: the u
 
 A *collector* is the tenant. Everything a collector owns is exposed as a `...Store` whose `For(collectorID)` returns a repository bound to that collector, so repository methods never take a collector id and cannot reach another tenant's rows. Only `CollectorRepository`, the tenant root, is unscoped. The full rules, the cost and the checklist for a new resource are in [tenant-scoped-stores.md](tenant-scoped-stores.md).
 
-Referential integrity belongs to the storage, not to the use cases: a tenant-scoped repository returns `domain.ErrCollectorNotFound` itself when its collector does not exist. Postgres derives it from the foreign key on writes and from reading through `collectors` on reads, so a check cannot be forgotten and costs no extra query. The in-memory fakes emulate it, and the shared contract tests make every adapter behave the same. Deleting a collector will rely on `ON DELETE CASCADE` in the same spirit. With authentication the collector of an actor always exists, and these checks are dropped (see [roadmap #5](ARCHITECTURE_ROADMAP.md#5-drop-the-collector-existence-checks-with-authentication)).
+Referential integrity belongs to the storage, not to the use cases: a tenant-scoped repository returns `domain.ErrCollectorNotFound` itself when its collector does not exist. Postgres derives it from the foreign key on writes and from reading through `collectors` on reads, so a check cannot be forgotten and costs no extra query. The contract tests in `testutil/porttest` pin it. Deleting a collector will rely on `ON DELETE CASCADE` in the same spirit. With authentication the collector of an actor always exists, and these checks are dropped (see [roadmap #4](ARCHITECTURE_ROADMAP.md#4-drop-the-collector-existence-checks-with-authentication)).
 
 ### Inbound and outbound ports
 
@@ -154,13 +153,15 @@ A use case receives **either** a `Transactor` **or** repositories wired on the p
 
 - A `ClientTaxYear` and its `RequiredItem`s are one aggregate, saved in one call (one batch, like `SavePersona`). Creating a tax year and `SyncItems` then write a single call. `SyncItems` reads personas, but a stale read is harmless because the tax year is a snapshot.
 - Item writes (upload, remove document, enter value, set metadata) touch one tax year. Document content that lives outside Postgres cannot be covered by a transaction anyway.
-- Concurrency inside an aggregate is a different problem, and `InTx` does not solve it. `Close` checks that every item is done, while `RemoveDocument` checks that the year is open. Run concurrently under read committed, both checks can pass and leave a closed year with an outstanding item. The tax year repository must prevent this, with a version column checked on save (409 on mismatch) or a row lock (`SELECT ... FOR UPDATE`) on the tax year in every write path. Unlike personas (see "Personas have no optimistic locking"), a client and the collector do act on the same tax year at the same time. The proposed approach (a version checked by every write, targeted writes instead of a full replace) is [roadmap #2](ARCHITECTURE_ROADMAP.md#2-the-tax-year-is-not-saved-by-replacing-it-whole); letting repositories use savepoints for their own atomic saves is [roadmap #6](ARCHITECTURE_ROADMAP.md#6-repositories-may-make-their-own-writes-atomic).
+- Concurrency inside an aggregate is a different problem, and `InTx` does not solve it. `Close` checks that every item is done, while `RemoveDocument` checks that the year is open. Run concurrently under read committed, both checks can pass and leave a closed year with an outstanding item. The tax year repository must prevent this, with a version column checked on save (409 on mismatch) or a row lock (`SELECT ... FOR UPDATE`) on the tax year in every write path. Unlike personas (see "Personas have no optimistic locking"), a client and the collector do act on the same tax year at the same time. The proposed approach (a version checked by every write, targeted writes instead of a full replace) is [roadmap #2](ARCHITECTURE_ROADMAP.md#2-the-tax-year-is-not-saved-by-replacing-it-whole); letting repositories use savepoints for their own atomic saves is [roadmap #5](ARCHITECTURE_ROADMAP.md#5-repositories-may-make-their-own-writes-atomic).
 
 A transactional use case declares the repositories it writes through as its own type (`createcollector.Repositories`) and takes an `outbound.Transactor` of that type. The composition root narrows the transactor of the full set to it (`narrow` in `internal/backend`, which picks the fields), so a repository added to `backend.Repositories` reaches no use case that does not declare it. The core has no type that lists every repository.
 
-### Repositories have two implementations and one test suite
+### Storage is tested against Postgres only, use cases with stubs
 
-Every repository interface has a Postgres and a fake implementation. Both run the same contract tests from `testutil/porttest`, including the tenant isolation tests, so the fake used in use case tests cannot drift from the real behaviour. The Postgres tests start their own container with testcontainers, so Docker must be running. This is going to change: use case tests will run against Postgres and the fakes will stay trivial ([roadmap #4](ARCHITECTURE_ROADMAP.md#4-use-case-tests-run-against-postgres-fakes-stay-trivial)).
+Every repository interface has one implementation, in Postgres. Its tests run the contract tests from `testutil/porttest`, including the tenant isolation and unknown-collector tests, against a real database. The Postgres tests start their own container with testcontainers, so Docker must be running. They skip without Docker.
+
+There are no in-memory repositories. Foreign keys, cascades and tenant isolation live in the schema, and an in-memory copy would have to emulate each of them again for every new resource. Use case tests use small stubs in the test file instead. The stubs return canned results or errors and apply no storage rules, because the use cases only pass storage errors on. They test what the use case decides: authorization, validation, error wrapping, which collector it asks for. The composition root test (`internal/backend/wire_test.go`) wires everything on Postgres, as `Run` does.
 
 ### API contract and migrations
 
@@ -174,7 +175,7 @@ Every caller is treated as an employee of the collector in the URL today. The se
 ## Adding things
 
 - **A use case:** create `core/usecases/<name>` with `New(deps).Execute`, add the field and the small interface to `httpadapter` (`Deps` and the resource package), and wire it in `backend.wire`.
-- **A tenant-owned resource:** follow the checklist in [tenant-scoped-stores.md](tenant-scoped-stores.md), and check [ARCHITECTURE_ROADMAP.md](ARCHITECTURE_ROADMAP.md) first: new repositories should follow its decisions (Postgres-backed tests, no collector existence checks once there is authentication).
+- **A tenant-owned resource:** follow the checklist in [tenant-scoped-stores.md](tenant-scoped-stores.md), and check [ARCHITECTURE_ROADMAP.md](ARCHITECTURE_ROADMAP.md) first: new repositories should follow its decisions (e.g. no collector existence checks once there is authentication).
 - **A new `httpadapter/<x>` or `postgres/<x>` package:** add a line for it to the matching `*-isolated` rules in `.golangci.yml`.
 - **A new import in `core/domain`:** add it to `domain-allowlist` in `.golangci.yml`, and ask first whether the code belongs in the domain.
 - **An endpoint change:** update `api/openapi.yaml` (the `sync-openapi` skill does this).

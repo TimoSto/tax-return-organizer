@@ -45,36 +45,23 @@ Proposal:
 
 ## Medium
 
-### 4. Use case tests run against Postgres, fakes stay trivial
-
-*Status: decided. When: with the next repository; existing tests are migrated along the way.*
-
-Every repository has an in-memory fake that emulates Postgres: foreign keys, the collector existence check, cascades, sort order. The cost grows with every query, and the emulation already leaks into the product. `ListPersonas` sorts with `COLLATE "C"` so that the fake can match it bytewise, which puts "Zeta" before "alpha" and umlauts after "z", wrong for German users. Tax year queries (locking, read models) cannot be emulated in a reasonable way.
-
-Decision:
-
-- Use case tests that work with repositories use the Postgres testcontainer (`testutil/postgrestest`). One container per test binary is enough and no truncation is needed: every test creates its own collector with a random id, and tenant isolation keeps the tests apart.
-- Fakes remain only where they are trivial, or as stubs that fail on purpose (`failingStore`). The fake transactor goes away together with the fake repositories.
-- The contract tests in `testutil/porttest` become ordinary tests of the Postgres repositories.
-- Personas are sorted locale-aware (an ICU collation such as `und-x-icu`; per collector locale if needed).
-
-### 5. Drop the collector existence checks with authentication
+### 4. Drop the collector existence checks with authentication
 
 *Status: decided. When: auth step 3, when routes lose `{collectorId}`.*
 
-Every tenant-scoped repository returns `domain.ErrCollectorNotFound` for an unknown collector (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Reads start `FROM collectors c LEFT JOIN ...`, `SavePersona` probes `collectors` in its batch to tell the two causes of an empty upsert apart, the fakes look the collector up, and `TestPersonaRepositoryUnknownCollector` pins all of it. It exists only because the collector id comes from the URL today. With authentication the actor is built from a membership, which has a foreign key to its collector, and its sessions are deleted with it, so the collector of an actor always exists.
+Every tenant-scoped repository returns `domain.ErrCollectorNotFound` for an unknown collector (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Reads start `FROM collectors c LEFT JOIN ...`, `SavePersona` probes `collectors` in its batch to tell the two causes of an empty upsert apart, and `TestPersonaRepositoryUnknownCollector` pins it. It exists only because the collector id comes from the URL today. With authentication the actor is built from a membership, which has a foreign key to its collector, and its sessions are deleted with it, so the collector of an actor always exists.
 
-Plan: when routes lose `{collectorId}`, remove the existence checks from the repositories, the fakes and the contract tests. Reads query the resource table directly; a foreign key violation on a write is then a bug (500), not `ErrCollectorNotFound`. `GetCollector` keeps its not-found for the unscoped `CollectorRepository`.
+Plan: when routes lose `{collectorId}`, remove the existence checks from the repositories and the contract tests. Reads query the resource table directly; a foreign key violation on a write is then a bug (500), not `ErrCollectorNotFound`. `GetCollector` keeps its not-found for the unscoped `CollectorRepository`.
 
-### 6. Repositories may make their own writes atomic
+### 5. Repositories may make their own writes atomic
 
-*Status: proposed. When: together with 5, or with the tax year repository.*
+*Status: proposed. When: together with 4, or with the tax year repository.*
 
 Repositories may not open a transaction (`pgdb.DBTX` has no `Begin`), so a multi-statement save has to be one pgx batch. `SavePersona` therefore queues a guarded CTE upsert per item, `EXISTS` guards on every item statement, and a collector probe. That SQL is hard to review, and the tax year repository would copy it.
 
 Proposal: add `Begin(ctx) (pgx.Tx, error)` to `pgdb.DBTX`. On the pool it starts a transaction, on a `pgx.Tx` it creates a savepoint. A repository can then make its own save atomic, and the use case still owns the outer transaction when there is one. Write the saves set-based: one upsert of all items from `unnest` arrays and one delete of the removed ones. The `Transactor` stays the way to make writes through **several** repositories atomic.
 
-### 7. Validation errors say which field
+### 6. Validation errors say which field
 
 *Status: proposed. When: before the endpoints that create and edit personas.*
 
@@ -82,22 +69,23 @@ Proposal: add `Begin(ctx) (pgx.Tx, error)` to `pgdb.DBTX`. On the pool it starts
 
 Proposal: a domain validation error that carries a field path (`items[3].title`, `items[0].spec.metadataFields[1].name`) and collects several violations. Each violation keeps its sentinel, so `problemcodes.go` keeps working. The adapter maps it to an `errors` member in the problem details (RFC 9457 allows extensions): `[{"pointer": "/items/3/title", "code": "item_title_required"}]`. The paths are domain terms; the adapter translates them to JSON pointers of its request type.
 
-### 8. Audit log
+### 7. Audit log
 
 *Status: proposed. When: decided before tax years.*
 
 The authentication design logs security events. Under DSGVO and § 203 StGB, the reads of staff matter as well: who opened which client's documents. Proposal: an outbound port `AuditLog`, called by the use cases (the core decides what is audited). Writes record their entry in the same transaction. Reads append it separately, so they keep running on the pool without a `Transactor` (see "Transactions" in [ARCHITECTURE.md](ARCHITECTURE.md#transactions)). A failed audit write fails the request.
 
-### 9. Row-level security stays deferred
+### 8. Row-level security stays deferred
 
 *Status: proposed, deferred.*
 
-Postgres row-level security (`SET LOCAL app.collector_id`) would add a database-level tenant guard to the stores (see "Known limits" in [tenant-scoped-stores.md](tenant-scoped-stores.md#known-limits)). `SET LOCAL` needs a transaction, and reads deliberately run on the pool. Revisit if the audit log (8) or something else puts reads into transactions anyway.
+Postgres row-level security (`SET LOCAL app.collector_id`) would add a database-level tenant guard to the stores (see "Known limits" in [tenant-scoped-stores.md](tenant-scoped-stores.md#known-limits)). `SET LOCAL` needs a transaction, and reads deliberately run on the pool. Revisit if the audit log (7) or something else puts reads into transactions anyway.
 
 ## Low: cleanups
 
-10. **Problem details everywhere.** `ServeMux` answers unknown routes (404) and wrong methods (405) with `text/plain`. Wrap the mux so these become problem+json too. The request log carries no actor; add the user and collector id once authentication exists (never the email).
-11. **`IDGenerator` without errors.** Since Go 1.24 `crypto/rand` does not fail (it crashes the program instead), so the error results of `NewCollectorID`, `NewPersonaID` and `NewItemID` and their handling in `createcollector.newPersonaIDs` are dead code.
-12. **Consistency.** `ErrTooManyItems` is a conflict (409), the other limits are invalid input (400): make it `invalid`. `createcollector` returns its errors without the `create collector:` prefix that "Request flow" in [ARCHITECTURE.md](ARCHITECTURE.md#request-flow) asks for.
-13. **`Clock` port.** Tax years (`ClosedAt`) and sessions (expiry) need the current time. Add `outbound.Clock` with the first of them, as planned in [AUTHENTICATION.md](AUTHENTICATION.md#ports-and-adapters).
-14. **Error registry.** `domain.Errors()` is a mutable, package-level registry in production code that only `TestEveryDomainErrorHasAProblemCode` uses. Acceptable while it stays that small; noted so it does not grow into more.
+9. **Problem details everywhere.** `ServeMux` answers unknown routes (404) and wrong methods (405) with `text/plain`. Wrap the mux so these become problem+json too. The request log carries no actor; add the user and collector id once authentication exists (never the email).
+10. **`IDGenerator` without errors.** Since Go 1.24 `crypto/rand` does not fail (it crashes the program instead), so the error results of `NewCollectorID`, `NewPersonaID` and `NewItemID` and their handling in `createcollector.newPersonaIDs` are dead code.
+11. **Consistency.** `ErrTooManyItems` is a conflict (409), the other limits are invalid input (400): make it `invalid`. `createcollector` returns its errors without the `create collector:` prefix that "Request flow" in [ARCHITECTURE.md](ARCHITECTURE.md#request-flow) asks for.
+12. **`Clock` port.** Tax years (`ClosedAt`) and sessions (expiry) need the current time. Add `outbound.Clock` with the first of them, as planned in [AUTHENTICATION.md](AUTHENTICATION.md#ports-and-adapters).
+13. **Error registry.** `domain.Errors()` is a mutable, package-level registry in production code that only `TestEveryDomainErrorHasAProblemCode` uses. Acceptable while it stays that small; noted so it does not grow into more.
+14. **Locale-aware sorting.** `ListPersonas` sorts names bytewise (`COLLATE "C"` in `postgres/persona`), which puts "Zeta" before "alpha" and umlauts after "z", wrong for German users. Sort with an ICU collation (`und-x-icu`, or per collector locale) and pin the order in the contract tests.

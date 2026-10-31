@@ -15,7 +15,7 @@ How users log in, how credentials and sessions are stored, and how a request lik
 | Basic auth now, 2FA later? | Email and password now. Login is a small state machine with an assurance level on the session, so a second factor plugs in without a redesign. |
 | Collector vs client? | The role sits on the membership. The session is bound to one membership, so every request runs as exactly one `domain.Actor` with one role. |
 | How does a request know who is logged in? | The BFF holds the session in an HttpOnly cookie and sends it as a bearer token. A backend middleware resolves it to a `domain.Actor` through the core, and the handler passes the actor to the use case as an argument, as today. |
-| Mock authenticator for e2e? | No auth bypass in any binary. `cmd/e2e` seeds real accounts with known passwords. Unit tests use fakes, and BFF Playwright tests mock the auth endpoints. |
+| Mock authenticator for e2e? | No auth bypass in any binary. `cmd/e2e` seeds real accounts with known passwords. Unit tests use stubs and a fake hasher, and BFF Playwright tests mock the auth endpoints. |
 
 ## Where authentication lives
 
@@ -122,7 +122,7 @@ Tax documents are not a special category under Art. 9 DSGVO, but they are highly
 | outbound | `PasswordHasher` | `Hash(password)`, `Verify(hash, password) → (ok, needsRehash)` |
 | outbound | `TokenGenerator`, `Clock` | random tokens, the current time (so expiry is testable) |
 
-- **Adapters:** `adapters/outbound/argon2` (the hasher, the only package that imports `golang.org/x/crypto/argon2`), `postgres/{user,membership,session}`, and fakes for each, all running the shared contract tests in `testutil/porttest`. A fake hasher keeps the use case tests fast.
+- **Adapters:** `adapters/outbound/argon2` (the hasher, the only package that imports `golang.org/x/crypto/argon2`), `postgres/{user,membership,session}`, running the contract tests in `testutil/porttest` against Postgres. There are no in-memory repositories. A fake hasher keeps the use case tests fast.
 - **Domain:** a new error kind `unauthenticated` → 401. Problem codes `unauthenticated`, `invalid_credentials`, `too_many_attempts`, `tenant_selection_required` go into `httpx/problemcodes.go` and the `Problem.code` enum in `api/openapi.yaml`.
 - **depguard:** the new `httpadapter/auth` and `postgres/{user,membership,session}` packages need their lines in the `*-isolated` rules of `.golangci.yml`.
 
@@ -225,8 +225,8 @@ Goes into `api/openapi.yaml` when it is built (with the `sync-openapi` skill).
   - `staff-client@e2e.test`: staff and client of the seeded collector (role switch).
 
   The argon2 parameters can be lowered by configuration in e2e only, to keep logins fast.
-- **Use case tests** use the fake repositories, the fake hasher, a fixed `Clock` and a predictable `TokenGenerator`.
-- **Repository tests:** the new Postgres repositories and their fakes run the same `porttest` contract tests. These include: a session of membership A never resolves to membership B, and an expired session never resolves.
+- **Use case tests** use stub repositories defined in the test file, the fake hasher, a fixed `Clock` and a predictable `TokenGenerator`.
+- **Repository tests:** the new Postgres repositories run the `porttest` contract tests. These include: a session of membership A never resolves to membership B, and an expired session never resolves.
 - **BFF Playwright tests** keep mocking the backend inside the test files. They get fixtures for `POST /auth/login` and `GET /auth/session` (staff, client, several memberships, 401), and a helper that logs a test in by setting the session cookie directly.
 
 ## Implementation order
@@ -234,8 +234,8 @@ Goes into `api/openapi.yaml` when it is built (with the `sync-openapi` skill).
 Seeding clients needs the `Client` entity and a create-client use case, which do not exist yet. They come first or together with step 4.
 
 1. Domain and ports: identity, membership, `Actor` built from a membership (with a client id), the `unauthenticated` error kind.
-2. Migrations, Postgres repositories, fakes and contract tests, argon2 hasher.
-3. `Login`, `Logout`, `SelectTenant`, `ResolveSession`. The `authenticate` middleware, `httpx.Actor` from the context, routes without `{collectorId}`, openapi. The tenant-scoped repositories drop their collector existence checks ([roadmap #5](ARCHITECTURE_ROADMAP.md#5-drop-the-collector-existence-checks-with-authentication)).
+2. Migrations, Postgres repositories and contract tests, argon2 hasher.
+3. `Login`, `Logout`, `SelectTenant`, `ResolveSession`. The `authenticate` middleware, `httpx.Actor` from the context, routes without `{collectorId}`, openapi. The tenant-scoped repositories drop their collector existence checks ([roadmap #4](ARCHITECTURE_ROADMAP.md#4-drop-the-collector-existence-checks-with-authentication)).
 4. `createcollector` with the first staff identity, run by the operator through `docker create-collector`; `POST /collectors` is removed. e2e seeds.
 5. BFF: login page, tenant picker, `handleAuth`, route groups, removing `TENANT_ID`, Playwright fixtures.
 6. Later: invites and password reset (need an email provider), stricter throttling, 2FA.
