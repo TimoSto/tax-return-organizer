@@ -20,14 +20,16 @@ type getResponse struct {
 	Items       []itemResponse `json:"items"`
 }
 
-// itemResponse carries exactly the spec that matches kind, the other one is null.
+// itemResponse carries exactly the spec that matches kind, the other one is null. A non-empty instanceFields makes
+// the item repeatable.
 type itemResponse struct {
-	ID           string                `json:"id"`
-	Title        string                `json:"title"`
-	Kind         string                `json:"kind"`
-	Recurrence   string                `json:"recurrence"`
-	DocumentSpec *documentSpecResponse `json:"documentSpec"`
-	ValueSpec    *valueSpecResponse    `json:"valueSpec"`
+	ID             string                  `json:"id"`
+	Title          string                  `json:"title"`
+	Kind           string                  `json:"kind"`
+	Recurrence     string                  `json:"recurrence"`
+	DocumentSpec   *documentSpecResponse   `json:"documentSpec"`
+	ValueSpec      *valueSpecResponse      `json:"valueSpec"`
+	InstanceFields []metadataFieldResponse `json:"instanceFields"`
 }
 
 type documentSpecResponse struct {
@@ -92,26 +94,32 @@ func newGetResponse(p *domain.Persona) getResponse {
 
 func newItemResponse(item domain.ItemDefinition) itemResponse {
 	resp := itemResponse{
-		ID:         item.ID().String(),
-		Title:      item.Title(),
-		Kind:       string(item.Kind()),
-		Recurrence: string(item.Recurrence()),
+		ID:             item.ID().String(),
+		Title:          item.Title(),
+		Kind:           string(item.Kind()),
+		Recurrence:     string(item.Recurrence()),
+		InstanceFields: newFieldResponses(item.InstanceFields()),
 	}
 
 	switch spec := item.Spec().(type) {
 	case domain.DocumentSpec:
-		fields := make([]metadataFieldResponse, 0, len(spec.MetadataFields))
-		for _, f := range spec.MetadataFields {
-			fields = append(fields, metadataFieldResponse{Name: f.Name, ValueSpec: newValueSpecResponse(f.ValueSpec)})
-		}
-
-		resp.DocumentSpec = &documentSpecResponse{MetadataFields: fields}
+		resp.DocumentSpec = &documentSpecResponse{MetadataFields: newFieldResponses(spec.MetadataFields)}
 	case domain.ValueSpec:
 		v := newValueSpecResponse(spec)
 		resp.ValueSpec = &v
 	}
 
 	return resp
+}
+
+// newFieldResponses never returns nil, so clients can iterate without a check.
+func newFieldResponses(fs []domain.MetadataField) []metadataFieldResponse {
+	fields := make([]metadataFieldResponse, 0, len(fs))
+	for _, f := range fs {
+		fields = append(fields, metadataFieldResponse{Name: f.Name, ValueSpec: newValueSpecResponse(f.ValueSpec)})
+	}
+
+	return fields
 }
 
 func newValueSpecResponse(s domain.ValueSpec) valueSpecResponse {

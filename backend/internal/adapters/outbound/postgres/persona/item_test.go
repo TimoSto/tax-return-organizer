@@ -26,7 +26,7 @@ func TestItemRow_ToDomain_RejectsUnknownValues(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			row := itemRow{
 				ID: uuid.New(), Title: "Payslip", Kind: tc.kind, Recurrence: tc.recurrence,
-				DocumentSpec: tc.doc, ValueSpec: tc.value,
+				DocumentSpec: tc.doc, ValueSpec: tc.value, InstanceFields: []byte(`[]`),
 			}
 
 			_, err := row.toDomain()

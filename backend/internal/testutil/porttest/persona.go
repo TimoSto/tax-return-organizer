@@ -35,7 +35,9 @@ func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 			{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
 			{Name: "Gross", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "EUR"}},
 		}})
-	notice := domaintest.Item(domaintest.ItemID(), "Tax notice", domain.RecurrenceAnnually, domain.DocumentSpec{})
+	notice := domaintest.Item(domaintest.ItemID(), "Tax notice", domain.RecurrenceAnnually, domain.DocumentSpec{},
+		domain.MetadataField{Name: "Tax office", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
+		domain.MetadataField{Name: "Since", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeDate}})
 	days := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly,
 		domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true})
 
@@ -43,6 +45,8 @@ func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 	employedRearranged := variant(employed, "Employed (renamed)", aliceID, days, payslip)
 	employedReduced := variant(employed, "Employed", aliceID, notice)
 	employedCleared := variant(employed, "Employed", aliceID)
+	singleNotice := domaintest.Item(notice.ID(), notice.Title(), notice.Recurrence(), notice.Spec())
+	employedNoticeSingle := variant(employed, "Employed", aliceID, payslip, singleNotice, days)
 	hijack := variant(employed, "Hijacked", bobID, payslip, notice, days)
 	letting := personaWithItems(aliceID, "Letting", "")
 	// explicit empty slice, which repositories may report as nil
@@ -91,6 +95,13 @@ func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 			getCollector: aliceID,
 			getID:        employed.ID(),
 			exp:          employedRearranged,
+		},
+		{
+			name:         "Saving again updates the instance fields of an item",
+			saves:        []*domain.Persona{employed, employedNoticeSingle},
+			getCollector: aliceID,
+			getID:        employed.ID(),
+			exp:          employedNoticeSingle,
 		},
 		{
 			name:         "Saving again deletes removed items",

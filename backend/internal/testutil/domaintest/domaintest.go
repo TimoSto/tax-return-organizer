@@ -20,9 +20,12 @@ func Collector(id domain.CollectorID, name string, email domain.Email) *domain.C
 	return c
 }
 
-// Item returns a valid item definition.
-func Item(id domain.ItemID, title string, recurrence domain.Recurrence, spec domain.ItemSpec) domain.ItemDefinition {
-	item, err := domain.RehydrateItemDefinition(id, title, recurrence, spec)
+// Item returns a valid item definition. Instance fields make it repeatable.
+func Item(
+	id domain.ItemID, title string, recurrence domain.Recurrence, spec domain.ItemSpec,
+	instanceFields ...domain.MetadataField,
+) domain.ItemDefinition {
+	item, err := domain.RehydrateItemDefinition(id, title, recurrence, spec, instanceFields)
 	if err != nil {
 		panic(err)
 	}

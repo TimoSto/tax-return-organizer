@@ -63,13 +63,13 @@ func newPersonaWithItems(t *testing.T) (*domain.Persona, domain.ItemDefinition, 
 		t.Fatal(err)
 	}
 
-	payslip, err := p.AddItem(domain.ItemID(uuid.New()), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{})
+	payslip, err := p.AddItem(domain.ItemID(uuid.New()), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	days, err := p.AddItem(domain.ItemID(uuid.New()), "Commuting days", domain.RecurrenceAnnually,
-		domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days"})
+		domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestPersona_AddItem(t *testing.T) {
 		t.Fatalf("items = %+v, want payslip then days in order", items)
 	}
 
-	if _, err := p.AddItem(domain.ItemID(uuid.New()), " ", domain.RecurrenceMonthly, domain.DocumentSpec{}); !errors.Is(err, domain.ErrItemTitleRequired) {
+	if _, err := p.AddItem(domain.ItemID(uuid.New()), " ", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil); !errors.Is(err, domain.ErrItemTitleRequired) {
 		t.Errorf("err = %v, want %v", err, domain.ErrItemTitleRequired)
 	}
 
@@ -119,7 +119,7 @@ func TestPersona_UpdateItem(t *testing.T) {
 		{name: "Valid data update", id: days.ID(), title: " Distance ", spec: number},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := p.UpdateItem(tc.id, tc.title, domain.RecurrenceQuarterly, tc.spec)
+			err := p.UpdateItem(tc.id, tc.title, domain.RecurrenceQuarterly, tc.spec, nil)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("err = %v, want %v", err, tc.expErr)
@@ -158,7 +158,7 @@ func TestPersona_AddItemCopiesTheSpec(t *testing.T) {
 	p, _, _ := newPersonaWithItems(t)
 	fields := []domain.MetadataField{{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText}}}
 
-	item, err := p.AddItem(domain.ItemID(uuid.New()), "Notice", domain.RecurrenceAnnually, domain.DocumentSpec{MetadataFields: fields})
+	item, err := p.AddItem(domain.ItemID(uuid.New()), "Notice", domain.RecurrenceAnnually, domain.DocumentSpec{MetadataFields: fields}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,9 +172,38 @@ func TestPersona_AddItemCopiesTheSpec(t *testing.T) {
 	}
 }
 
+func TestPersona_UpdateItemInstanceFields(t *testing.T) {
+	p, payslip, _ := newPersonaWithItems(t)
+	employer := domain.MetadataField{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}}
+
+	if err := p.UpdateItem(payslip.ID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, []domain.MetadataField{employer}); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := p.Items()[0]; !got.Repeatable() || got.InstanceFields()[0] != employer {
+		t.Fatalf("item = %+v, want it repeatable by employer", got)
+	}
+
+	optional := employer
+	optional.ValueSpec.Required = false
+
+	err := p.UpdateItem(payslip.ID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, []domain.MetadataField{optional})
+	if !errors.Is(err, domain.ErrInstanceLabelNotRequired) {
+		t.Fatalf("err = %v, want %v", err, domain.ErrInstanceLabelNotRequired)
+	}
+
+	if err := p.UpdateItem(payslip.ID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if p.Items()[0].Repeatable() {
+		t.Error("item is still repeatable after removing its instance fields")
+	}
+}
+
 func TestRehydratePersona(t *testing.T) {
 	id, collectorID := domain.PersonaID(uuid.New()), testCollectorID
-	item, err := domain.NewItemDefinition(domain.ItemID(uuid.New()), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{})
+	item, err := domain.NewItemDefinition(domain.ItemID(uuid.New()), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

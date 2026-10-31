@@ -375,8 +375,8 @@ components:
       type: object
       description: >
         Something the persona asks the client to provide. A document item has a documentSpec and a null
-        valueSpec, a data item the reverse.
-      required: [id, title, kind, recurrence, documentSpec, valueSpec]
+        valueSpec, a data item the reverse. An item with instanceFields is repeatable.
+      required: [id, title, kind, recurrence, documentSpec, valueSpec, instanceFields]
       properties:
         id:
           type: string
@@ -398,6 +398,14 @@ components:
           nullable: true
           allOf:
             - $ref: "#/components/schemas/ValueSpec"
+        instanceFields:
+          type: array
+          description: >
+            Empty for a single item. Otherwise the item is repeatable: the client provides it once per instance
+            (e.g. a bank statement per bank account), and the collector fills these fields for each instance of a
+            tax year. The first field labels the instance and is always required.
+          items:
+            $ref: "#/components/schemas/MetadataField"
     DocumentSpec:
       type: object
       required: [metadataFields]
@@ -405,14 +413,16 @@ components:
         metadataFields:
           type: array
           items:
-            type: object
-            required: [name, valueSpec]
-            properties:
-              name:
-                type: string
-                example: Employer
-              valueSpec:
-                $ref: "#/components/schemas/ValueSpec"
+            $ref: "#/components/schemas/MetadataField"
+    MetadataField:
+      type: object
+      required: [name, valueSpec]
+      properties:
+        name:
+          type: string
+          example: Employer
+        valueSpec:
+          $ref: "#/components/schemas/ValueSpec"
     ValueSpec:
       type: object
       required: [type, unit, required]
@@ -449,7 +459,7 @@ components:
         code:
           type: string
           description: Stable machine-readable identifier, the key for translations.
-          enum: [collector_not_found, forbidden, collector_name_required, collector_name_too_long, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, invalid_item_id, persona_not_found, persona_name_required, persona_name_too_long, persona_description_too_long, too_many_items, item_not_found, item_title_required, item_title_too_long, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, metadata_field_name_too_long, too_many_metadata_fields, unit_too_long, duplicate_metadata_field, invalid_request_body, request_body_too_large, unsupported_media_type, internal_error]
+          enum: [collector_not_found, forbidden, collector_name_required, collector_name_too_long, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, invalid_item_id, persona_not_found, persona_name_required, persona_name_too_long, persona_description_too_long, too_many_items, item_not_found, item_title_required, item_title_too_long, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, metadata_field_name_too_long, too_many_metadata_fields, unit_too_long, duplicate_metadata_field, instance_label_not_required, invalid_request_body, request_body_too_large, unsupported_media_type, internal_error]
         requestId:
           type: string
           description: The X-Request-ID of the response.

@@ -16,32 +16,34 @@ import (
 // (those are bad requests): bad stored data is a server fault.
 var errUnknownValue = errors.New("unknown value in stored item")
 
-// itemRow mirrors the item_definitions table. The specs are stored as JSONB.
+// itemRow mirrors the item_definitions table. The specs and instance fields are stored as JSONB.
 type itemRow struct {
-	ID           uuid.UUID
-	Title        string
-	Kind         string
-	Recurrence   string
-	DocumentSpec []byte
-	ValueSpec    []byte
+	ID             uuid.UUID
+	Title          string
+	Kind           string
+	Recurrence     string
+	DocumentSpec   []byte
+	ValueSpec      []byte
+	InstanceFields []byte
 }
 
 // nullableItemRow scans the item columns of a LEFT JOIN, which are all NULL for a persona without items.
 // Only ID is checked for NULL; the other columns are NOT NULL (or nullable specs) once an item exists.
 type nullableItemRow struct {
-	ID           *uuid.UUID
-	Title        *string
-	Kind         *string
-	Recurrence   *string
-	DocumentSpec []byte
-	ValueSpec    []byte
+	ID             *uuid.UUID
+	Title          *string
+	Kind           *string
+	Recurrence     *string
+	DocumentSpec   []byte
+	ValueSpec      []byte
+	InstanceFields []byte
 }
 
 // toRow must only be called when ID is not nil.
 func (r nullableItemRow) toRow() itemRow {
 	return itemRow{
 		ID: *r.ID, Title: *r.Title, Kind: *r.Kind, Recurrence: *r.Recurrence,
-		DocumentSpec: r.DocumentSpec, ValueSpec: r.ValueSpec,
+		DocumentSpec: r.DocumentSpec, ValueSpec: r.ValueSpec, InstanceFields: r.InstanceFields,
 	}
 }
 
@@ -66,6 +68,10 @@ func newItemRow(item domain.ItemDefinition) (itemRow, error) {
 	}
 
 	var err error
+
+	if row.InstanceFields, err = json.Marshal(newFieldsJSON(item.InstanceFields())); err != nil {
+		return itemRow{}, fmt.Errorf("encode instance fields: %w", err)
+	}
 
 	switch spec := item.Spec().(type) {
 	case domain.DocumentSpec:
@@ -97,7 +103,12 @@ func (r itemRow) toDomain() (domain.ItemDefinition, error) {
 		return domain.ItemDefinition{}, fmt.Errorf("item %s: %w: recurrence %q", r.ID, errUnknownValue, r.Recurrence)
 	}
 
-	item, err := domain.RehydrateItemDefinition(domain.ItemID(r.ID), r.Title, recurrence, spec)
+	var instanceFields []metadataFieldJSON
+	if err := json.Unmarshal(r.InstanceFields, &instanceFields); err != nil {
+		return domain.ItemDefinition{}, fmt.Errorf("decode instance fields of item %s: %w", r.ID, err)
+	}
+
+	item, err := domain.RehydrateItemDefinition(domain.ItemID(r.ID), r.Title, recurrence, spec, fieldsToDomain(instanceFields))
 	if err != nil {
 		return domain.ItemDefinition{}, outbound.CorruptData("item "+r.ID.String(), err)
 	}
@@ -144,21 +155,28 @@ func (s valueSpecJSON) toDomain() domain.ValueSpec {
 }
 
 func newDocumentSpecJSON(s domain.DocumentSpec) documentSpecJSON {
-	// Always an array, never null, so the stored JSON has one shape.
-	fields := make([]metadataFieldJSON, 0, len(s.MetadataFields))
-	for _, f := range s.MetadataFields {
-		fields = append(fields, metadataFieldJSON{Name: f.Name, Spec: newValueSpecJSON(f.ValueSpec)})
-	}
-
-	return documentSpecJSON{MetadataFields: fields}
+	return documentSpecJSON{MetadataFields: newFieldsJSON(s.MetadataFields)}
 }
 
 func (s documentSpecJSON) toDomain() domain.DocumentSpec {
-	spec := domain.DocumentSpec{}
+	return domain.DocumentSpec{MetadataFields: fieldsToDomain(s.MetadataFields)}
+}
 
-	for _, f := range s.MetadataFields {
-		spec.MetadataFields = append(spec.MetadataFields, domain.MetadataField{Name: f.Name, ValueSpec: f.Spec.toDomain()})
+func newFieldsJSON(fs []domain.MetadataField) []metadataFieldJSON {
+	// Always an array, never null, so the stored JSON has one shape.
+	fields := make([]metadataFieldJSON, 0, len(fs))
+	for _, f := range fs {
+		fields = append(fields, metadataFieldJSON{Name: f.Name, Spec: newValueSpecJSON(f.ValueSpec)})
 	}
 
-	return spec
+	return fields
+}
+
+func fieldsToDomain(fs []metadataFieldJSON) []domain.MetadataField {
+	var fields []domain.MetadataField
+	for _, f := range fs {
+		fields = append(fields, domain.MetadataField{Name: f.Name, ValueSpec: f.Spec.toDomain()})
+	}
+
+	return fields
 }
