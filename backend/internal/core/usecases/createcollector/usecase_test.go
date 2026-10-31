@@ -5,9 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
+
 	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	faketransactor "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/transactor"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
@@ -46,7 +47,7 @@ func newTransactor(repo outbound.CollectorRepository, personas outbound.PersonaS
 }
 
 func newUsecase(repo outbound.CollectorRepository) *createcollector.Usecase {
-	return createcollector.New(newTransactor(repo, &personaRecorder{}), personatemplate.Predefined(), idgen.Random{})
+	return createcollector.New(newTransactor(repo, &personaRecorder{}), personatemplate.Predefined(), randomIDs{})
 }
 
 type failingRepo struct {
@@ -133,7 +134,7 @@ func TestExecute_AddsPredefinedPersonas(t *testing.T) {
 	for locale, wantName := range map[string]string{"": "Employed", "en": "Employed", "de": "Angestellt"} {
 		t.Run("locale "+locale, func(t *testing.T) {
 			personas := &personaRecorder{}
-			uc := createcollector.New(newTransactor(fakecollector.NewRepository(), personas), personatemplate.Predefined(), idgen.Random{})
+			uc := createcollector.New(newTransactor(fakecollector.NewRepository(), personas), personatemplate.Predefined(), randomIDs{})
 
 			id, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com", Locale: locale})
 			if err != nil {
@@ -166,7 +167,7 @@ func TestExecute_InvalidLocale(t *testing.T) {
 
 func TestExecute_PersonaFailureFails(t *testing.T) {
 	boom := errors.New("boom")
-	uc := createcollector.New(newTransactor(fakecollector.NewRepository(), &personaRecorder{err: boom}), personatemplate.Predefined(), idgen.Random{})
+	uc := createcollector.New(newTransactor(fakecollector.NewRepository(), &personaRecorder{err: boom}), personatemplate.Predefined(), randomIDs{})
 
 	id, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if !errors.Is(err, boom) {
@@ -193,9 +194,20 @@ func TestExecute_WithIDGenerator(t *testing.T) {
 	}
 }
 
+// randomIDs is an outbound.IDGenerator that draws random ids.
+type randomIDs struct{}
+
+func (randomIDs) NewCollectorID() (domain.CollectorID, error) {
+	return domain.CollectorID(uuid.New()), nil
+}
+
+func (randomIDs) NewPersonaID() (domain.PersonaID, error) { return domain.PersonaID(uuid.New()), nil }
+
+func (randomIDs) NewItemID() (domain.ItemID, error) { return domain.ItemID(uuid.New()), nil }
+
 // fixedCollectorID draws the collector id id and random ids otherwise.
 type fixedCollectorID struct {
-	idgen.Random
+	randomIDs
 	id domain.CollectorID
 }
 
