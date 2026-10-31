@@ -4,6 +4,8 @@ The backend is a hexagonal (ports and adapters) Go service. The business rules s
 
 The layering is not just convention: the depguard rules in [`.golangci.yml`](../.golangci.yml) fail the lint when a package imports something it must not.
 
+This file describes the current state. Planned changes from the architecture review (document content, tax year persistence, tests, collector creation, ...) are in [ARCHITECTURE_ROADMAP.md](ARCHITECTURE_ROADMAP.md).
+
 ## Layers
 
 ```mermaid
@@ -113,7 +115,7 @@ Use cases that act within a collector take the caller as a `domain.Actor`: the u
 
 A *collector* is the tenant. Everything a collector owns is exposed as a `...Store` whose `For(collectorID)` returns a repository bound to that collector, so repository methods never take a collector id and cannot reach another tenant's rows. Only `CollectorRepository`, the tenant root, is unscoped. The full rules, the cost and the checklist for a new resource are in [tenant-scoped-stores.md](tenant-scoped-stores.md).
 
-Referential integrity belongs to the storage, not to the use cases: a tenant-scoped repository returns `domain.ErrCollectorNotFound` itself when its collector does not exist. Postgres derives it from the foreign key on writes and from reading through `collectors` on reads, so a check cannot be forgotten and costs no extra query. The in-memory fakes emulate it, and the shared contract tests make every adapter behave the same. Deleting a collector will rely on `ON DELETE CASCADE` in the same spirit.
+Referential integrity belongs to the storage, not to the use cases: a tenant-scoped repository returns `domain.ErrCollectorNotFound` itself when its collector does not exist. Postgres derives it from the foreign key on writes and from reading through `collectors` on reads, so a check cannot be forgotten and costs no extra query. The in-memory fakes emulate it, and the shared contract tests make every adapter behave the same. Deleting a collector will rely on `ON DELETE CASCADE` in the same spirit. With authentication the collector of an actor always exists, and these checks are dropped (see [roadmap #5](ARCHITECTURE_ROADMAP.md#5-drop-the-collector-existence-checks-with-authentication)).
 
 ### Inbound and outbound ports
 
@@ -152,13 +154,13 @@ A use case receives **either** a `Transactor` **or** repositories wired on the p
 
 - A `ClientTaxYear` and its `RequiredItem`s are one aggregate, saved in one call (one batch, like `SavePersona`). Creating a tax year and `SyncItems` then write a single call. `SyncItems` reads personas, but a stale read is harmless because the tax year is a snapshot.
 - Item writes (upload, remove document, enter value, set metadata) touch one tax year. Document content that lives outside Postgres cannot be covered by a transaction anyway.
-- Concurrency inside an aggregate is a different problem, and `InTx` does not solve it. `Close` checks that every item is done, while `RemoveDocument` checks that the year is open. Run concurrently under read committed, both checks can pass and leave a closed year with an outstanding item. The tax year repository must prevent this, with a version column checked on save (409 on mismatch) or a row lock (`SELECT ... FOR UPDATE`) on the tax year in every write path. Unlike personas (see "Personas have no optimistic locking"), a client and the collector do act on the same tax year at the same time.
+- Concurrency inside an aggregate is a different problem, and `InTx` does not solve it. `Close` checks that every item is done, while `RemoveDocument` checks that the year is open. Run concurrently under read committed, both checks can pass and leave a closed year with an outstanding item. The tax year repository must prevent this, with a version column checked on save (409 on mismatch) or a row lock (`SELECT ... FOR UPDATE`) on the tax year in every write path. Unlike personas (see "Personas have no optimistic locking"), a client and the collector do act on the same tax year at the same time. The proposed approach (a version checked by every write, targeted writes instead of a full replace) is [roadmap #2](ARCHITECTURE_ROADMAP.md#2-the-tax-year-is-not-saved-by-replacing-it-whole); letting repositories use savepoints for their own atomic saves is [roadmap #6](ARCHITECTURE_ROADMAP.md#6-repositories-may-make-their-own-writes-atomic).
 
 A transactional use case declares the repositories it writes through as its own type (`createcollector.Repositories`) and takes an `outbound.Transactor` of that type. The composition root narrows the transactor of the full set to it (`narrow` in `internal/backend`, which picks the fields), so a repository added to `backend.Repositories` reaches no use case that does not declare it. The core has no type that lists every repository.
 
 ### Repositories have two implementations and one test suite
 
-Every repository interface has a Postgres and a fake implementation. Both run the same contract tests from `testutil/porttest`, including the tenant isolation tests, so the fake used in use case tests cannot drift from the real behaviour. The Postgres tests start their own container with testcontainers, so Docker must be running.
+Every repository interface has a Postgres and a fake implementation. Both run the same contract tests from `testutil/porttest`, including the tenant isolation tests, so the fake used in use case tests cannot drift from the real behaviour. The Postgres tests start their own container with testcontainers, so Docker must be running. This is going to change: use case tests will run against Postgres and the fakes will stay trivial ([roadmap #4](ARCHITECTURE_ROADMAP.md#4-use-case-tests-run-against-postgres-fakes-stay-trivial)).
 
 ### API contract and migrations
 
@@ -172,7 +174,7 @@ Every caller is treated as an employee of the collector in the URL today. The se
 ## Adding things
 
 - **A use case:** create `core/usecases/<name>` with `New(deps).Execute`, add the field and the small interface to `httpadapter` (`Deps` and the resource package), and wire it in `backend.wire`.
-- **A tenant-owned resource:** follow the checklist in [tenant-scoped-stores.md](tenant-scoped-stores.md).
+- **A tenant-owned resource:** follow the checklist in [tenant-scoped-stores.md](tenant-scoped-stores.md), and check [ARCHITECTURE_ROADMAP.md](ARCHITECTURE_ROADMAP.md) first: new repositories should follow its decisions (Postgres-backed tests, no collector existence checks once there is authentication).
 - **A new `httpadapter/<x>` or `postgres/<x>` package:** add a line for it to the matching `*-isolated` rules in `.golangci.yml`.
 - **A new import in `core/domain`:** add it to `domain-allowlist` in `.golangci.yml`, and ask first whether the code belongs in the domain.
 - **An endpoint change:** update `api/openapi.yaml` (the `sync-openapi` skill does this).

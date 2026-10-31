@@ -74,7 +74,7 @@ erDiagram
   - be an employee **and** a client of the same collector, e.g. an employee who files their own return with the firm.
 - **Session.** It is bound to the identity first and to one membership once a tenant is picked. A request never runs "as a person", always as one membership, so the `Actor` is never ambiguous. With more than one membership the user picks one after login. The picker lists memberships, not collectors ("Kanzlei X – Mitarbeiter", "Kanzlei X – Mandant"), and switching role works the same way as switching tenant.
   An employee who is also a client sees their own client record in the staff role, like every other client. That is accepted for now and visible in the audit log. Whether they may edit their own tax year as staff is an open question.
-- **A collector is not a user.** Its employees are. `createcollector` will create the collector together with its first staff identity (the owner). Further employees and all clients are invited. Clients never register themselves.
+- **A collector is not a user.** Its employees are. There is no self-service signup: the operator creates a collector with the `docker create-collector` subcommand, and `createcollector` creates it together with its first staff identity (the owner), who is invited by email. `POST /collectors` is removed from the API then. Further employees and all clients are invited. Clients never register themselves. See [roadmap #3](ARCHITECTURE_ROADMAP.md#3-collectors-are-created-by-the-operator).
 - **Invites.** A collector invites a client by email. If the email has no identity yet, the invite link lets the person set a password. If it already has one, accepting the invite only adds the membership. The collector gets the same answer in both cases, so it cannot find out that the person is known to another collector.
 - **`domain.Actor` changes.** It is built from a membership: role, collector, the user id of the identity, and for clients the client id. The current rule "a client's user id is its client id" is dropped, because one identity can be several clients (one per collector).
 - **Unscoped repositories.** At login no tenant is known yet, so `UserRepository`, `MembershipRepository` and `SessionStore` are not tenant-scoped, like `CollectorRepository`. This is a deliberate exception to [tenant-scoped-stores.md](tenant-scoped-stores.md). Only the auth use cases take these repositories, and review checks that, as it does for `Transactor`. Everything a membership leads to (clients, tax years) stays tenant-scoped.
@@ -235,8 +235,8 @@ Seeding clients needs the `Client` entity and a create-client use case, which do
 
 1. Domain and ports: identity, membership, `Actor` built from a membership (with a client id), the `unauthenticated` error kind.
 2. Migrations, Postgres repositories, fakes and contract tests, argon2 hasher.
-3. `Login`, `Logout`, `SelectTenant`, `ResolveSession`. The `authenticate` middleware, `httpx.Actor` from the context, routes without `{collectorId}`, openapi.
-4. `createcollector` with the first staff identity, e2e seeds.
+3. `Login`, `Logout`, `SelectTenant`, `ResolveSession`. The `authenticate` middleware, `httpx.Actor` from the context, routes without `{collectorId}`, openapi. The tenant-scoped repositories drop their collector existence checks ([roadmap #5](ARCHITECTURE_ROADMAP.md#5-drop-the-collector-existence-checks-with-authentication)).
+4. `createcollector` with the first staff identity, run by the operator through `docker create-collector`; `POST /collectors` is removed. e2e seeds.
 5. BFF: login page, tenant picker, `handleAuth`, route groups, removing `TENANT_ID`, Playwright fixtures.
 6. Later: invites and password reset (need an email provider), stricter throttling, 2FA.
 

@@ -28,7 +28,7 @@ go build -o bin/docker ./cmd/docker
 
 ## Backend architecture (hexagonal)
 
-Overview, package map and design decisions (e.g. why `personatemplate` is its own core package): `backend/docs/ARCHITECTURE.md`.
+Overview, package map and design decisions (e.g. why `personatemplate` is its own core package): `backend/docs/ARCHITECTURE.md`. Planned architectural changes and decisions not built yet (document content store, tax year versioning, Postgres-backed use case tests, operator-created collectors, ...): `backend/docs/ARCHITECTURE_ROADMAP.md` — follow them when building the affected features.
 
 The layering is enforced by the depguard rules in `backend/.golangci.yml` (the domain may only import an allow-list of packages, the core must not know HTTP/SQL, use cases and adapter resource packages must not import each other, production code must not import fakes or test helpers). A new `httpadapter/<x>` or `postgres/<x>` resource package needs a line in the matching `*-isolated` rules; a new import in `internal/core/domain` needs an entry in `domain-allowlist`.
 
