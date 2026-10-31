@@ -98,7 +98,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `locale` ← `pers
 
 ### Actors and authorization
 
-Use cases that act within a collector take the caller as a `domain.Actor`: the user (`UserID`), its `Role` and the collector it belongs to. The tenant of the use case is always `actor.CollectorID()`, so a handler cannot pass a tenant that does not belong to the caller. A collector is a company with several employees (`RoleStaff`), and its clients (`RoleClient`) log in to the same tenant; a client logs in as itself, so its user id is its client id. There is one staff role for now.
+Use cases that act within a collector take the caller as a `domain.Actor`: the user (`UserID`), its `Role` and the collector it belongs to. The tenant of the use case is always `actor.CollectorID()`, so a handler cannot pass a tenant that does not belong to the caller. A collector is a company with several employees (`RoleStaff`), and its clients (`RoleClient`) log in to the same tenant. There is one staff role for now. Today a client's user id is its client id. With authentication a person becomes one identity with several memberships (collector + role), the actor is built from one membership and gets its own client id (see [AUTHENTICATION.md](AUTHENTICATION.md)).
 
 **The core decides what an actor may do**, in the use case or in a policy method on `Actor` (`RequireStaff`), so the use case tests cover the rules. Two kinds of refusal:
 
@@ -107,7 +107,7 @@ Use cases that act within a collector take the caller as a `domain.Actor`: the u
 
 `Actor` has unexported fields and is made with `NewStaffActor` or `NewClientActor`. The zero `Actor` has no role and no collector, so it is denied everything.
 
-**Who resolves the actor.** The inbound adapter only authenticates: checking a token or session and getting "subject S of issuer I" is infrastructure. Which collector a user belongs to, its role and which client it is are business data in the database. The HTTP adapter cannot reach them (handlers must not import `port/outbound`), and it must not decide them, or authorization would again live outside the core. With authentication, the auth middleware will call an inbound port `inbound.ResolveActor` (a use case on an `outbound.UserRepository`) and put the returned actor on the request context. `httpx.Actor` takes it from there and the handler passes it as an argument. The core never reads the actor from the context. Until then `httpx.Actor` builds an employee of the `{collectorId}` collector without a user id.
+**Who resolves the actor.** The inbound adapter only extracts the credential (the bearer token) from the request. Checking it and resolving it to an actor happen in the core: the sessions are server-side, so checking a token means a lookup in the `SessionStore`, and which collector a user belongs to, its role and which client it is are business data in the database. The HTTP adapter cannot reach them (handlers must not import `port/outbound`), and it must not decide them, or authorization would again live outside the core. With authentication, the auth middleware will call an inbound port `inbound.ResolveSession` (a use case on the session and membership repositories, see [AUTHENTICATION.md](AUTHENTICATION.md)), which checks the token and returns the actor, and put that actor on the request context. With an external identity provider that issues self-contained tokens (OIDC), checking the token could move into the adapter, and the core would then only resolve "subject S of issuer I" to an actor. `httpx.Actor` takes it from there and the handler passes it as an argument. The core never reads the actor from the context. Until then `httpx.Actor` builds an employee of the `{collectorId}` collector without a user id.
 
 ### Tenant-scoped stores
 
@@ -167,7 +167,7 @@ Every repository interface has a Postgres and a fake implementation. Both run th
 
 ### No authentication yet
 
-Every caller is treated as an employee of the collector in the URL today. The seam is already in place: use cases receive a `domain.Actor` and enforce the rules themselves, and only `httpx.Actor` builds it. Authentication changes that function and adds the auth middleware with `ResolveActor` (see [Actors and authorization](#actors-and-authorization)), not the use cases.
+Every caller is treated as an employee of the collector in the URL today. The seam is already in place: use cases receive a `domain.Actor` and enforce the rules themselves, and only `httpx.Actor` builds it. Authentication changes that function and adds the auth middleware with `ResolveSession` (see [Actors and authorization](#actors-and-authorization)), not the use cases. The design is in [AUTHENTICATION.md](AUTHENTICATION.md).
 
 ## Adding things
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Multi-tenant (SaaS-style) tool for organizing tax return documents. A *Collector* (e.g. a tax advisory) defines Personas → required documents/data; *Clients* upload files and enter data per tax year. The README holds the use cases; the full domain model (mermaid diagram and design notes) is in `backend/docs/DOMAIN_MODEL.md`. The project is WIP: only the Collector create/get slice exists so far, and there is no authentication.
+Multi-tenant (SaaS-style) tool for organizing tax return documents. A *Collector* (e.g. a tax advisory) defines Personas → required documents/data; *Clients* upload files and enter data per tax year. The README holds the use cases; the full domain model (mermaid diagram and design notes) is in `backend/docs/DOMAIN_MODEL.md`. The project is WIP: only the Collector create/get slice exists so far, and there is no authentication (its planned design is in `backend/docs/AUTHENTICATION.md`).
 
 Monorepo with two independent projects (each has its own CI workflow, triggered by path):
 
