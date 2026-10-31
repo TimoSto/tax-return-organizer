@@ -57,7 +57,7 @@ func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*doma
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec, i.instance_fields
 		FROM collectors c
 		LEFT JOIN personas p ON p.collector_id = c.id AND p.id = $1
-		LEFT JOIN item_definitions i ON i.persona_id = p.id
+		LEFT JOIN item_definitions i ON i.persona_id = p.id AND i.collector_id = p.collector_id
 		WHERE c.id = $2
 		ORDER BY i.position`, uuid.UUID(id), uuid.UUID(r.collectorID))
 	if err != nil {
@@ -86,7 +86,7 @@ func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error
 		       i.id, i.title, i.kind, i.recurrence, i.document_spec, i.value_spec, i.instance_fields
 		FROM collectors c
 		LEFT JOIN personas p ON p.collector_id = c.id
-		LEFT JOIN item_definitions i ON i.persona_id = p.id
+		LEFT JOIN item_definitions i ON i.persona_id = p.id AND i.collector_id = p.collector_id
 		WHERE c.id = $1
 		ORDER BY p.name COLLATE "C", p.id, i.position`, uuid.UUID(r.collectorID))
 	if err != nil {
@@ -128,8 +128,8 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 	batch := &pgx.Batch{}
 
 	// The persona is upserted first. The collector of an existing persona never changes. If the id belongs to
-	// another collector this affects no row, and the guards below keep the item statements from touching the
-	// foreign persona.
+	// another collector this affects no row, and the item statements below cannot touch the foreign persona: they
+	// filter on this collector, and their inserts fail on the composite foreign key to (persona id, collector id).
 	batch.Queue(`
 		INSERT INTO personas (id, collector_id, name, description) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description
@@ -142,21 +142,21 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 	batch.Queue(`SELECT EXISTS (SELECT 1 FROM collectors WHERE id = $1)`, row.CollectorID)
 
 	// Items keep their identity: an item of this persona is updated, any other id is inserted. Item ids are
-	// unique per persona, so an id that another persona uses is just another row. The EXISTS guard turns the
-	// statement into a no-op if the persona is not this collector's, the persona upsert has reported that
-	// already.
+	// unique per persona, so an id that another persona uses is just another row. If the persona is not this
+	// collector's, the update matches no row and the insert fails on the foreign key, which aborts the batch; the
+	// persona upsert has reported the cause already.
 	for position, item := range items {
 		batch.Queue(`
 			WITH updated AS (
 				UPDATE item_definitions SET position = $3, title = $4, kind = $5, recurrence = $6,
 					document_spec = $7, value_spec = $8, instance_fields = $10
-				WHERE id = $1 AND persona_id = $2
+				WHERE id = $1 AND persona_id = $2 AND collector_id = $9
 				RETURNING 1)
 			INSERT INTO item_definitions (
-				id, persona_id, position, title, kind, recurrence, document_spec, value_spec, instance_fields)
-			SELECT $1, $2, $3, $4, $5, $6, $7, $8, $10
-			WHERE NOT EXISTS (SELECT 1 FROM updated)
-			  AND EXISTS (SELECT 1 FROM personas WHERE id = $2 AND collector_id = $9)`,
+				id, persona_id, collector_id, position, title, kind, recurrence, document_spec, value_spec,
+				instance_fields)
+			SELECT $1, $2, $9, $3, $4, $5, $6, $7, $8, $10
+			WHERE NOT EXISTS (SELECT 1 FROM updated)`,
 			item.ID, row.ID, position, item.Title, item.Kind, item.Recurrence, item.DocumentSpec, item.ValueSpec,
 			row.CollectorID, item.InstanceFields)
 
@@ -165,8 +165,7 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 
 	batch.Queue(`
 		DELETE FROM item_definitions
-		WHERE persona_id = $1 AND id <> ALL($2::uuid[])
-		  AND EXISTS (SELECT 1 FROM personas WHERE id = $1 AND collector_id = $3)`,
+		WHERE persona_id = $1 AND collector_id = $3 AND id <> ALL($2::uuid[])`,
 		row.ID, ids, row.CollectorID)
 
 	results := r.db.SendBatch(ctx, batch)
@@ -186,7 +185,9 @@ func (r *Repository) SavePersona(ctx context.Context, persona *domain.Persona) e
 
 // readSaveResults checks the result of every statement queued by SavePersona, in order. An error aborts the
 // implicit transaction, so returning early leaves nothing written. Returning early because the upsert affected
-// no row is safe too: the guards of the item statements turn them into no-ops.
+// no row is safe too: the item inserts then fail on the composite foreign key, which aborts the transaction.
+// Inside an outer transaction (outbound.Transactor) that transaction is aborted as well, like on any failed
+// statement; the use case rolls it back on the error it gets.
 func readSaveResults(results pgx.BatchResults, items []itemRow) error {
 	tag, err := results.Exec()
 	if err != nil {
