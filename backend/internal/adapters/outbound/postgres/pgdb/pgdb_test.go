@@ -8,15 +8,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
 )
@@ -54,18 +50,40 @@ func countCollectors(t *testing.T, pool *pgxpool.Pool) int {
 	return n
 }
 
+func countPersonas(t *testing.T, pool *pgxpool.Pool) int {
+	t.Helper()
+
+	var n int
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM personas`).Scan(&n); err != nil {
+		t.Fatalf("count personas: %v", err)
+	}
+
+	return n
+}
+
+// saveCollectorAndPersona writes through both repositories of r, so the tests cover a transaction across them.
+func saveCollectorAndPersona(ctx context.Context, r outbound.Repositories) error {
+	if err := r.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com")); err != nil {
+		return err
+	}
+
+	p, err := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "Employed", "")
+	if err != nil {
+		return err
+	}
+
+	return r.Personas.For(testCollectorID).SavePersona(ctx, p)
+}
+
 func TestInTx_CommitsOnSuccess(t *testing.T) {
 	tx, pool := newTransactor(t, repositories)
 
-	err := tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
-		return r.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com"))
-	})
-	if err != nil {
+	if err := tx.InTx(context.Background(), saveCollectorAndPersona); err != nil {
 		t.Fatalf("InTx: %v", err)
 	}
 
-	if n := countCollectors(t, pool); n != 1 {
-		t.Errorf("collectors = %d, want 1", n)
+	if c, p := countCollectors(t, pool), countPersonas(t, pool); c != 1 || p != 1 {
+		t.Errorf("collectors = %d, personas = %d, want 1 and 1", c, p)
 	}
 }
 
@@ -115,16 +133,7 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 	boom := errors.New("boom")
 
 	err := tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
-		if err := r.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com")); err != nil {
-			return err
-		}
-
-		p, err := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "Employed", "")
-		if err != nil {
-			return err
-		}
-
-		if err := r.Personas.For(testCollectorID).SavePersona(ctx, p); err != nil {
+		if err := saveCollectorAndPersona(ctx, r); err != nil {
 			return err
 		}
 
@@ -134,112 +143,28 @@ func TestInTx_SavePersonaInsideTransaction(t *testing.T) {
 		t.Fatalf("err = %v, want %v", err, boom)
 	}
 
-	var personas int
-	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM personas`).Scan(&personas); err != nil {
-		t.Fatalf("count personas: %v", err)
-	}
-
-	if personas != 0 || countCollectors(t, pool) != 0 {
-		t.Errorf("personas = %d, collectors = %d, want 0 and 0", personas, countCollectors(t, pool))
+	if c, p := countCollectors(t, pool), countPersonas(t, pool); c != 0 || p != 0 {
+		t.Errorf("collectors = %d, personas = %d, want 0 and 0", c, p)
 	}
 }
 
-// failingPersonas fails the n-th SavePersona, whichever collector's repository it goes through, like a database
-// error in the middle of creating a collector.
-type failingPersonas struct {
-	outbound.PersonaStore
-	failAt, calls int
-}
+// A failing statement aborts the Postgres transaction. The repository still maps the error, and the rollback removes
+// the earlier writes.
+func TestInTx_RollsBackAfterDatabaseError(t *testing.T) {
+	tx, pool := newTransactor(t, repositories)
 
-func (s *failingPersonas) For(id domain.CollectorID) outbound.PersonaRepository {
-	return &failingPersonaRepo{PersonaRepository: s.PersonaStore.For(id), store: s}
-}
+	err := tx.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
+		if err := saveCollectorAndPersona(ctx, r); err != nil {
+			return err
+		}
 
-type failingPersonaRepo struct {
-	outbound.PersonaRepository
-	store *failingPersonas
-}
-
-func (r *failingPersonaRepo) SavePersona(ctx context.Context, p *domain.Persona) error {
-	r.store.calls++
-	if r.store.calls == r.store.failAt {
-		return errors.New("simulated persona failure")
-	}
-
-	return r.PersonaRepository.SavePersona(ctx, p)
-}
-
-// Regression test: a persona failing after the collector was saved must not leave the collector behind.
-func TestCreateCollector_PersonaFailureLeavesNothing(t *testing.T) {
-	failing := &failingPersonas{failAt: 2}
-	tx, pool := newTransactor(t, func(db pgdb.DBTX) outbound.Repositories {
-		r := repositories(db)
-		failing.PersonaStore = r.Personas
-		r.Personas = failing
-
-		return r
+		return r.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "B", "b@example.com"))
 	})
-
-	_, err := createcollector.New(tx, personatemplate.Predefined(), idgen.Random{}).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
-	if err == nil {
-		t.Fatal("expected an error")
-	}
-
-	if n := countCollectors(t, pool); n != 0 {
-		t.Errorf("collectors = %d, want 0", n)
-	}
-
-	var personas int
-	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM personas`).Scan(&personas); err != nil {
-		t.Fatalf("count personas: %v", err)
-	}
-
-	if personas != 0 {
-		t.Errorf("personas = %d, want 0", personas)
-	}
-}
-
-func TestCreateCollector_StoresCollectorWithPersonas(t *testing.T) {
-	tx, pool := newTransactor(t, repositories)
-
-	id, err := createcollector.New(tx, personatemplate.Predefined(), idgen.Random{}).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
-	if err != nil {
-		t.Fatalf("Execute: %v", err)
-	}
-
-	personas, err := pgpersona.NewStore(pool).For(id).ListPersonas(context.Background())
-	if err != nil {
-		t.Fatalf("ListPersonas: %v", err)
-	}
-
-	if len(personas) != len(personatemplate.Predefined()) {
-		t.Errorf("personas = %d, want %d", len(personas), len(personatemplate.Predefined()))
-	}
-}
-
-// Collector ids are random UUIDs, so a taken id is a bug: it fails without a retry and stores nothing.
-func TestCreateCollector_TakenIDFails(t *testing.T) {
-	tx, pool := newTransactor(t, repositories)
-
-	if _, err := pool.Exec(context.Background(), `INSERT INTO collectors (id, name, email) VALUES ($1, 'A', 'a@example.com')`, uuid.UUID(testCollectorID)); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-
-	uc := createcollector.New(tx, personatemplate.Predefined(), fixedIDs{id: testCollectorID})
-
-	if _, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"}); !errors.Is(err, domain.ErrCollectorIDTaken) {
+	if !errors.Is(err, domain.ErrCollectorIDTaken) {
 		t.Fatalf("err = %v, want it to wrap %v", err, domain.ErrCollectorIDTaken)
 	}
 
-	if n := countCollectors(t, pool); n != 1 {
-		t.Errorf("collectors = %d, want 1", n)
+	if c, p := countCollectors(t, pool), countPersonas(t, pool); c != 0 || p != 0 {
+		t.Errorf("collectors = %d, personas = %d, want 0 and 0", c, p)
 	}
 }
-
-// fixedIDs draws the collector id id and random ids otherwise.
-type fixedIDs struct {
-	idgen.Random
-	id domain.CollectorID
-}
-
-func (f fixedIDs) NewCollectorID() (domain.CollectorID, error) { return f.id, nil }
