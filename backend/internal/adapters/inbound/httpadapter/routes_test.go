@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -72,6 +73,24 @@ func TestNewHandler_RejectsMissingDeps(t *testing.T) {
 
 	if _, err := httpadapter.NewHandler(d); err == nil || !strings.Contains(err.Error(), "GetPersona") || strings.Contains(err.Error(), "ListPersonas") {
 		t.Errorf("err = %v, want only GetPersona named", err)
+	}
+}
+
+// TestNewHandler_ChecksEveryDep sets each field of fullDeps to nil in turn, so a new field of Deps is covered without
+// a test change (fullDeps must set it, or TestNewHandler fails).
+func TestNewHandler_ChecksEveryDep(t *testing.T) {
+	typ := reflect.TypeFor[httpadapter.Deps]()
+
+	for i := range typ.NumField() {
+		name := typ.Field(i).Name
+
+		d := fullDeps()
+		v := reflect.ValueOf(&d).Elem().Field(i)
+		v.Set(reflect.Zero(v.Type()))
+
+		if _, err := httpadapter.NewHandler(d); err == nil || !strings.Contains(err.Error(), name) {
+			t.Errorf("%s = nil: err = %v, want it named", name, err)
+		}
 	}
 }
 
