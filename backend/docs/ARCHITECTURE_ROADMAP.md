@@ -57,7 +57,7 @@ Plan: when routes lose `{collectorId}`, remove the existence checks from the rep
 
 *Status: proposed. When: together with 4, or with the tax year repository.*
 
-Repositories may not open a transaction (`pgdb.DBTX` has no `Begin`), so a multi-statement save has to be one pgx batch. `SavePersona` therefore queues a guarded CTE upsert per item, `EXISTS` guards on every item statement, and a collector probe. That SQL is hard to review, and the tax year repository would copy it.
+Repositories may not open a transaction (`pgdb.DBTX` has no `Begin`), so a multi-statement save has to be one pgx batch. `SavePersona` therefore queues a CTE upsert per item and a collector probe. That SQL is hard to review, and the tax year repository would copy it.
 
 Proposal: add `Begin(ctx) (pgx.Tx, error)` to `pgdb.DBTX`. On the pool it starts a transaction, on a `pgx.Tx` it creates a savepoint. A repository can then make its own save atomic, and the use case still owns the outer transaction when there is one. Write the saves set-based: one upsert of all items from `unnest` arrays and one delete of the removed ones. The `Transactor` stays the way to make writes through **several** repositories atomic.
 
@@ -75,11 +75,35 @@ Proposal: a domain validation error that carries a field path (`items[3].title`,
 
 The authentication design logs security events. Under DSGVO and § 203 StGB, the reads of staff matter as well: who opened which client's documents. Proposal: an outbound port `AuditLog`, called by the use cases (the core decides what is audited). Writes record their entry in the same transaction. Reads append it separately, so they keep running on the pool without a `Transactor` (see "Transactions" in [ARCHITECTURE.md](ARCHITECTURE.md#transactions)). A failed audit write fails the request.
 
-### 8. Row-level security stays deferred
+### 8. Row-level security as a second tenant guard
 
-*Status: proposed, deferred.*
+*Status: proposed; the schema part is done. When: together with the read models of 2.*
 
-Postgres row-level security (`SET LOCAL app.collector_id`) would add a database-level tenant guard to the stores (see "Known limits" in [tenant-scoped-stores.md](tenant-scoped-stores.md#known-limits)). `SET LOCAL` needs a transaction, and reads deliberately run on the pool. Revisit if the audit log (7) or something else puts reads into transactions anyway.
+The stores filter every query by their collector, but only the code enforces that. Postgres row-level security (RLS) would make the database refuse other tenants' rows as well, which catches hand-written SQL that forgets the filter. That risk grows with the read models of 2, which join across tables. See also "Known limits" in [tenant-scoped-stores.md](tenant-scoped-stores.md#known-limits).
+
+**No use case needs a `Transactor` for it.** RLS needs the tenant set in the transaction of every query, and the adapter can open that transaction itself. A repository from `Store.For(collectorID)` already knows its tenant, so each of its methods sets it before its own statements:
+
+```sql
+SELECT set_config('app.collector_id', $1, true);  -- true: for this transaction only, like SET LOCAL
+SELECT ... FROM personas ...;
+```
+
+- On the pool, both statements go out as one pgx batch, which runs as one implicit transaction: one round trip, as today. Sending an explicit `BEGIN ... COMMIT` in the same batch is the more obviously correct variant at the same cost. A test pins whichever is chosen.
+- Inside `InTx` the same statement runs in the outer transaction. Each method sets its tenant again, so `createcollector` keeps working when it saves the personas of a new collector.
+- The `Transactor` keeps its only job: making writes through several repositories atomic.
+- Not an option: setting the tenant once per connection (when it is taken from the pool, reset when it is returned). One missing reset hands the setting to the next request on that connection, the very leak RLS is meant to prevent.
+
+Policies fail closed: `collector_id = current_setting('app.collector_id', true)::uuid` is NULL when the setting is missing, so no row is visible.
+
+Consequences:
+
+- **Schema (done).** Every tenant table has its own `collector_id`, child tables included, tied to the parent by a composite foreign key (see "Every tenant table carries `collector_id`" in [tenant-scoped-stores.md](tenant-scoped-stores.md#rules)). So each policy is a direct comparison, without a subquery on the parent. What remains is the policies themselves, with `ENABLE` and `FORCE ROW LEVEL SECURITY` on each table; without `FORCE` the table owner ignores the policies.
+- **Database roles.** The app connects as a role that owns no tables and has no `BYPASSRLS`. Migrations run as the owner, so `docker migrate` becomes the normal way to migrate; `MIGRATE_ON_START` with a single role no longer works.
+- **Tests.** testcontainers connects as superuser, and a superuser bypasses RLS silently, so every RLS test would pass without policies. `postgrestest` creates the app role, and the repository tests connect with it.
+- **Unscoped tables.** `collectors` (the tenant root), and later `users`, `memberships` and `sessions`, which login reads before any tenant is known, get no tenant policy. RLS protects only what is behind a `...Store`.
+- **Jobs across tenants.** The cleanup of unreferenced document content (1), session expiry and `docker create-collector` run with their own role that has `BYPASSRLS`, or work tenant by tenant.
+- **Errors.** An insert for another tenant fails with SQLSTATE `42501` ("new row violates row-level security policy"); the adapter maps it to `outbound.ErrTenantMismatch`. Reads and updates of other tenants' rows see no rows, as today.
+- **Cost.** One extra statement per batch and one predicate per query, on `collector_id`, which is indexed anyway. The effort per adapter is smallest with the set-based saves of 5; the per-item batches of `SavePersona` today would each have to carry the `set_config` as well.
 
 ## Low: cleanups
 
