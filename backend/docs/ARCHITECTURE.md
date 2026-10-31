@@ -4,6 +4,8 @@ The backend is a hexagonal (ports and adapters) Go service. The business rules s
 
 The layering is not just convention: the depguard rules in [`.golangci.yml`](../.golangci.yml) fail the lint when a package imports something it must not.
 
+This file describes the current state. Planned changes from the architecture review (document content, tax year persistence, tests, collector creation, ...) are in [ARCHITECTURE_ROADMAP.md](ARCHITECTURE_ROADMAP.md).
+
 ## Layers
 
 ```mermaid
@@ -97,7 +99,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `locale` ← `pers
 
 ### Actors and authorization
 
-Use cases that act within a collector take the caller as a `domain.Actor`: the user (`UserID`), its `Role` and the collector it belongs to. The tenant of the use case is always `actor.CollectorID()`, so a handler cannot pass a tenant that does not belong to the caller. A collector is a company with several employees (`RoleStaff`), and its clients (`RoleClient`) log in to the same tenant; a client logs in as itself, so its user id is its client id. There is one staff role for now.
+Use cases that act within a collector take the caller as a `domain.Actor`: the user (`UserID`), its `Role` and the collector it belongs to. The tenant of the use case is always `actor.CollectorID()`, so a handler cannot pass a tenant that does not belong to the caller. A collector is a company with several employees (`RoleStaff`), and its clients (`RoleClient`) log in to the same tenant. There is one staff role for now. Today a client's user id is its client id. With authentication a person becomes one identity with several memberships (collector + role), the actor is built from one membership and gets its own client id (see [AUTHENTICATION.md](AUTHENTICATION.md)).
 
 **The core decides what an actor may do**, in the use case or in a policy method on `Actor` (`RequireStaff`), so the use case tests cover the rules. Two kinds of refusal:
 
@@ -106,13 +108,13 @@ Use cases that act within a collector take the caller as a `domain.Actor`: the u
 
 `Actor` has unexported fields and is made with `NewStaffActor` or `NewClientActor`. The zero `Actor` has no role and no collector, so it is denied everything.
 
-**Who resolves the actor.** The inbound adapter only authenticates: checking a token or session and getting "subject S of issuer I" is infrastructure. Which collector a user belongs to, its role and which client it is are business data in the database. The HTTP adapter cannot reach them (handlers must not import `port/outbound`), and it must not decide them, or authorization would again live outside the core. With authentication, the auth middleware will call an inbound port `inbound.ResolveActor` (a use case on an `outbound.UserRepository`) and put the returned actor on the request context. `httpx.Actor` takes it from there and the handler passes it as an argument. The core never reads the actor from the context. Until then `httpx.Actor` builds an employee of the `{collectorId}` collector without a user id.
+**Who resolves the actor.** The inbound adapter only extracts the credential (the bearer token) from the request. Checking it and resolving it to an actor happen in the core: the sessions are server-side, so checking a token means a lookup in the `SessionStore`, and which collector a user belongs to, its role and which client it is are business data in the database. The HTTP adapter cannot reach them (handlers must not import `port/outbound`), and it must not decide them, or authorization would again live outside the core. With authentication, the auth middleware will call an inbound port `inbound.ResolveSession` (a use case on the session and membership repositories, see [AUTHENTICATION.md](AUTHENTICATION.md)), which checks the token and returns the actor, and put that actor on the request context. With an external identity provider that issues self-contained tokens (OIDC), checking the token could move into the adapter, and the core would then only resolve "subject S of issuer I" to an actor. `httpx.Actor` takes it from there and the handler passes it as an argument. The core never reads the actor from the context. Until then `httpx.Actor` builds an employee of the `{collectorId}` collector without a user id.
 
 ### Tenant-scoped stores
 
 A *collector* is the tenant. Everything a collector owns is exposed as a `...Store` whose `For(collectorID)` returns a repository bound to that collector, so repository methods never take a collector id and cannot reach another tenant's rows. Only `CollectorRepository`, the tenant root, is unscoped. The full rules, the cost and the checklist for a new resource are in [tenant-scoped-stores.md](tenant-scoped-stores.md).
 
-Referential integrity belongs to the storage, not to the use cases: a tenant-scoped repository returns `domain.ErrCollectorNotFound` itself when its collector does not exist. Postgres derives it from the foreign key on writes and from reading through `collectors` on reads, so a check cannot be forgotten and costs no extra query. The contract tests in `testutil/porttest` pin it. Deleting a collector will rely on `ON DELETE CASCADE` in the same spirit.
+Referential integrity belongs to the storage, not to the use cases: a tenant-scoped repository returns `domain.ErrCollectorNotFound` itself when its collector does not exist. Postgres derives it from the foreign key on writes and from reading through `collectors` on reads, so a check cannot be forgotten and costs no extra query. The contract tests in `testutil/porttest` pin it. Deleting a collector will rely on `ON DELETE CASCADE` in the same spirit. With authentication the collector of an actor always exists, and these checks are dropped (see [roadmap #4](ARCHITECTURE_ROADMAP.md#4-drop-the-collector-existence-checks-with-authentication)).
 
 ### Inbound and outbound ports
 
@@ -151,7 +153,7 @@ A use case receives **either** a `Transactor` **or** repositories wired on the p
 
 - A `ClientTaxYear` and its `RequiredItem`s are one aggregate, saved in one call (one batch, like `SavePersona`). Creating a tax year and `SyncItems` then write a single call. `SyncItems` reads personas, but a stale read is harmless because the tax year is a snapshot.
 - Item writes (upload, remove document, enter value, set metadata) touch one tax year. Document content that lives outside Postgres cannot be covered by a transaction anyway.
-- Concurrency inside an aggregate is a different problem, and `InTx` does not solve it. `Close` checks that every item is done, while `RemoveDocument` checks that the year is open. Run concurrently under read committed, both checks can pass and leave a closed year with an outstanding item. The tax year repository must prevent this, with a version column checked on save (409 on mismatch) or a row lock (`SELECT ... FOR UPDATE`) on the tax year in every write path. Unlike personas (see "Personas have no optimistic locking"), a client and the collector do act on the same tax year at the same time.
+- Concurrency inside an aggregate is a different problem, and `InTx` does not solve it. `Close` checks that every item is done, while `RemoveDocument` checks that the year is open. Run concurrently under read committed, both checks can pass and leave a closed year with an outstanding item. The tax year repository must prevent this, with a version column checked on save (409 on mismatch) or a row lock (`SELECT ... FOR UPDATE`) on the tax year in every write path. Unlike personas (see "Personas have no optimistic locking"), a client and the collector do act on the same tax year at the same time. The proposed approach (a version checked by every write, targeted writes instead of a full replace) is [roadmap #2](ARCHITECTURE_ROADMAP.md#2-the-tax-year-is-not-saved-by-replacing-it-whole); letting repositories use savepoints for their own atomic saves is [roadmap #5](ARCHITECTURE_ROADMAP.md#5-repositories-may-make-their-own-writes-atomic).
 
 A transactional use case declares the repositories it writes through as its own type (`createcollector.Repositories`) and takes an `outbound.Transactor` of that type. The composition root narrows the transactor of the full set to it (`narrow` in `internal/backend`, which picks the fields), so a repository added to `backend.Repositories` reaches no use case that does not declare it. The core has no type that lists every repository.
 
@@ -168,12 +170,12 @@ There are no in-memory repositories. Foreign keys, cascades and tenant isolation
 
 ### No authentication yet
 
-Every caller is treated as an employee of the collector in the URL today. The seam is already in place: use cases receive a `domain.Actor` and enforce the rules themselves, and only `httpx.Actor` builds it. Authentication changes that function and adds the auth middleware with `ResolveActor` (see [Actors and authorization](#actors-and-authorization)), not the use cases.
+Every caller is treated as an employee of the collector in the URL today. The seam is already in place: use cases receive a `domain.Actor` and enforce the rules themselves, and only `httpx.Actor` builds it. Authentication changes that function and adds the auth middleware with `ResolveSession` (see [Actors and authorization](#actors-and-authorization)), not the use cases. The design is in [AUTHENTICATION.md](AUTHENTICATION.md).
 
 ## Adding things
 
 - **A use case:** create `core/usecases/<name>` with `New(deps).Execute`, add the field and the small interface to `httpadapter` (`Deps` and the resource package), and wire it in `backend.wire`.
-- **A tenant-owned resource:** follow the checklist in [tenant-scoped-stores.md](tenant-scoped-stores.md).
+- **A tenant-owned resource:** follow the checklist in [tenant-scoped-stores.md](tenant-scoped-stores.md), and check [ARCHITECTURE_ROADMAP.md](ARCHITECTURE_ROADMAP.md) first: new repositories should follow its decisions (e.g. no collector existence checks once there is authentication).
 - **A new `httpadapter/<x>` or `postgres/<x>` package:** add a line for it to the matching `*-isolated` rules in `.golangci.yml`.
 - **A new import in `core/domain`:** add it to `domain-allowlist` in `.golangci.yml`, and ask first whether the code belongs in the domain.
 - **An endpoint change:** update `api/openapi.yaml` (the `sync-openapi` skill does this).

@@ -15,6 +15,8 @@ This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. d
 
 ### Usecase *"Setup a Collector account"*:
 
+Done by the operator of the system, there is no self-service signup:
+
 - Give a name
 - Give email address
 
@@ -83,6 +85,6 @@ The domain types, how they relate and the design notes behind them are in [backe
 
 ## Architecture
 
-A Go backend (REST API) and a SvelteKit BFF, backed by PostgreSQL, shipped as three containers in docker compose. Only the backend talks to Postgres. Documents (as blobs), their metadata and data entries are all stored in Postgres, not on the filesystem, so the Postgres container needs a named volume at `/var/lib/postgresql/data`; without it, `docker compose down` wipes all data.
+A Go backend (REST API) and a SvelteKit BFF, backed by PostgreSQL, shipped as three containers in docker compose. Only the backend talks to Postgres. Document metadata and data entries are stored in Postgres. Document content sits behind a port of its own, stored encrypted and in chunks in separate Postgres tables for now (an object store can replace it later), not on the filesystem. All data is therefore in Postgres, so the Postgres container needs a named volume at `/var/lib/postgresql/data`; without it, `docker compose down` wipes all data.
 
-The backend's internal structure (hexagonal layering, packages, design decisions) is described in [backend/docs/ARCHITECTURE.md](backend/docs/ARCHITECTURE.md).
+The backend's internal structure (hexagonal layering, packages, design decisions) is described in [backend/docs/ARCHITECTURE.md](backend/docs/ARCHITECTURE.md). The planned authentication (login, sessions, credential storage) is designed in [backend/docs/AUTHENTICATION.md](backend/docs/AUTHENTICATION.md).

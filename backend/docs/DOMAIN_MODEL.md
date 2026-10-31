@@ -85,6 +85,7 @@ classDiagram
         +UUID ID
         +UUID ClientID
         +int Year
+        +int Version
         +Status Status
         +time* ClosedAt
         +Generate()
@@ -140,7 +141,8 @@ classDiagram
         +string Filename
         +string MimeType
         +int64 SizeBytes
-        +bytes Content
+        +ContentRef ContentRef
+        +bytes SHA256
         +map Metadata
     }
 
@@ -187,7 +189,9 @@ Notes:
   - *Changing instances.* On an open tax year the collector can `AddInstance` (creates its items), `UpdateInstance` (replaces the values) and `RemoveInstance`. Removing is rejected with `ErrInstanceNotEmpty` while any of its items holds a document or a data entry, so client data is never deleted silently. A repeatable item may have zero instances; then it contributes no items, and the collector UI points this out. `SyncItems()` adds snapshots for new repeatable definitions but no instances.
   - *Carry over.* When the client has a tax year for the previous year, creating the new one copies that year's instances of the same `DefinitionID` as defaults. Values that no longer validate against the new snapshot are dropped, and an instance whose label would be missing is not copied. The collector then adjusts the instances.
 - **Multiple files per item.** An item can hold any number of documents; documents can be deleted and downloaded individually.
+- **Document content is not part of the aggregate.** A `Document` holds only a `ContentRef` to its content, with size, SHA-256 and the sniffed MIME type. The bytes are streamed through the outbound port `DocumentContentStore` and never pass through the domain, so loading a tax year loads no files. The content is written before the document is saved; unreferenced content is cleaned up (see [roadmap #1](ARCHITECTURE_ROADMAP.md#1-document-content-stays-out-of-the-aggregate)).
+- **Concurrent writes.** Client and collector write to the same tax year at the same time (e.g. an upload while the collector closes it). Every write that touches a tax year, its items included, checks and increases `Version`; a mismatch is a conflict (see [roadmap #2](ARCHITECTURE_ROADMAP.md#2-the-tax-year-is-not-saved-by-replacing-it-whole)).
 - **Closing.** `Close()` is a collector action and is blocked while any `RequiredItem` is not `Done()`: it fails with `ErrItemsOutstanding`. Once `Status` is `closed`, `SyncItems`, `AddInstance`, `UpdateInstance`, `RemoveInstance`, `EnterValue`, `AddDocument`, `RemoveDocument` and `SetMetadata` fail with `ErrTaxYearClosed`.
 - **One tax year per client and year** (unique `ClientID` + `Year`).
 - For the first MVP there are no due dates: items are only tracked as done or not, and the UI highlights outstanding ones (see "Not in the first MVP" in the [README](../../README.md)).
-- Persistence: `Kind` is stored as discriminator, `DocumentSpec`/`ValueSpec` and `Metadata` as JSONB; document content as a blob (see [Architecture](../../README.md#architecture)). A persona and its items are one object in the domain and the API, but PostgreSQL stores the items in their own table (`item_definitions`, ordered by `position`); saving a persona upserts its items by id and deletes the removed ones in one transaction.
+- Persistence: `Kind` is stored as discriminator, `DocumentSpec`/`ValueSpec` and `Metadata` as JSONB; document content behind `DocumentContentStore`, first in Postgres tables of its own, in encrypted chunks of about 1 MiB, protected from deletion by a foreign key while a document refers to it (see [Architecture](../../README.md#architecture)). A persona and its items are one object in the domain and the API, but PostgreSQL stores the items in their own table (`item_definitions`, ordered by `position`, with its own `collector_id` tied to the persona's by a composite foreign key); saving a persona upserts its items by id and deletes the removed ones in one transaction.
