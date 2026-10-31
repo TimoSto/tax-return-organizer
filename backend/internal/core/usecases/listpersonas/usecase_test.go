@@ -7,22 +7,40 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
-	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/listpersonas"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-var (
-	// testCollectorID is the collector the tests act for.
-	testCollectorID = domaintest.CollectorID()
-	// otherCollectorID is another collector, which owns data the tests must not see.
-	otherCollectorID = domaintest.CollectorID()
-	// unknownCollectorID is a collector that is never stored.
-	unknownCollectorID = domaintest.CollectorID()
-)
+// testCollectorID is the collector the tests act for.
+var testCollectorID = domaintest.CollectorID()
+
+// personaStub is a persona store whose repositories list the personas it holds, whatever collector they are bound
+// to: tenant isolation, ordering and the unknown collector are the store's job and covered by the repository
+// contract tests. It remembers the collector of the last For.
+type personaStub struct {
+	personas    []*domain.Persona
+	collectorID domain.CollectorID
+}
+
+func (s *personaStub) For(id domain.CollectorID) outbound.PersonaRepository {
+	s.collectorID = id
+
+	return s
+}
+
+func (*personaStub) GetPersona(context.Context, domain.PersonaID) (*domain.Persona, error) {
+	return nil, errors.New("personaStub: unexpected GetPersona")
+}
+
+func (s *personaStub) ListPersonas(context.Context) ([]*domain.Persona, error) {
+	return s.personas, nil
+}
+
+func (*personaStub) SavePersona(context.Context, *domain.Persona) error {
+	return errors.New("personaStub: unexpected SavePersona")
+}
 
 // failingStore hands out repositories whose ListPersonas fails.
 type failingStore struct {
@@ -43,53 +61,24 @@ func (r failingRepo) ListPersonas(context.Context) ([]*domain.Persona, error) { 
 
 func (failingRepo) SavePersona(context.Context, *domain.Persona) error { return nil }
 
-// seededStore returns a persona store for the collectors testCollectorID and otherCollectorID.
-func seededStore(t *testing.T) *fakepersona.Store {
-	t.Helper()
-
-	repo := fakecollector.NewRepository()
-
-	for _, id := range []domain.CollectorID{testCollectorID, otherCollectorID} {
-		if err := repo.SaveCollector(context.Background(), domaintest.Collector(id, "K", "k@example.com")); err != nil {
-			t.Fatalf("seed collector: %v", err)
-		}
-	}
-
-	return fakepersona.NewStore(repo)
-}
-
 func TestExecute_Success(t *testing.T) {
-	store := seededStore(t)
-	ctx := context.Background()
-	employed := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Employed", "Has a job")
-	letting := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Letting", "")
-	other := domaintest.Persona(domaintest.PersonaID(), otherCollectorID, "Other", "")
-
-	for _, p := range []*domain.Persona{letting, other, employed} {
-		if err := store.For(p.CollectorID()).SavePersona(ctx, p); err != nil {
-			t.Fatalf("seed persona: %v", err)
-		}
+	want := []*domain.Persona{
+		domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Employed", "Has a job"),
+		domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Letting", ""),
 	}
+	store := &personaStub{personas: want}
 
-	got, err := listpersonas.New(store).Execute(ctx, domaintest.Staff(testCollectorID))
+	got, err := listpersonas.New(store).Execute(context.Background(), domaintest.Staff(testCollectorID))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if diff := cmp.Diff([]*domain.Persona{employed, letting}, got, domaintest.CmpOptions()); diff != "" {
+	if diff := cmp.Diff(want, got, domaintest.CmpOptions()); diff != "" {
 		t.Errorf("personas mismatch (-want +got):\n%s", diff)
 	}
-}
 
-// The store reports the unknown collector, the use case passes it on.
-func TestExecute_UnknownCollector(t *testing.T) {
-	got, err := listpersonas.New(seededStore(t)).Execute(context.Background(), domaintest.Staff(unknownCollectorID))
-	if !errors.Is(err, domain.ErrCollectorNotFound) {
-		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
-	}
-
-	if got != nil {
-		t.Errorf("personas = %+v, want nil", got)
+	if store.collectorID != testCollectorID {
+		t.Errorf("listed collector %s, want the actor's collector %s", store.collectorID, testCollectorID)
 	}
 }
 

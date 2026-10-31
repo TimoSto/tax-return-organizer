@@ -50,7 +50,7 @@ type PersonaStore interface {
 //
 // Referential integrity is the repository's job, not the caller's: every method returns domain.ErrCollectorNotFound
 // if the bound collector does not exist, so use cases need no check of their own. Postgres gets this from the
-// foreign key (writes) and from reading through the collectors table (reads), the in-memory fake emulates it.
+// foreign key (writes) and from reading through the collectors table (reads).
 type PersonaRepository interface {
 	// GetPersona returns the persona with all its items in their stored order.
 	// It returns domain.ErrCollectorNotFound if the collector does not exist, otherwise domain.ErrPersonaNotFound

@@ -7,8 +7,6 @@ import (
 
 	"github.com/google/uuid"
 
-	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
-	faketransactor "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/transactor"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
@@ -17,6 +15,21 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
+
+// collectorRecorder is a collector repository that only remembers what was saved.
+type collectorRecorder struct {
+	saved []*domain.Collector
+}
+
+func (r *collectorRecorder) GetCollector(context.Context, domain.CollectorID) (*domain.Collector, error) {
+	return nil, errors.New("collectorRecorder: unexpected GetCollector")
+}
+
+func (r *collectorRecorder) SaveCollector(_ context.Context, c *domain.Collector) error {
+	r.saved = append(r.saved, c)
+
+	return nil
+}
 
 // personaRecorder is a persona store whose repositories only remember what was saved.
 type personaRecorder struct {
@@ -42,8 +55,22 @@ func (r *personaRecorder) SavePersona(_ context.Context, p *domain.Persona) erro
 	return nil
 }
 
-func newTransactor(repo outbound.CollectorRepository, personas outbound.PersonaStore) *faketransactor.Transactor[createcollector.Repositories] {
-	return faketransactor.New(createcollector.Repositories{Collectors: repo, Personas: personas})
+// transactor runs the callback on fixed repositories without a transaction: rollback is covered by the Postgres
+// transactor tests.
+type transactor struct {
+	repos createcollector.Repositories
+	// calls counts the InTx calls.
+	calls int
+}
+
+func (t *transactor) InTx(ctx context.Context, fn func(ctx context.Context, repos createcollector.Repositories) error) error {
+	t.calls++
+
+	return fn(ctx, t.repos)
+}
+
+func newTransactor(repo outbound.CollectorRepository, personas outbound.PersonaStore) *transactor {
+	return &transactor{repos: createcollector.Repositories{Collectors: repo, Personas: personas}}
 }
 
 func newUsecase(repo outbound.CollectorRepository) *createcollector.Usecase {
@@ -58,19 +85,18 @@ type failingRepo struct {
 func (r failingRepo) SaveCollector(context.Context, *domain.Collector) error { return r.err }
 
 func TestExecute_Success(t *testing.T) {
-	repo := fakecollector.NewRepository()
+	repo := &collectorRecorder{}
 
 	id, err := newUsecase(repo).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	got, err := repo.GetCollector(context.Background(), id)
-	if err != nil {
-		t.Fatalf("collector not saved: %v", err)
+	if len(repo.saved) != 1 {
+		t.Fatalf("saved %d collectors, want 1", len(repo.saved))
 	}
 
-	if got.Name() != "Jane" || got.Email() != "jane@example.com" {
+	if got := repo.saved[0]; got.ID() != id || got.Name() != "Jane" || got.Email() != "jane@example.com" {
 		t.Errorf("unexpected collector: %+v", got)
 	}
 }
@@ -89,7 +115,7 @@ func TestExecute_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, err := newUsecase(fakecollector.NewRepository()).Execute(context.Background(), inbound.CreateCollectorCommand{Name: tt.cName, Email: tt.email})
+			id, err := newUsecase(&collectorRecorder{}).Execute(context.Background(), inbound.CreateCollectorCommand{Name: tt.cName, Email: tt.email})
 			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("err = %v, want %v", err, tt.wantErr)
 			}
@@ -111,22 +137,16 @@ func TestExecute_RepositoryError(t *testing.T) {
 }
 
 func TestExecute_TakenIDFails(t *testing.T) {
-	repo := fakecollector.NewRepository()
-	fixed := domaintest.CollectorID()
-	if err := repo.SaveCollector(context.Background(), domaintest.Collector(fixed, "Taken", "taken@example.com")); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-
-	tx := newTransactor(repo, &personaRecorder{})
-	uc := createcollector.New(tx, personatemplate.Predefined(), fixedCollectorID{id: fixed})
+	tx := newTransactor(failingRepo{err: domain.ErrCollectorIDTaken}, &personaRecorder{})
+	uc := createcollector.New(tx, personatemplate.Predefined(), randomIDs{})
 
 	id, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if !errors.Is(err, domain.ErrCollectorIDTaken) {
 		t.Errorf("err = %v, want it to wrap %v", err, domain.ErrCollectorIDTaken)
 	}
 
-	if id != (domain.CollectorID{}) || tx.Calls != 1 {
-		t.Errorf("id = %v, transactions = %d, want the zero id and one transaction (no retry)", id, tx.Calls)
+	if id != (domain.CollectorID{}) || tx.calls != 1 {
+		t.Errorf("id = %v, transactions = %d, want the zero id and one transaction (no retry)", id, tx.calls)
 	}
 }
 
@@ -134,7 +154,7 @@ func TestExecute_AddsPredefinedPersonas(t *testing.T) {
 	for locale, wantName := range map[string]string{"": "Employed", "en": "Employed", "de": "Angestellt"} {
 		t.Run("locale "+locale, func(t *testing.T) {
 			personas := &personaRecorder{}
-			uc := createcollector.New(newTransactor(fakecollector.NewRepository(), personas), personatemplate.Predefined(), randomIDs{})
+			uc := createcollector.New(newTransactor(&collectorRecorder{}, personas), personatemplate.Predefined(), randomIDs{})
 
 			id, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com", Locale: locale})
 			if err != nil {
@@ -153,7 +173,7 @@ func TestExecute_AddsPredefinedPersonas(t *testing.T) {
 }
 
 func TestExecute_InvalidLocale(t *testing.T) {
-	repo := fakecollector.NewRepository()
+	repo := &collectorRecorder{}
 
 	id, err := newUsecase(repo).Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com", Locale: "fr"})
 	if !errors.Is(err, locale.ErrInvalidLocale) {
@@ -167,7 +187,7 @@ func TestExecute_InvalidLocale(t *testing.T) {
 
 func TestExecute_PersonaFailureFails(t *testing.T) {
 	boom := errors.New("boom")
-	uc := createcollector.New(newTransactor(fakecollector.NewRepository(), &personaRecorder{err: boom}), personatemplate.Predefined(), randomIDs{})
+	uc := createcollector.New(newTransactor(&collectorRecorder{}, &personaRecorder{err: boom}), personatemplate.Predefined(), randomIDs{})
 
 	id, err := uc.Execute(context.Background(), inbound.CreateCollectorCommand{Name: "Jane", Email: "jane@example.com"})
 	if !errors.Is(err, boom) {
@@ -180,7 +200,7 @@ func TestExecute_PersonaFailureFails(t *testing.T) {
 }
 
 func TestExecute_WithIDGenerator(t *testing.T) {
-	repo := fakecollector.NewRepository()
+	repo := &collectorRecorder{}
 	want := domaintest.CollectorID()
 	uc := createcollector.New(newTransactor(repo, &personaRecorder{}), personatemplate.Predefined(), fixedCollectorID{id: want})
 

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
@@ -18,6 +17,22 @@ var (
 	testCollectorID = domaintest.CollectorID()
 )
 
+// collectorStub returns the collectors it holds and domain.ErrCollectorNotFound for any other id.
+type collectorStub map[domain.CollectorID]*domain.Collector
+
+func (s collectorStub) GetCollector(_ context.Context, id domain.CollectorID) (*domain.Collector, error) {
+	c, ok := s[id]
+	if !ok {
+		return nil, domain.ErrCollectorNotFound
+	}
+
+	return c, nil
+}
+
+func (collectorStub) SaveCollector(context.Context, *domain.Collector) error {
+	return errors.New("collectorStub: unexpected SaveCollector")
+}
+
 type failingRepo struct {
 	outbound.CollectorRepository
 	err error
@@ -28,12 +43,8 @@ func (r failingRepo) GetCollector(context.Context, domain.CollectorID) (*domain.
 }
 
 func TestExecute_Success(t *testing.T) {
-	repo := fakecollector.NewRepository()
 	want := domaintest.Collector(testCollectorID, "Jane", "jane@example.com")
-
-	if err := repo.SaveCollector(context.Background(), want); err != nil {
-		t.Fatalf("seed collector: %v", err)
-	}
+	repo := collectorStub{want.ID(): want}
 
 	got, err := getcollector.New(repo).Execute(context.Background(), domaintest.Staff(want.ID()))
 	if err != nil {
@@ -47,12 +58,8 @@ func TestExecute_Success(t *testing.T) {
 
 // Clients may see the collector they belong to.
 func TestExecute_Client(t *testing.T) {
-	repo := fakecollector.NewRepository()
 	want := domaintest.Collector(testCollectorID, "Jane", "jane@example.com")
-
-	if err := repo.SaveCollector(context.Background(), want); err != nil {
-		t.Fatalf("seed collector: %v", err)
-	}
+	repo := collectorStub{want.ID(): want}
 
 	got, err := getcollector.New(repo).Execute(context.Background(), domaintest.Client(want.ID()))
 	if err != nil {
@@ -66,14 +73,14 @@ func TestExecute_Client(t *testing.T) {
 
 // The zero actor belongs to no collector.
 func TestExecute_ZeroActor(t *testing.T) {
-	_, err := getcollector.New(fakecollector.NewRepository()).Execute(context.Background(), domain.Actor{})
+	_, err := getcollector.New(collectorStub{}).Execute(context.Background(), domain.Actor{})
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
 }
 
 func TestExecute_NotFound(t *testing.T) {
-	got, err := getcollector.New(fakecollector.NewRepository()).Execute(context.Background(), domaintest.Staff(testCollectorID))
+	got, err := getcollector.New(collectorStub{}).Execute(context.Background(), domaintest.Staff(testCollectorID))
 	if !errors.Is(err, domain.ErrCollectorNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrCollectorNotFound)
 	}
