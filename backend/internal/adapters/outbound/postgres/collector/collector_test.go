@@ -57,16 +57,14 @@ func TestSaveCollector_RolledBackWhenPersonaSaveFails(t *testing.T) {
 
 	clashing := domaintest.Persona(existing.ID(), testCollectorID, "Employed", "")
 
-	tx := pgdb.NewTransactor(pool, func(db pgdb.DBTX) outbound.Repositories {
-		return outbound.Repositories{Collectors: collector.NewRepository(db), Personas: persona.NewStore(db)}
-	})
+	tx := pgdb.NewTransactor(pool, func(db pgdb.DBTX) pgdb.DBTX { return db })
 
-	err := tx.InTx(ctx, func(ctx context.Context, repos outbound.Repositories) error {
-		if err := repos.Collectors.SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com")); err != nil {
+	err := tx.InTx(ctx, func(ctx context.Context, db pgdb.DBTX) error {
+		if err := collector.NewRepository(db).SaveCollector(ctx, domaintest.Collector(testCollectorID, "A", "a@example.com")); err != nil {
 			return err
 		}
 
-		return repos.Personas.For(testCollectorID).SavePersona(ctx, clashing)
+		return persona.NewStore(db).For(testCollectorID).SavePersona(ctx, clashing)
 	})
 	if !errors.Is(err, domain.ErrPersonaNotFound) {
 		t.Fatalf("err = %v, want %v", err, domain.ErrPersonaNotFound)

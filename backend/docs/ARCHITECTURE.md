@@ -121,6 +121,17 @@ Both kinds of ports live in the core, under `core/port`: `outbound` holds what t
 
 Use cases still return domain entities to the adapter. If a read ever needs a projection (counts, joins), add a result type to the inbound port instead of loading whole aggregates.
 
+### One port and one package per use case
+
+Use cases are not grouped per resource (no `inbound.Personas` with `Get`, `List`, ...). Each use case keeps its own port, package and dependencies, so it receives exactly what it needs, and the rule "a `Transactor` or pool repositories, never both" (see "Transactions") holds per package. The price is that a new use case touches six places: port, package, `Deps` field, `Routes` line, `wire` line and OpenAPI. Only the `Deps` field and the `wire` line are pure bookkeeping, and every place is checked: the compiler checks the port, `Deps.validate` catches a missing field at startup, and `TestOpenAPI_Routes` catches a route missing from the spec.
+
+Grouping was considered and rejected:
+
+- Grouping only the resources whose use cases share their dependencies (personas today) would shape the port by the implementation. The grouping flips once a resource gains a use case that needs a `Transactor` (for example creating a client together with its first tax year), and two patterns would exist side by side.
+- One service per resource for every resource breaks the transaction rule: a collector service would hold the `Transactor` for `createcollector` and a pool repository for `getcollector`.
+- Grouped ports put together in `wire` from per-use-case packages save only the `Deps` field and the `Routes` line. They need every `Execute` renamed, and `Deps.validate` no longer sees a nil use case inside a group.
+- Letting every use case take only the `Transactor`, reads included, would make every resource look the same and allow one service per resource. But every read would then pay BEGIN and COMMIT for no gain (under read committed each statement sees its own snapshot anyway), and a service would carry the dependencies of all its methods. All that to save the `Deps` field and the `wire` line.
+
 ### Small, pass-through use cases are kept on purpose
 
 Some use cases (`getcollector`, `getpersona`) do little more than call a repository with the tenant they are given. They stay. Handlers talk only to use cases and never to `port` (enforced by depguard), so every endpoint goes through the same seam, where authorization, auditing or extra rules can be added later without touching the handlers. Dropping the thin ones would give the HTTP layer two ways to reach the core and would blur the rule that handlers do not know repositories.
@@ -135,7 +146,7 @@ The domain does not generate ids. `outbound.IDGenerator` creates the ids of new 
 
 ### Transactions
 
-The use case owns the transaction, repositories never open one (the `pgdb.DBTX` interface has no `Begin`). `outbound.Transactor.InTx` runs a function with an `outbound.Repositories` that share one transaction and commits only if the function returns nil. A single repository call is atomic on its own: `SavePersona` writes the persona and its items as one pgx batch, which Postgres runs as one implicit transaction. A use case therefore needs `InTx` only when it writes through more than one call (`createcollector`: collector plus personas). Simple reads and single saves use the repositories wired on the pool directly. `postgresRepositories(db)` in `internal/backend` builds the same set on the pool and on a transaction, so the two cannot drift. `Repositories` lists every repository, so each new resource adds a field there and a line in that function; use cases take only the repositories they need from it.
+The use case owns the transaction, repositories never open one (the `pgdb.DBTX` interface has no `Begin`). `outbound.Transactor[R].InTx` runs a function with repositories `R` that share one transaction and commits only if the function returns nil. A single repository call is atomic on its own: `SavePersona` writes the persona and its items as one pgx batch, which Postgres runs as one implicit transaction. A use case therefore needs `InTx` only when it writes through more than one call (`createcollector`: collector plus personas). Simple reads and single saves use the repositories wired on the pool directly. `backend.Repositories` is the full set, one repository per resource, and exists only in the composition root. `postgresRepositories(db)` builds it on the pool and on a transaction, so the two cannot drift; each new resource adds a field there and a line in that function.
 
 A use case receives **either** a `Transactor` **or** repositories wired on the pool, never both. A pool repository called inside the `InTx` callback would bypass the transaction silently, and no lint rule can detect that, so review checks it. `createcollector` is the only use case that needs `InTx` today: without it, a failed persona save would leave a collector with only some of its personas, and a retry would create a second collector. The planned use cases need no transaction across repositories, as long as each aggregate is saved in one repository call:
 
@@ -143,7 +154,7 @@ A use case receives **either** a `Transactor` **or** repositories wired on the p
 - Item writes (upload, remove document, enter value, set metadata) touch one tax year. Document content that lives outside Postgres cannot be covered by a transaction anyway.
 - Concurrency inside an aggregate is a different problem, and `InTx` does not solve it. `Close` checks that every item is done, while `RemoveDocument` checks that the year is open. Run concurrently under read committed, both checks can pass and leave a closed year with an outstanding item. The tax year repository must prevent this, with a version column checked on save (409 on mismatch) or a row lock (`SELECT ... FOR UPDATE`) on the tax year in every write path. Unlike personas (see "Personas have no optimistic locking"), a client and the collector do act on the same tax year at the same time.
 
-So `Repositories` stays a plain struct. Introduce a narrower unit of work (each use case declaring the repositories it needs) only once a second use case needs `InTx`, for example creating a client together with its first tax year.
+A transactional use case declares the repositories it writes through as its own type (`createcollector.Repositories`) and takes an `outbound.Transactor` of that type. The composition root narrows the transactor of the full set to it (`narrow` in `internal/backend`, which picks the fields), so a repository added to `backend.Repositories` reaches no use case that does not declare it. The core has no type that lists every repository.
 
 ### Repositories have two implementations and one test suite
 

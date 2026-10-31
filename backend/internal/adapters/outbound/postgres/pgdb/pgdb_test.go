@@ -9,21 +9,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
 )
 
-// probe is a transactor whose callbacks write into the table intx_probe instead of going through repositories, so
-// the tests do not depend on any resource package.
-type probe struct {
-	*pgdb.Transactor
-	pool *pgxpool.Pool
-	// tx is the transaction of the running InTx call, captured when the transactor builds its repositories.
-	tx pgdb.DBTX
-}
-
-// newProbe returns a probe on an empty intx_probe table.
-func newProbe(t *testing.T) *probe {
+// newTransactor returns a transactor that hands its callbacks the transaction itself, so the tests write into the
+// table intx_probe instead of going through repositories and do not depend on any resource package.
+func newTransactor(t *testing.T) (*pgdb.Transactor[pgdb.DBTX], *pgxpool.Pool) {
 	t.Helper()
 
 	pool := postgrestest.RequirePool(t)
@@ -36,26 +27,14 @@ func newProbe(t *testing.T) *probe {
 		t.Fatalf("truncate: %v", err)
 	}
 
-	p := &probe{pool: pool}
-	p.Transactor = pgdb.NewTransactor(pool, func(db pgdb.DBTX) outbound.Repositories {
-		p.tx = db
-		return outbound.Repositories{}
-	})
-
-	return p
-}
-
-// insert writes n inside the running transaction.
-func (p *probe) insert(ctx context.Context, n int) error {
-	_, err := p.tx.Exec(ctx, `INSERT INTO intx_probe (n) VALUES ($1)`, n)
-	return err
+	return pgdb.NewTransactor(pool, func(db pgdb.DBTX) pgdb.DBTX { return db }), pool
 }
 
 // insertAll returns an InTx callback that inserts ns and then returns err.
-func (p *probe) insertAll(err error, ns ...int) func(context.Context, outbound.Repositories) error {
-	return func(ctx context.Context, _ outbound.Repositories) error {
+func insertAll(err error, ns ...int) func(context.Context, pgdb.DBTX) error {
+	return func(ctx context.Context, db pgdb.DBTX) error {
 		for _, n := range ns {
-			if err := p.insert(ctx, n); err != nil {
+			if _, err := db.Exec(ctx, `INSERT INTO intx_probe (n) VALUES ($1)`, n); err != nil {
 				return err
 			}
 		}
@@ -65,11 +44,11 @@ func (p *probe) insertAll(err error, ns ...int) func(context.Context, outbound.R
 }
 
 // rows counts the committed rows.
-func (p *probe) rows(t *testing.T) int {
+func rows(t *testing.T, pool *pgxpool.Pool) int {
 	t.Helper()
 
 	var n int
-	if err := p.pool.QueryRow(context.Background(), `SELECT count(*) FROM intx_probe`).Scan(&n); err != nil {
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM intx_probe`).Scan(&n); err != nil {
 		t.Fatalf("count rows: %v", err)
 	}
 
@@ -77,38 +56,38 @@ func (p *probe) rows(t *testing.T) int {
 }
 
 func TestInTx_CommitsOnSuccess(t *testing.T) {
-	p := newProbe(t)
+	tx, pool := newTransactor(t)
 
-	if err := p.InTx(context.Background(), p.insertAll(nil, 1, 2)); err != nil {
+	if err := tx.InTx(context.Background(), insertAll(nil, 1, 2)); err != nil {
 		t.Fatalf("InTx: %v", err)
 	}
 
-	if n := p.rows(t); n != 2 {
+	if n := rows(t, pool); n != 2 {
 		t.Errorf("rows = %d, want 2", n)
 	}
 }
 
 func TestInTx_RollsBackOnError(t *testing.T) {
-	p := newProbe(t)
+	tx, pool := newTransactor(t)
 	boom := errors.New("boom")
 
-	if err := p.InTx(context.Background(), p.insertAll(boom, 1, 2)); !errors.Is(err, boom) {
+	if err := tx.InTx(context.Background(), insertAll(boom, 1, 2)); !errors.Is(err, boom) {
 		t.Fatalf("err = %v, want %v", err, boom)
 	}
 
-	if n := p.rows(t); n != 0 {
+	if n := rows(t, pool); n != 0 {
 		t.Errorf("rows = %d, want 0 after rollback", n)
 	}
 }
 
 func TestInTx_RollsBackOnPanic(t *testing.T) {
-	p := newProbe(t)
+	tx, pool := newTransactor(t)
 
 	func() {
 		defer func() { _ = recover() }()
 
-		_ = p.InTx(context.Background(), func(ctx context.Context, r outbound.Repositories) error {
-			if err := p.insertAll(nil, 1)(ctx, r); err != nil {
+		_ = tx.InTx(context.Background(), func(ctx context.Context, db pgdb.DBTX) error {
+			if err := insertAll(nil, 1)(ctx, db); err != nil {
 				return err
 			}
 
@@ -116,7 +95,7 @@ func TestInTx_RollsBackOnPanic(t *testing.T) {
 		})
 	}()
 
-	if n := p.rows(t); n != 0 {
+	if n := rows(t, pool); n != 0 {
 		t.Errorf("rows = %d, want 0 after panic", n)
 	}
 }
@@ -124,16 +103,16 @@ func TestInTx_RollsBackOnPanic(t *testing.T) {
 // A failing statement aborts the Postgres transaction. InTx returns the database error unchanged, so a repository
 // can map it, and the rollback removes the earlier writes.
 func TestInTx_RollsBackAfterDatabaseError(t *testing.T) {
-	p := newProbe(t)
+	tx, pool := newTransactor(t)
 
-	err := p.InTx(context.Background(), p.insertAll(nil, 1, 2, 1))
+	err := tx.InTx(context.Background(), insertAll(nil, 1, 2, 1))
 
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
 		t.Fatalf("err = %v, want a unique violation (23505)", err)
 	}
 
-	if n := p.rows(t); n != 0 {
+	if n := rows(t, pool); n != 0 {
 		t.Errorf("rows = %d, want 0 after rollback", n)
 	}
 }

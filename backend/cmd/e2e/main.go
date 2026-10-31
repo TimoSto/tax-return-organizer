@@ -22,9 +22,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/backend"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
 )
 
@@ -95,11 +93,7 @@ func seed(ctx context.Context, dsn string) error {
 	}
 	defer pool.Close()
 
-	create := createcollector.New(
-		backend.NewTransactor(pool),
-		personatemplate.Predefined(),
-		seedIDs{},
-	)
+	create := backend.NewCreateCollector(backend.NewTransactor(pool), seedIDs{})
 
 	if _, err := create.Execute(ctx, inbound.CreateCollectorCommand{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
 		return fmt.Errorf("create collector: %w", err)

@@ -42,8 +42,8 @@ func (r *personaRecorder) SavePersona(_ context.Context, p *domain.Persona) erro
 	return nil
 }
 
-func newTransactor(repo outbound.CollectorRepository, personas outbound.PersonaStore) *faketransactor.Transactor {
-	return faketransactor.New(outbound.Repositories{Collectors: repo, Personas: personas})
+func newTransactor(repo outbound.CollectorRepository, personas outbound.PersonaStore) *faketransactor.Transactor[createcollector.Repositories] {
+	return faketransactor.New(createcollector.Repositories{Collectors: repo, Personas: personas})
 }
 
 func newUsecase(repo outbound.CollectorRepository) *createcollector.Usecase {

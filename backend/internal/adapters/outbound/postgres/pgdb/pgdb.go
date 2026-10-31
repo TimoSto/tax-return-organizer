@@ -27,22 +27,23 @@ var (
 	_ DBTX = pgx.Tx(nil)
 )
 
-// Transactor implements outbound.Transactor on a pgx pool.
-type Transactor struct {
+// Transactor implements outbound.Transactor on a pgx pool, handing each callback the repositories R built on the
+// transaction.
+type Transactor[R any] struct {
 	pool  *pgxpool.Pool
-	repos func(DBTX) outbound.Repositories
+	repos func(DBTX) R
 }
 
-var _ outbound.Transactor = (*Transactor)(nil)
+var _ outbound.Transactor[DBTX] = (*Transactor[DBTX])(nil)
 
 // NewTransactor returns a transactor on pool. repos builds the repositories that run on the given transaction;
 // the composition root passes it so this package does not depend on the resource packages.
-func NewTransactor(pool *pgxpool.Pool, repos func(DBTX) outbound.Repositories) *Transactor {
-	return &Transactor{pool: pool, repos: repos}
+func NewTransactor[R any](pool *pgxpool.Pool, repos func(DBTX) R) *Transactor[R] {
+	return &Transactor[R]{pool: pool, repos: repos}
 }
 
 // InTx implements outbound.Transactor. It rolls back if fn returns an error or panics.
-func (t *Transactor) InTx(ctx context.Context, fn func(ctx context.Context, repos outbound.Repositories) error) error {
+func (t *Transactor[R]) InTx(ctx context.Context, fn func(ctx context.Context, repos R) error) error {
 	tx, err := t.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
