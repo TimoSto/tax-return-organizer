@@ -12,9 +12,15 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
+// Repositories are the repositories the use case writes through, inside one transaction.
+type Repositories struct {
+	Collectors outbound.CollectorRepository
+	Personas   outbound.PersonaStore
+}
+
 // Usecase is the createcollector use case.
 type Usecase struct {
-	tx        outbound.Transactor
+	tx        outbound.Transactor[Repositories]
 	templates []personatemplate.PersonaTemplate
 	ids       outbound.IDGenerator
 }
@@ -23,7 +29,7 @@ var _ inbound.CreateCollector = (*Usecase)(nil)
 
 // New returns a use case that stores collectors, together with a persona per template, through tx.
 // ids creates the new ids.
-func New(tx outbound.Transactor, templates []personatemplate.PersonaTemplate, ids outbound.IDGenerator) *Usecase {
+func New(tx outbound.Transactor[Repositories], templates []personatemplate.PersonaTemplate, ids outbound.IDGenerator) *Usecase {
 	return &Usecase{tx: tx, templates: templates, ids: ids}
 }
 
@@ -55,7 +61,7 @@ func (u *Usecase) Execute(ctx context.Context, cmd inbound.CreateCollectorComman
 		return domain.CollectorID{}, err
 	}
 
-	err = u.tx.InTx(ctx, func(ctx context.Context, repos outbound.Repositories) error {
+	err = u.tx.InTx(ctx, func(ctx context.Context, repos Repositories) error {
 		return save(ctx, repos, c, personas)
 	})
 	if err != nil {
@@ -109,7 +115,7 @@ func (u *Usecase) personas(id domain.CollectorID, l locale.Locale, ids []persona
 	return personas, nil
 }
 
-func save(ctx context.Context, repos outbound.Repositories, c *domain.Collector, personas []*domain.Persona) error {
+func save(ctx context.Context, repos Repositories, c *domain.Collector, personas []*domain.Persona) error {
 	if err := repos.Collectors.SaveCollector(ctx, c); err != nil {
 		return fmt.Errorf("save collector: %w", err)
 	}

@@ -7,23 +7,23 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
 )
 
-var _ outbound.Transactor = (*Transactor)(nil)
+var _ outbound.Transactor[struct{}] = (*Transactor[struct{}])(nil)
 
 // Transactor runs the callback on fixed repositories. It does not roll back: the in-memory repositories have no
 // transactions, rollback behaviour is covered by the Postgres tests.
-type Transactor struct {
-	repos outbound.Repositories
+type Transactor[R any] struct {
+	repos R
 	// Calls counts the InTx calls.
 	Calls int
 }
 
 // New returns a transactor that hands repos to every callback.
-func New(repos outbound.Repositories) *Transactor {
-	return &Transactor{repos: repos}
+func New[R any](repos R) *Transactor[R] {
+	return &Transactor[R]{repos: repos}
 }
 
 // InTx implements outbound.Transactor.
-func (t *Transactor) InTx(ctx context.Context, fn func(ctx context.Context, repos outbound.Repositories) error) error {
+func (t *Transactor[R]) InTx(ctx context.Context, fn func(ctx context.Context, repos R) error) error {
 	t.Calls++
 
 	return fn(ctx, t.repos)

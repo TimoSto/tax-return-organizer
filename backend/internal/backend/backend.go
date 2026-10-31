@@ -29,25 +29,60 @@ import (
 
 const shutdownTimeout = 10 * time.Second
 
+// Repositories is the full set of repositories, one per resource. It exists only in the composition root: use cases
+// get single repositories, or a transactor narrowed to the repositories they declare (see narrow).
+// Resources owned by a collector are added as stores, never as plain repositories.
+type Repositories struct {
+	Collectors outbound.CollectorRepository
+	Personas   outbound.PersonaStore
+}
+
 // postgresRepositories returns one repository per resource on db, which is the pool or a transaction.
-// A new resource adds a field to outbound.Repositories and a line here.
-func postgresRepositories(db pgdb.DBTX) outbound.Repositories {
-	return outbound.Repositories{
+// A new resource adds a field to Repositories and a line here.
+func postgresRepositories(db pgdb.DBTX) Repositories {
+	return Repositories{
 		Collectors: pgcollector.NewRepository(db),
 		Personas:   pgpersona.NewStore(db),
 	}
 }
 
 // NewTransactor returns the Postgres transactor that use cases run their writes through.
-func NewTransactor(pool *pgxpool.Pool) outbound.Transactor {
+func NewTransactor(pool *pgxpool.Pool) outbound.Transactor[Repositories] {
 	return pgdb.NewTransactor(pool, postgresRepositories)
+}
+
+// narrowed is a transactor whose callbacks get only the repositories pick selects from the full set.
+type narrowed[R any] struct {
+	tx   outbound.Transactor[Repositories]
+	pick func(Repositories) R
+}
+
+// narrow returns tx restricted to the repositories pick selects, for a use case that declares its own set.
+func narrow[R any](tx outbound.Transactor[Repositories], pick func(Repositories) R) outbound.Transactor[R] {
+	return narrowed[R]{tx: tx, pick: pick}
+}
+
+// InTx implements outbound.Transactor.
+func (n narrowed[R]) InTx(ctx context.Context, fn func(ctx context.Context, repos R) error) error {
+	return n.tx.InTx(ctx, func(ctx context.Context, repos Repositories) error {
+		return fn(ctx, n.pick(repos))
+	})
+}
+
+// NewCreateCollector returns the createcollector use case on tx with the predefined personas. ids creates the new ids.
+func NewCreateCollector(tx outbound.Transactor[Repositories], ids outbound.IDGenerator) *createcollector.Usecase {
+	repos := narrow(tx, func(r Repositories) createcollector.Repositories {
+		return createcollector.Repositories{Collectors: r.Collectors, Personas: r.Personas}
+	})
+
+	return createcollector.New(repos, personatemplate.Predefined(), ids)
 }
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
 // Reads use repos directly, writes that span several repositories go through tx. ready backs /readyz.
-func wire(repos outbound.Repositories, tx outbound.Transactor, ready health.Pinger) (http.Handler, error) {
+func wire(repos Repositories, tx outbound.Transactor[Repositories], ready health.Pinger) (http.Handler, error) {
 	return httpadapter.NewHandler(httpadapter.Deps{
-		CreateCollector: createcollector.New(tx, personatemplate.Predefined(), idgen.Random{}),
+		CreateCollector: NewCreateCollector(tx, idgen.Random{}),
 		GetCollector:    getcollector.New(repos.Collectors),
 		GetPersona:      getpersona.New(repos.Personas),
 		ListPersonas:    listpersonas.New(repos.Personas),
