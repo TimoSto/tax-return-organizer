@@ -121,6 +121,17 @@ Both kinds of ports live in the core, under `core/port`: `outbound` holds what t
 
 Use cases still return domain entities to the adapter. If a read ever needs a projection (counts, joins), add a result type to the inbound port instead of loading whole aggregates.
 
+### One port and one package per use case
+
+Use cases are not grouped per resource (no `inbound.Personas` with `Get`, `List`, ...). Each use case keeps its own port, package and dependencies, so it receives exactly what it needs, and the rule "a `Transactor` or pool repositories, never both" (see "Transactions") holds per package. The price is that a new use case touches six places: port, package, `Deps` field, `Routes` line, `wire` line and OpenAPI. Only the `Deps` field and the `wire` line are pure bookkeeping, and every place is checked: the compiler checks the port, `Deps.validate` catches a missing field at startup, and `TestOpenAPI_Routes` catches a route missing from the spec.
+
+Grouping was considered and rejected:
+
+- Grouping only the resources whose use cases share their dependencies (personas today) would shape the port by the implementation. The grouping flips once a resource gains a use case that needs a `Transactor` (for example creating a client together with its first tax year), and two patterns would exist side by side.
+- One service per resource for every resource breaks the transaction rule: a collector service would hold the `Transactor` for `createcollector` and a pool repository for `getcollector`.
+- Grouped ports put together in `wire` from per-use-case packages save only the `Deps` field and the `Routes` line. They need every `Execute` renamed, and `Deps.validate` no longer sees a nil use case inside a group.
+- Letting every use case take only the `Transactor`, reads included, would make every resource look the same and allow one service per resource. But every read would then pay BEGIN and COMMIT for no gain (under read committed each statement sees its own snapshot anyway), every use case could reach every repository through `outbound.Repositories`, and a service would carry the dependencies of all its methods. All that to save the `Deps` field and the `wire` line.
+
 ### Small, pass-through use cases are kept on purpose
 
 Some use cases (`getcollector`, `getpersona`) do little more than call a repository with the tenant they are given. They stay. Handlers talk only to use cases and never to `port` (enforced by depguard), so every endpoint goes through the same seam, where authorization, auditing or extra rules can be added later without touching the handlers. Dropping the thin ones would give the HTTP layer two ways to reach the core and would blur the rule that handlers do not know repositories.
