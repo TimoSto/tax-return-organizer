@@ -6,53 +6,51 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health"
-	fakecollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/collector"
-	fakepersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/persona"
-	faketransactor "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/fake/transactor"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/postgrestest"
 )
 
-var (
-	// testCollectorID is the collector the tests act for.
-	testCollectorID = domaintest.CollectorID()
-	// unknownCollectorID is a collector that is never stored.
-	unknownCollectorID = domaintest.CollectorID()
-)
-
-// newFakeRepositories returns in-memory repositories. The persona store accepts personas of the stored collectors
-// only, collector testCollectorID is stored up front.
-func newFakeRepositories() Repositories {
-	collectors := fakecollector.NewRepository()
-	if err := collectors.SaveCollector(context.Background(), domaintest.Collector(testCollectorID, "K", "k@example.com")); err != nil {
-		panic(err)
-	}
-
-	return Repositories{Collectors: collectors, Personas: fakepersona.NewStore(collectors)}
+// One container is shared by all tests in this package.
+func TestMain(m *testing.M) {
+	os.Exit(postgrestest.Run(m))
 }
+
+// unknownCollectorID is a collector that is never stored.
+var unknownCollectorID = domaintest.CollectorID()
 
 type pinger struct{ err error }
 
 func (p pinger) Ping(context.Context) error { return p.err }
 
-func wireFake(repos Repositories) http.Handler {
-	return wireFakeReady(repos, pinger{})
-}
+// newHandler wires the use cases on the Postgres repositories as Run does. It stores a new collector and returns
+// its id: every test works in its own collector, so the tests share the database without seeing each other's data.
+func newHandler(t *testing.T, ready health.Pinger) (http.Handler, Repositories, domain.CollectorID) {
+	t.Helper()
 
-func wireFakeReady(repos Repositories, ready health.Pinger) http.Handler {
-	h, err := wire(repos, faketransactor.New(repos), ready)
-	if err != nil {
-		panic(err)
+	pool := postgrestest.RequirePool(t)
+	repos := postgresRepositories(pool)
+	id := domaintest.CollectorID()
+
+	if err := repos.Collectors.SaveCollector(context.Background(), domaintest.Collector(id, "K", "k@example.com")); err != nil {
+		t.Fatalf("seed collector: %v", err)
 	}
 
-	return h
+	h, err := wire(repos, NewTransactor(pool), ready)
+	if err != nil {
+		t.Fatalf("wire: %v", err)
+	}
+
+	return h, repos, id
 }
 
 func TestWire_CreateCollector(t *testing.T) {
-	h := wireFake(newFakeRepositories())
+	h, _, _ := newHandler(t, pinger{})
 
 	req := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -74,7 +72,7 @@ func TestWire_Readyz(t *testing.T) {
 		{"database down", errors.New("down"), http.StatusServiceUnavailable},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			h := wireFakeReady(newFakeRepositories(), pinger{err: tc.err})
+			h, _, _ := newHandler(t, pinger{err: tc.err})
 
 			rec := httptest.NewRecorder()
 			h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
@@ -87,7 +85,7 @@ func TestWire_Readyz(t *testing.T) {
 }
 
 func TestWire_Healthz(t *testing.T) {
-	h := wireFake(newFakeRepositories())
+	h, _, _ := newHandler(t, pinger{})
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
@@ -102,7 +100,7 @@ func TestWire_Healthz(t *testing.T) {
 }
 
 func TestWire_GetCollector(t *testing.T) {
-	h := wireFake(newFakeRepositories())
+	h, _, _ := newHandler(t, pinger{})
 
 	create := httptest.NewRecorder()
 	createReq := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
@@ -125,7 +123,7 @@ func TestWire_GetCollector(t *testing.T) {
 }
 
 func TestWire_GetCollector_NotFound(t *testing.T) {
-	h := wireFake(newFakeRepositories())
+	h, _, _ := newHandler(t, pinger{})
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/"+unknownCollectorID.String(), nil))
@@ -136,20 +134,18 @@ func TestWire_GetCollector_NotFound(t *testing.T) {
 }
 
 func TestWire_GetPersona(t *testing.T) {
-	repos := newFakeRepositories()
-	p := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Employed", "")
+	h, repos, collectorID := newHandler(t, pinger{})
+	p := domaintest.Persona(domaintest.PersonaID(), collectorID, "Employed", "")
 
 	if err := repos.Personas.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	h := wireFake(repos)
-
 	for _, tc := range []struct {
 		name, path string
 		want       int
 	}{
-		{"found", "/collectors/" + testCollectorID.String() + "/personas/" + p.ID().String(), http.StatusOK},
+		{"found", "/collectors/" + collectorID.String() + "/personas/" + p.ID().String(), http.StatusOK},
 		{"other collector", "/collectors/" + unknownCollectorID.String() + "/personas/" + p.ID().String(), http.StatusNotFound},
 	} {
 		rec := httptest.NewRecorder()
@@ -162,20 +158,18 @@ func TestWire_GetPersona(t *testing.T) {
 }
 
 func TestWire_ListPersonas(t *testing.T) {
-	repos := newFakeRepositories()
-	p := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Employed", "")
+	h, repos, collectorID := newHandler(t, pinger{})
+	p := domaintest.Persona(domaintest.PersonaID(), collectorID, "Employed", "")
 
 	if err := repos.Personas.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
-	h := wireFake(repos)
-
 	for _, tc := range []struct {
 		name, path string
 		want       int
 	}{
-		{"found", "/collectors/" + testCollectorID.String() + "/personas", http.StatusOK},
+		{"found", "/collectors/" + collectorID.String() + "/personas", http.StatusOK},
 		{"unknown collector", "/collectors/" + unknownCollectorID.String() + "/personas", http.StatusNotFound},
 	} {
 		rec := httptest.NewRecorder()
