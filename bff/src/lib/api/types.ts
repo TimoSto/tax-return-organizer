@@ -6,3 +6,10 @@ export interface GetTaxPracticeResponse {
 	name: string;
 	email: string;
 }
+
+/** GET /auth/session */
+export interface GetSessionResponse {
+	role: 'staff' | 'client';
+	userId: string;
+	taxPracticeId: string;
+}
