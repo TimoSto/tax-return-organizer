@@ -41,7 +41,7 @@ Proposal:
 
 *Status: decided. When: with authentication (step 4 in [AUTHENTICATION.md](AUTHENTICATION.md#implementation-order)).*
 
-`POST /collectors` takes no credentials, so anything that can reach the backend can create tenants. Decision: there is no self-service signup. The operator creates a collector with a `docker create-collector` subcommand (next to `docker migrate`). It runs the `createcollector` use case, which also creates the owner's identity, and the owner is invited by email once invites exist. `POST /collectors` is then removed from the API. The BFF only calls `GET /collectors/{id}`, so it is not affected.
+`POST /collectors` takes no credentials, so anything that can reach the backend can create tenants. Decision: there is no self-service signup. The operator creates a collector with a `docker create-collector` subcommand (next to `docker migrate`). It takes the collector's name, its slug (part of the login URL `/k/{slug}/login`, see [AUTHENTICATION.md](AUTHENTICATION.md#accounts-and-sessions)) and the owner's email, and runs the `createcollector` use case, which also creates the owner's staff account, and the owner is invited by email once invites exist. `POST /collectors` is then removed from the API. The BFF only calls `GET /collectors/{id}`, so it is not affected.
 
 ## Medium
 
@@ -49,7 +49,7 @@ Proposal:
 
 *Status: decided. When: auth step 3, when routes lose `{collectorId}`.*
 
-Every tenant-scoped repository returns `domain.ErrCollectorNotFound` for an unknown collector (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Reads start `FROM collectors c LEFT JOIN ...`, `SavePersona` probes `collectors` in its batch to tell the two causes of an empty upsert apart, and `TestPersonaRepositoryUnknownCollector` pins it. It exists only because the collector id comes from the URL today. With authentication the actor is built from a membership, which has a foreign key to its collector, and its sessions are deleted with it, so the collector of an actor always exists.
+Every tenant-scoped repository returns `domain.ErrCollectorNotFound` for an unknown collector (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Reads start `FROM collectors c LEFT JOIN ...`, `SavePersona` probes `collectors` in its batch to tell the two causes of an empty upsert apart, and `TestPersonaRepositoryUnknownCollector` pins it. It exists only because the collector id comes from the URL today. With authentication the actor is built from an account, which has a foreign key to its collector, and its sessions are deleted with it, so the collector of an actor always exists.
 
 Plan: when routes lose `{collectorId}`, remove the existence checks from the repositories and the contract tests. Reads query the resource table directly; a foreign key violation on a write is then a bug (500), not `ErrCollectorNotFound`. `GetCollector` keeps its not-found for the unscoped `CollectorRepository`.
 
@@ -100,7 +100,7 @@ Consequences:
 - **Schema (done).** Every tenant table has its own `collector_id`, child tables included, tied to the parent by a composite foreign key (see "Every tenant table carries `collector_id`" in [tenant-scoped-stores.md](tenant-scoped-stores.md#rules)). So each policy is a direct comparison, without a subquery on the parent. What remains is the policies themselves, with `ENABLE` and `FORCE ROW LEVEL SECURITY` on each table; without `FORCE` the table owner ignores the policies.
 - **Database roles.** The app connects as a role that owns no tables and has no `BYPASSRLS`. Migrations run as the owner, so `docker migrate` becomes the normal way to migrate; `MIGRATE_ON_START` with a single role no longer works.
 - **Tests.** testcontainers connects as superuser, and a superuser bypasses RLS silently, so every RLS test would pass without policies. `postgrestest` creates the app role, and the repository tests connect with it.
-- **Unscoped tables.** `collectors` (the tenant root), and later `users`, `memberships` and `sessions`, which login reads before any tenant is known, get no tenant policy. RLS protects only what is behind a `...Store`.
+- **Unscoped tables.** `collectors` (the tenant root) and later `sessions`, which a request reads by token before any tenant is known, get no tenant policy. RLS protects only what is behind a `...Store`. `accounts` and `password_credentials` are tenant tables with policies: login resolves the slug to a collector first, so the tenant is known when it reads them.
 - **Jobs across tenants.** The cleanup of unreferenced document content (1), session expiry and `docker create-collector` run with their own role that has `BYPASSRLS`, or work tenant by tenant.
 - **Errors.** An insert for another tenant fails with SQLSTATE `42501` ("new row violates row-level security policy"); the adapter maps it to `outbound.ErrTenantMismatch`. Reads and updates of other tenants' rows see no rows, as today.
 - **Cost.** One extra statement per batch and one predicate per query, on `collector_id`, which is indexed anyway. The effort per adapter is smallest with the set-based saves of 5; the per-item batches of `SavePersona` today would each have to carry the `set_config` as well.

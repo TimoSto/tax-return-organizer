@@ -9,7 +9,7 @@ This repository hold services to help you organize documents for your tax return
 
 ### Personas & tenancy
 
-This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. different tax advisories), each managing their own set of Clients. A Collector is a company: several of its employees work in the same tenant. Clients log in to their Collector's tenant as themselves (one login per Client) and only see their own data.
+This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. different tax advisories), each managing their own set of Clients. A Collector is a company: several of its employees work in the same tenant. Clients log in to their Collector's tenant as themselves (one login per Client) and only see their own data. A login belongs to exactly one Collector: a person who is a client of two Collectors has a separate login at each.
 
 ## Usage by Collector
 
@@ -18,6 +18,7 @@ This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. d
 Done by the operator of the system, there is no self-service signup:
 
 - Give a name
+- Give a slug (part of the login URL, e.g. `/k/kanzlei-mueller/login`; it cannot be changed later)
 - Give email address
 
 ### Usecase *"Create Client Personas"*:

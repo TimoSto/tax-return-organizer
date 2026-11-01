@@ -7,6 +7,7 @@ classDiagram
     class Collector {
         +CollectorID ID
         +string Name
+        +string Slug
         +string Email
     }
 
@@ -173,6 +174,7 @@ classDiagram
 ```
 
 Notes:
+- **A collector has a slug** (planned with authentication): lower-case `[a-z0-9-]`, 3 to 63 characters, unique, set at creation and immutable. It is part of the login URL (`/k/{slug}/login`), because every account belongs to exactly one collector (see [AUTHENTICATION.md](AUTHENTICATION.md#accounts-and-sessions)).
 - **A tax year is a snapshot of its personas.** Once created, a `ClientTaxYear` does not depend on the `Persona` objects any more: it references them only for display (which personas a year was made from) and for `SyncItems()`. `Generate()` expands each `ItemDefinition` of each assigned persona into `RequiredItem`s (12 for `monthly`, 4 `quarterly`, 2 `semiannually`, 1 `annually`, distinguished by `PeriodIndex`) and copies title and spec into the item. A repeatable definition is additionally expanded once per instance (see *Repeatable items*). Later edits to a persona therefore never silently change an existing list; `SyncItems()` is the explicit, optional way to pull in new definitions (it only adds items and leaves existing ones untouched).
 - **References to personas and definitions are soft.** `RequiredItem.DefinitionID` and the tax year's persona references have no cascading (`ON DELETE CASCADE`) or restricting (`ON DELETE RESTRICT`) foreign key to `item_definitions` or `personas`. Editing or deleting a persona or definition therefore never changes, deletes or blocks client data, and a dangling id only means that the definition is gone. This is also why personas need no optimistic locking: concurrent edits of one persona by several employees of a collector are rare and the last save wins, but no save can lose client data.
 - **Persona is the aggregate root of its item definitions.** `ItemDefinition`s are only read and changed through their `Persona` and are loaded and saved together with it, so there is no separate item repository. The order of `Items` is the order the collector arranged. An item keeps its `ID` across edits (`RequiredItem.DefinitionID` points at it) and its kind cannot change after creation; `UpdateItem` only replaces title, recurrence, spec and instance fields.
