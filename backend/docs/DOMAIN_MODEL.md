@@ -7,6 +7,7 @@ classDiagram
     class Collector {
         +CollectorID ID
         +string Name
+        +string Slug
         +string Email
     }
 
@@ -85,6 +86,7 @@ classDiagram
         +UUID ID
         +UUID ClientID
         +int Year
+        +int Version
         +Status Status
         +time* ClosedAt
         +Generate()
@@ -140,7 +142,8 @@ classDiagram
         +string Filename
         +string MimeType
         +int64 SizeBytes
-        +bytes Content
+        +ContentRef ContentRef
+        +bytes SHA256
         +map Metadata
     }
 
@@ -171,6 +174,7 @@ classDiagram
 ```
 
 Notes:
+- **A collector has a slug** (planned with authentication): lower-case `[a-z0-9-]`, 3 to 63 characters, unique, set at creation and immutable. It is part of the login URL (`/k/{slug}/login`), because every account belongs to exactly one collector (see [AUTHENTICATION.md](AUTHENTICATION.md#accounts-and-sessions)).
 - **A tax year is a snapshot of its personas.** Once created, a `ClientTaxYear` does not depend on the `Persona` objects any more: it references them only for display (which personas a year was made from) and for `SyncItems()`. `Generate()` expands each `ItemDefinition` of each assigned persona into `RequiredItem`s (12 for `monthly`, 4 `quarterly`, 2 `semiannually`, 1 `annually`, distinguished by `PeriodIndex`) and copies title and spec into the item. A repeatable definition is additionally expanded once per instance (see *Repeatable items*). Later edits to a persona therefore never silently change an existing list; `SyncItems()` is the explicit, optional way to pull in new definitions (it only adds items and leaves existing ones untouched).
 - **References to personas and definitions are soft.** `RequiredItem.DefinitionID` and the tax year's persona references have no cascading (`ON DELETE CASCADE`) or restricting (`ON DELETE RESTRICT`) foreign key to `item_definitions` or `personas`. Editing or deleting a persona or definition therefore never changes, deletes or blocks client data, and a dangling id only means that the definition is gone. This is also why personas need no optimistic locking: concurrent edits of one persona by several employees of a collector are rare and the last save wins, but no save can lose client data.
 - **Persona is the aggregate root of its item definitions.** `ItemDefinition`s are only read and changed through their `Persona` and are loaded and saved together with it, so there is no separate item repository. The order of `Items` is the order the collector arranged. An item keeps its `ID` across edits (`RequiredItem.DefinitionID` points at it) and its kind cannot change after creation; `UpdateItem` only replaces title, recurrence, spec and instance fields.
@@ -187,7 +191,9 @@ Notes:
   - *Changing instances.* On an open tax year the collector can `AddInstance` (creates its items), `UpdateInstance` (replaces the values) and `RemoveInstance`. Removing is rejected with `ErrInstanceNotEmpty` while any of its items holds a document or a data entry, so client data is never deleted silently. A repeatable item may have zero instances; then it contributes no items, and the collector UI points this out. `SyncItems()` adds snapshots for new repeatable definitions but no instances.
   - *Carry over.* When the client has a tax year for the previous year, creating the new one copies that year's instances of the same `DefinitionID` as defaults. Values that no longer validate against the new snapshot are dropped, and an instance whose label would be missing is not copied. The collector then adjusts the instances.
 - **Multiple files per item.** An item can hold any number of documents; documents can be deleted and downloaded individually.
+- **Document content is not part of the aggregate.** A `Document` holds only a `ContentRef` to its content, with size, SHA-256 and the sniffed MIME type. The bytes are streamed through the outbound port `DocumentContentStore` and never pass through the domain, so loading a tax year loads no files. The content is written before the document is saved; unreferenced content is cleaned up (see [roadmap #1](ARCHITECTURE_ROADMAP.md#1-document-content-stays-out-of-the-aggregate)).
+- **Concurrent writes.** Client and collector write to the same tax year at the same time (e.g. an upload while the collector closes it). Every write that touches a tax year, its items included, checks and increases `Version`; a mismatch is a conflict (see [roadmap #2](ARCHITECTURE_ROADMAP.md#2-the-tax-year-is-not-saved-by-replacing-it-whole)).
 - **Closing.** `Close()` is a collector action and is blocked while any `RequiredItem` is not `Done()`: it fails with `ErrItemsOutstanding`. Once `Status` is `closed`, `SyncItems`, `AddInstance`, `UpdateInstance`, `RemoveInstance`, `EnterValue`, `AddDocument`, `RemoveDocument` and `SetMetadata` fail with `ErrTaxYearClosed`.
 - **One tax year per client and year** (unique `ClientID` + `Year`).
 - For the first MVP there are no due dates: items are only tracked as done or not, and the UI highlights outstanding ones (see "Not in the first MVP" in the [README](../../README.md)).
-- Persistence: `Kind` is stored as discriminator, `DocumentSpec`/`ValueSpec` and `Metadata` as JSONB; document content as a blob (see [Architecture](../../README.md#architecture)). A persona and its items are one object in the domain and the API, but PostgreSQL stores the items in their own table (`item_definitions`, ordered by `position`, with its own `collector_id` tied to the persona's by a composite foreign key); saving a persona upserts its items by id and deletes the removed ones in one transaction.
+- Persistence: `Kind` is stored as discriminator, `DocumentSpec`/`ValueSpec` and `Metadata` as JSONB; document content behind `DocumentContentStore`, first in Postgres tables of its own, in encrypted chunks of about 1 MiB, protected from deletion by a foreign key while a document refers to it (see [Architecture](../../README.md#architecture)). A persona and its items are one object in the domain and the API, but PostgreSQL stores the items in their own table (`item_definitions`, ordered by `position`, with its own `collector_id` tied to the persona's by a composite foreign key); saving a persona upserts its items by id and deletes the removed ones in one transaction.

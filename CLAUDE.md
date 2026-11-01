@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Multi-tenant (SaaS-style) tool for organizing tax return documents. A *Collector* (e.g. a tax advisory) defines Personas → required documents/data; *Clients* upload files and enter data per tax year. The README holds the use cases; the full domain model (mermaid diagram and design notes) is in `backend/docs/DOMAIN_MODEL.md`. The project is WIP: only the Collector create/get slice exists so far, and there is no authentication.
+Multi-tenant (SaaS-style) tool for organizing tax return documents. A *Collector* (e.g. a tax advisory) defines Personas → required documents/data; *Clients* upload files and enter data per tax year. The README holds the use cases; the full domain model (mermaid diagram and design notes) is in `backend/docs/DOMAIN_MODEL.md`. The project is WIP: only the Collector create/get slice exists so far, and there is no authentication (its planned design is in `backend/docs/AUTHENTICATION.md`).
 
 Monorepo with two independent projects (each has its own CI workflow, triggered by path):
 
@@ -28,7 +28,7 @@ go build -o bin/docker ./cmd/docker
 
 ## Backend architecture (hexagonal)
 
-Overview, package map and design decisions (e.g. why `personatemplate` is its own core package): `backend/docs/ARCHITECTURE.md`.
+Overview, package map and design decisions (e.g. why `personatemplate` is its own core package): `backend/docs/ARCHITECTURE.md`. Planned architectural changes and decisions not built yet (document content store, tax year versioning, operator-created collectors, ...): `backend/docs/ARCHITECTURE_ROADMAP.md` — follow them when building the affected features.
 
 The layering is enforced by the depguard rules in `backend/.golangci.yml` (the domain may only import an allow-list of packages, the core must not know HTTP/SQL, use cases and adapter resource packages must not import each other, production code must not import test helpers). A new `httpadapter/<x>` or `postgres/<x>` resource package needs a line in the matching `*-isolated` rules; a new import in `internal/core/domain` needs an entry in `domain-allowlist`.
 
