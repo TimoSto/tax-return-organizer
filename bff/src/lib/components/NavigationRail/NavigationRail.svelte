@@ -17,7 +17,7 @@
 </script>
 
 {#snippet link(item: NavItem)}
-	{@const active = isActive(item.href, pathname)}
+	{@const active = isActive(item, pathname)}
 	<a
 		class="md-nav-item"
 		class:is-active={active}

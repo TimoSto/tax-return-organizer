@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/auth"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
@@ -52,6 +53,7 @@ func Routes(d Deps) []httpx.Route {
 	return []httpx.Route{
 		health.Liveness(),
 		health.Readiness(d.Readiness),
+		auth.Session(),
 		taxpractice.Create(d.CreateTaxPractice),
 		taxpractice.Get(d.GetTaxPractice),
 		persona.Get(d.GetPersona),

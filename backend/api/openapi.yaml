@@ -62,6 +62,32 @@ paths:
                   status:
                     type: string
                     enum: [unavailable]
+  /auth/session:
+    get:
+      operationId: getSession
+      summary: Get the actor of the caller's session
+      description: The BFF reads it to pick the area (staff or client) to show. The tax practice's slug and name are added once there is login.
+      responses:
+        "200":
+          description: The actor of the session.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetSessionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "500":
+          description: Unexpected error. Details are only logged, quote the request id.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/RequestID"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
   /tax-practices:
     post:
       operationId: createTaxPractice
@@ -286,6 +312,21 @@ components:
         type: string
         format: uuid
   schemas:
+    GetSessionResponse:
+      type: object
+      required: [role, userId, taxPracticeId]
+      properties:
+        role:
+          type: string
+          enum: [staff, client]
+          description: "`staff` for an employee of the tax practice, `client` for one of its clients."
+        userId:
+          type: string
+          format: uuid
+        taxPracticeId:
+          type: string
+          format: uuid
+          example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
     CreateTaxPracticeRequest:
       type: object
       additionalProperties: false

@@ -123,10 +123,22 @@ linters:
           deny:
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound
               desc: handlers talk to use cases, not to repositories
+        http-auth-isolated:
+          files:
+            - "**/httpadapter/auth/**"
+          deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/taxpractice
+              desc: resource packages must not import each other
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona
+              desc: resource packages must not import each other
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health
+              desc: resource packages must not import each other
         http-taxpractice-isolated:
           files:
             - "**/httpadapter/taxpractice/**"
           deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/auth
+              desc: resource packages must not import each other
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona
               desc: resource packages must not import each other
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health
@@ -135,6 +147,8 @@ linters:
           files:
             - "**/httpadapter/persona/**"
           deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/auth
+              desc: resource packages must not import each other
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/taxpractice
               desc: resource packages must not import each other
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health
@@ -143,6 +157,8 @@ linters:
           files:
             - "**/httpadapter/health/**"
           deny:
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/auth
+              desc: resource packages must not import each other
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/taxpractice
               desc: resource packages must not import each other
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona

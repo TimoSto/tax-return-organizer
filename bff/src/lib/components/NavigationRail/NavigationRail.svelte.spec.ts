@@ -4,14 +4,14 @@ import { render } from 'vitest-browser-svelte';
 import NavigationRail from './NavigationRail.svelte';
 
 const items = [
-	{ href: '/', icon: 'dashboard', label: () => 'Übersicht' },
-	{ href: '/personas', icon: 'badge', label: () => 'Personas' },
-	{ href: '/messages', icon: 'chat_bubble', label: () => 'Nachrichten', count: 4 }
+	{ href: '/tax-practice', icon: 'dashboard', label: () => 'Übersicht', exact: true },
+	{ href: '/tax-practice/personas', icon: 'badge', label: () => 'Personas' },
+	{ href: '/tax-practice/messages', icon: 'chat_bubble', label: () => 'Nachrichten', count: 4 }
 ];
 
 describe('NavigationRail.svelte', () => {
 	it('marks only the current destination with aria-current', async () => {
-		render(NavigationRail, { top: items, pathname: '/personas/42' });
+		render(NavigationRail, { top: items, pathname: '/tax-practice/personas/42' });
 
 		await expect
 			.element(page.getByRole('link', { name: 'Personas' }))
@@ -22,7 +22,7 @@ describe('NavigationRail.svelte', () => {
 	});
 
 	it('gives the badge an accessible name', async () => {
-		render(NavigationRail, { top: items, pathname: '/' });
+		render(NavigationRail, { top: items, pathname: '/tax-practice' });
 
 		await expect
 			.element(page.getByRole('link', { name: /4 ungelesen|4 unread/ }))

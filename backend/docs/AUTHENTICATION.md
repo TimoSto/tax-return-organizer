@@ -163,7 +163,7 @@ sequenceDiagram
     UC-->>F: token
     F-->>B: Set-Cookie __Host-session=token (HttpOnly, Secure, SameSite=Lax)
 
-    B->>F: GET /advisor/personas/42 (cookie)
+    B->>F: GET /tax-practice/personas/42 (cookie)
     F->>M: GET /personas/42, Authorization: Bearer token
     M->>UC: ResolveSession(token)
     UC-->>M: domain.Actor (staff, tax practice X)
@@ -174,9 +174,9 @@ sequenceDiagram
 
 ### BFF
 
-- **Login page** `/k/[slug]/login` with a SvelteKit form action. The page shows the tax practice's name. An unknown slug shows a 404 page. On success it sets the cookie `__Host-session` (HttpOnly, Secure, SameSite=Lax, Path=/; the `__Host-` prefix forbids a Domain attribute) and redirects by role to the staff area (`/advisor/...`) or the client area (`/client/...`). Password reset lives next to it (`/k/[slug]/reset`, later).
-- **`handleAuth`** in `hooks.server.ts` replaces `handleTenant`. It reads the cookie, asks the backend `GET /auth/session` and sets `event.locals.actor` (role, tax practice id, slug and name) instead of `locals.tenantID`. The `TENANT_ID` variable in `env.ts` is removed.
-- **Route groups** `(staff)` and `(client)` check the role in their `+layout.server.ts`. Logout redirects to the tax practice's login page (`/k/{slug}/login`). A 401 from the backend anywhere deletes the cookie and redirects to a login page: the tax practice's, if its slug is still known from the last session, otherwise a neutral page asking the user to use their advisory's link.
+- **Login page** `/k/[slug]/login` with a SvelteKit form action. The page shows the tax practice's name. An unknown slug shows a 404 page. On success it sets the cookie `__Host-session` (HttpOnly, Secure, SameSite=Lax, Path=/; the `__Host-` prefix forbids a Domain attribute) and redirects by role to the staff area (`/tax-practice/...`) or the client area (`/client/...`). Password reset lives next to it (`/k/[slug]/reset`, later).
+- **`handleAuth`** in `hooks.server.ts` reads the cookie, asks the backend `GET /auth/session` and sets `event.locals.actor` (role, user id, tax practice id; later slug and name), or `null` on 401.
+- **Role areas** `/tax-practice/...` (staff) and `/client/...` are real path prefixes, not `(group)` folders: a group adds nothing to the URL, so both roles could not have their own `/` or `/settings`. `/` redirects to the caller's area. Each area's `+layout.server.ts` sends an actor of the other role to its own area (`requireRole` in `$lib/server/area.ts`) and renders its own navigation. This check only picks what to show: the backend still answers 403 for the wrong role and stays the only security boundary. Without it, a client opening a staff URL would see a bare 403 page, and pages that ask the backend nothing would not be gated at all. Logout redirects to the tax practice's login page (`/k/{slug}/login`). A 401 from the backend anywhere deletes the cookie and redirects to a login page: the tax practice's, if its slug is still known from the last session, otherwise a neutral page asking the user to use their advisory's link.
 - **CSRF:** SameSite=Lax plus SvelteKit's built-in origin check on form actions cover the BFF. The backend takes a bearer header, not a cookie, so it is not exposed to CSRF.
 
 ### Backend
@@ -212,7 +212,7 @@ Goes into `api/openapi.yaml` when it is built (with the `sync-openapi` skill).
 | `GET /tax-practices/by-slug/{slug}` | public | the tax practice's name, for the login page |
 | `POST /auth/login` | public | slug + email + password → token |
 | `POST /auth/login/second-factor` | session (aal 1) | later: code → aal 2 |
-| `GET /auth/session` | session | the current actor and its tax practice's slug and name, for the BFF |
+| `GET /auth/session` | session | the current actor and its tax practice's slug and name, for the BFF (built without slug and name) |
 | `POST /auth/logout` | session | delete the session |
 | `POST /clients/{id}/invite` | staff | invite a client by email |
 | `POST /invites/{token}/accept` | public | set a password, creates the account |
@@ -237,9 +237,9 @@ Seeding clients needs the `Client` entity and a create-client use case, which do
 
 1. Domain and ports: the tax practice's slug, the account, `Actor` built from an account (with a client id), the `unauthenticated` error kind.
 2. Migrations, Postgres repositories and contract tests, argon2 hasher.
-3. `Login`, `Logout`, `ResolveSession`, replacing `httpadapter.SessionResolver`. (Built already: the `authenticate` middleware, `httpx.Actor` from the context, routes without `{taxPracticeId}`, openapi.) The tenant-scoped repositories drop their tax practice existence checks ([roadmap #4](ARCHITECTURE_ROADMAP.md#4-drop-the-tax-practice-existence-checks-with-authentication)).
+3. `Login`, `Logout`, `ResolveSession`, replacing `httpadapter.SessionResolver`. (Built already: the `authenticate` middleware, `httpx.Actor` from the context, routes without `{taxPracticeId}`, `GET /auth/session` without slug and name, openapi.) The tenant-scoped repositories drop their tax practice existence checks ([roadmap #4](ARCHITECTURE_ROADMAP.md#4-drop-the-tax-practice-existence-checks-with-authentication)).
 4. `createtaxpractice` with its slug and the owner's staff account, run by the operator through `docker create-tax-practice`; `POST /tax-practices` is removed. e2e seeds.
-5. BFF: login page under `/k/[slug]`, `handleAuth`, route groups, Playwright fixtures. (Built already: `TENANT_ID` is gone, `handleFetch` sends the `BACKEND_TOKEN` env var as the bearer token until there is a session cookie.)
+5. BFF: login page under `/k/[slug]`, the session cookie, Playwright fixtures for login. (Built already: `TENANT_ID` is gone, `handleFetch` sends the `BACKEND_TOKEN` env var as the bearer token until there is a session cookie, `handleAuth` reads `GET /auth/session`, and the role areas `/tax-practice` and `/client` redirect by role. Without a session they answer 401 until there is a login page to redirect to.)
 6. Later: invites and password reset (need an email provider), stricter throttling, 2FA, "end my access".
 
 ## Open questions
