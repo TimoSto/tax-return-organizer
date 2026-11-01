@@ -78,7 +78,7 @@ func (ValueSpec) Kind() Kind { return KindData }
 
 func (ValueSpec) isItemSpec() {}
 
-// MetadataField is a named, typed value: one the client enters for an uploaded document, or one the collector
+// MetadataField is a named, typed value: one the client enters for an uploaded document, or one the tax practice
 // enters for an instance of a repeatable item.
 type MetadataField struct {
 	Name      string

@@ -5,7 +5,7 @@ info:
   description: >
     REST API consumed by the SvelteKit BFF. Every operation needs a bearer token unless it says `security: []`.
     There is no login yet: the production binary accepts no token, so its protected operations always answer 401,
-    and the e2e binary (`cmd/e2e`) accepts one fixed token for an employee of its seeded collector.
+    and the e2e binary (`cmd/e2e`) accepts one fixed token for an employee of its seeded tax practice.
 security:
   - bearerAuth: []
 paths:
@@ -62,28 +62,28 @@ paths:
                   status:
                     type: string
                     enum: [unavailable]
-  /collectors:
+  /tax-practices:
     post:
-      operationId: createCollector
-      summary: Create a collector
-      description: Needs no session until the operator creates collectors instead.
+      operationId: createTaxPractice
+      summary: Create a tax practice
+      description: Needs no session until the operator creates tax practices instead.
       security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateCollectorRequest"
+              $ref: "#/components/schemas/CreateTaxPracticeRequest"
       responses:
         "201":
-          description: The collector was created.
+          description: The tax practice was created.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateCollectorResponse"
+                $ref: "#/components/schemas/CreateTaxPracticeResponse"
         "400":
           description: Malformed body, unknown field, trailing data after the object, empty name, invalid email address or unknown locale.
           headers:
@@ -120,24 +120,24 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-  /collector:
+  /tax-practice:
     get:
-      operationId: getCollector
-      summary: Get the collector of the caller
+      operationId: getTaxPractice
+      summary: Get the tax practice of the caller
       responses:
         "200":
-          description: The collector.
+          description: The tax practice.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/GetCollectorResponse"
+                $ref: "#/components/schemas/GetTaxPracticeResponse"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "404":
-          description: The collector of the caller does not exist.
+          description: The tax practice of the caller does not exist.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -157,11 +157,11 @@ paths:
   /personas:
     get:
       operationId: listPersonas
-      summary: List all personas of the caller's collector
+      summary: List all personas of the caller's tax practice
       description: The personas come with their items, the items in their stored order. The personas are in no particular order; clients sort them for display.
       responses:
         "200":
-          description: The personas of the collector. Empty if it has none.
+          description: The personas of the tax practice. Empty if it has none.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -172,7 +172,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: Only employees of the collector may read personas (`forbidden`). Not returned yet, because the only session there is belongs to an employee.
+          description: Only employees of the tax practice may read personas (`forbidden`). Not returned yet, because the only session there is belongs to an employee.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -181,7 +181,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
         "404":
-          description: The collector of the caller does not exist.
+          description: The tax practice of the caller does not exist.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -201,8 +201,8 @@ paths:
   /personas/{id}:
     get:
       operationId: getPersona
-      summary: Get a persona of the caller's collector by id
-      description: A persona that belongs to another collector is reported as not found.
+      summary: Get a persona of the caller's tax practice by id
+      description: A persona that belongs to another tax practice is reported as not found.
       parameters:
         - name: id
           in: path
@@ -232,7 +232,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: Only employees of the collector may read personas (`forbidden`). Not returned yet, because the only session there is belongs to an employee.
+          description: Only employees of the tax practice may read personas (`forbidden`). Not returned yet, because the only session there is belongs to an employee.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -241,7 +241,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
         "404":
-          description: The collector of the caller does not exist (`collector_not_found`) or has no persona with this id (`persona_not_found`).
+          description: The tax practice of the caller does not exist (`tax_practice_not_found`) or has no persona with this id (`persona_not_found`).
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -286,7 +286,7 @@ components:
         type: string
         format: uuid
   schemas:
-    CreateCollectorRequest:
+    CreateTaxPracticeRequest:
       type: object
       additionalProperties: false
       required: [name, email]
@@ -305,8 +305,8 @@ components:
           type: string
           enum: [en, de]
           default: en
-          description: Language of the predefined personas the new collector starts with.
-    CreateCollectorResponse:
+          description: Language of the predefined personas the new tax practice starts with.
+    CreateTaxPracticeResponse:
       type: object
       required: [id]
       properties:
@@ -314,7 +314,7 @@ components:
           type: string
           format: uuid
           example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
-    GetCollectorResponse:
+    GetTaxPracticeResponse:
       type: object
       required: [id, name, email]
       properties:
@@ -339,12 +339,12 @@ components:
             $ref: "#/components/schemas/GetPersonaResponse"
     GetPersonaResponse:
       type: object
-      required: [id, collectorId, name, description, items]
+      required: [id, taxPracticeId, name, description, items]
       properties:
         id:
           type: string
           format: uuid
-        collectorId:
+        taxPracticeId:
           type: string
           format: uuid
           example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
@@ -357,7 +357,7 @@ components:
           example: Has a job
         items:
           type: array
-          description: The item definitions of the persona in the order the collector arranged them. May be empty.
+          description: The item definitions of the persona in the order the tax practice arranged them. May be empty.
           items:
             $ref: "#/components/schemas/ItemDefinition"
     ItemDefinition:
@@ -391,7 +391,7 @@ components:
           type: array
           description: >
             Empty for a single item. Otherwise the item is repeatable: the client provides it once per instance
-            (e.g. a bank statement per bank account), and the collector fills these fields for each instance of a
+            (e.g. a bank statement per bank account), and the tax practice fills these fields for each instance of a
             tax year. The first field labels the instance and is always required.
           items:
             $ref: "#/components/schemas/MetadataField"
@@ -433,7 +433,7 @@ components:
         type:
           type: string
           description: URI reference identifying the problem class, derived from `code`. Not dereferenceable.
-          example: /problems/collector-not-found
+          example: /problems/tax-practice-not-found
         title:
           type: string
           description: HTTP reason phrase of `status`.
@@ -444,11 +444,11 @@ components:
         detail:
           type: string
           description: English explanation for developers, not meant for end users. Do not match on it.
-          example: collector not found
+          example: tax practice not found
         code:
           type: string
           description: Stable machine-readable identifier, the key for translations.
-          enum: [collector_not_found, forbidden, collector_name_required, collector_name_too_long, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, invalid_item_id, persona_not_found, persona_name_required, persona_name_too_long, persona_description_too_long, too_many_items, item_not_found, item_title_required, item_title_too_long, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, metadata_field_name_too_long, too_many_metadata_fields, unit_too_long, duplicate_metadata_field, instance_label_not_required, invalid_request_body, request_body_too_large, unsupported_media_type, unauthenticated, internal_error]
+          enum: [tax_practice_not_found, forbidden, tax_practice_name_required, tax_practice_name_too_long, invalid_tax_practice_id, invalid_email, invalid_locale, invalid_persona_id, invalid_item_id, persona_not_found, persona_name_required, persona_name_too_long, persona_description_too_long, too_many_items, item_not_found, item_title_required, item_title_too_long, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, metadata_field_name_too_long, too_many_metadata_fields, unit_too_long, duplicate_metadata_field, instance_label_not_required, invalid_request_body, request_body_too_large, unsupported_media_type, unauthenticated, internal_error]
         requestId:
           type: string
           description: The X-Request-ID of the response.

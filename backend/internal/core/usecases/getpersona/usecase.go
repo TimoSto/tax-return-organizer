@@ -1,4 +1,4 @@
-// Package getpersona implements the use case to retrieve a persona of a collector by its id.
+// Package getpersona implements the use case to retrieve a persona of a tax practice by its id.
 package getpersona
 
 import (
@@ -22,16 +22,16 @@ func New(personas outbound.PersonaStore) *Usecase {
 	return &Usecase{personas: personas}
 }
 
-// Execute retrieves a persona of the actor's collector by its id. Only staff may: clients never see personas.
-// It returns domain.ErrForbidden for any other actor, before the collector is looked at,
-// domain.ErrCollectorNotFound if the collector does not exist and domain.ErrPersonaNotFound if it has no persona
-// with the id, which includes personas of other collectors.
+// Execute retrieves a persona of the actor's tax practice by its id. Only staff may: clients never see personas.
+// It returns domain.ErrForbidden for any other actor, before the tax practice is looked at,
+// domain.ErrTaxPracticeNotFound if the tax practice does not exist and domain.ErrPersonaNotFound if it has no persona
+// with the id, which includes personas of other tax practices.
 func (u *Usecase) Execute(ctx context.Context, actor domain.Actor, id domain.PersonaID) (*domain.Persona, error) {
 	if err := actor.RequireStaff(); err != nil {
 		return nil, fmt.Errorf("get persona: %w", err)
 	}
 
-	p, err := u.personas.For(actor.CollectorID()).GetPersona(ctx, id)
+	p, err := u.personas.For(actor.TaxPracticeID()).GetPersona(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get persona: %w", err)
 	}

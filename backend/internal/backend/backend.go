@@ -16,14 +16,14 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/idgen"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres"
-	pgcollector "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector"
 	pgpersona "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/pgdb"
+	pgtaxpractice "github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/taxpractice"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/personatemplate"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createcollector"
-	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getcollector"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/createtaxpractice"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/getpersona"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/gettaxpractice"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/usecases/listpersonas"
 )
 
@@ -31,18 +31,18 @@ const shutdownTimeout = 10 * time.Second
 
 // Repositories is the full set of repositories, one per resource. It exists only in the composition root: use cases
 // get single repositories, or a transactor narrowed to the repositories they declare (see narrow).
-// Resources owned by a collector are added as stores, never as plain repositories.
+// Resources owned by a tax practice are added as stores, never as plain repositories.
 type Repositories struct {
-	Collectors outbound.CollectorRepository
-	Personas   outbound.PersonaStore
+	TaxPractices outbound.TaxPracticeRepository
+	Personas     outbound.PersonaStore
 }
 
 // postgresRepositories returns one repository per resource on db, which is the pool or a transaction.
 // A new resource adds a field to Repositories and a line here.
 func postgresRepositories(db pgdb.DBTX) Repositories {
 	return Repositories{
-		Collectors: pgcollector.NewRepository(db),
-		Personas:   pgpersona.NewStore(db),
+		TaxPractices: pgtaxpractice.NewRepository(db),
+		Personas:     pgpersona.NewStore(db),
 	}
 }
 
@@ -69,13 +69,13 @@ func (n narrowed[R]) InTx(ctx context.Context, fn func(ctx context.Context, repo
 	})
 }
 
-// NewCreateCollector returns the createcollector use case on tx with the predefined personas. ids creates the new ids.
-func NewCreateCollector(tx outbound.Transactor[Repositories], ids outbound.IDGenerator) *createcollector.Usecase {
-	repos := narrow(tx, func(r Repositories) createcollector.Repositories {
-		return createcollector.Repositories{Collectors: r.Collectors, Personas: r.Personas}
+// NewCreateTaxPractice returns the createtaxpractice use case on tx with the predefined personas. ids creates the new ids.
+func NewCreateTaxPractice(tx outbound.Transactor[Repositories], ids outbound.IDGenerator) *createtaxpractice.Usecase {
+	repos := narrow(tx, func(r Repositories) createtaxpractice.Repositories {
+		return createtaxpractice.Repositories{TaxPractices: r.TaxPractices, Personas: r.Personas}
 	})
 
-	return createcollector.New(repos, personatemplate.Predefined(), ids)
+	return createtaxpractice.New(repos, personatemplate.Predefined(), ids)
 }
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
@@ -88,12 +88,12 @@ func wire(
 	repos Repositories, tx outbound.Transactor[Repositories], ready health.Pinger, sessions httpadapter.SessionResolver,
 ) (http.Handler, error) {
 	return httpadapter.NewHandler(httpadapter.Deps{
-		CreateCollector: NewCreateCollector(tx, idgen.Random{}),
-		GetCollector:    getcollector.New(repos.Collectors),
-		GetPersona:      getpersona.New(repos.Personas),
-		ListPersonas:    listpersonas.New(repos.Personas),
-		Sessions:        sessions,
-		Readiness:       ready,
+		CreateTaxPractice: NewCreateTaxPractice(tx, idgen.Random{}),
+		GetTaxPractice:    gettaxpractice.New(repos.TaxPractices),
+		GetPersona:        getpersona.New(repos.Personas),
+		ListPersonas:      listpersonas.New(repos.Personas),
+		Sessions:          sessions,
+		Readiness:         ready,
 	})
 }
 

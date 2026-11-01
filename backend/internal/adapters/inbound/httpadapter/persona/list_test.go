@@ -24,7 +24,7 @@ func doList(t *testing.T, list listFunc, method string) *httptest.ResponseRecord
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/personas", nil)
-	req = req.WithContext(httpx.WithActor(req.Context(), domaintest.Staff(testCollectorID)))
+	req = req.WithContext(httpx.WithActor(req.Context(), domaintest.Staff(testTaxPracticeID)))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := persona.List(list)
@@ -35,23 +35,23 @@ func doList(t *testing.T, list listFunc, method string) *httptest.ResponseRecord
 }
 
 func TestListPersonas_OK(t *testing.T) {
-	var gotCollector domain.CollectorID
+	var gotTaxPractice domain.TaxPracticeID
 
 	rec := doList(t, func(_ context.Context, actor domain.Actor) ([]*domain.Persona, error) {
-		gotCollector = actor.CollectorID()
+		gotTaxPractice = actor.TaxPracticeID()
 
-		return []*domain.Persona{domaintest.Persona(testID, testCollectorID, "Employed", "Has a job")}, nil
+		return []*domain.Persona{domaintest.Persona(testID, testTaxPracticeID, "Employed", "Has a job")}, nil
 	}, http.MethodGet)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
 
-	if gotCollector != testCollectorID {
-		t.Errorf("use case got collector %v, want %v", gotCollector, testCollectorID)
+	if gotTaxPractice != testTaxPracticeID {
+		t.Errorf("use case got tax practice %v, want %v", gotTaxPractice, testTaxPracticeID)
 	}
 
-	want := `{"personas":[{"id":"` + testID.String() + `","collectorId":"` + testCollectorID.String() +
+	want := `{"personas":[{"id":"` + testID.String() + `","taxPracticeId":"` + testTaxPracticeID.String() +
 		`","name":"Employed","description":"Has a job","items":[]}]}`
 	if got := strings.TrimSpace(rec.Body.String()); got != want {
 		t.Errorf("body = %s, want %s", got, want)
@@ -74,7 +74,7 @@ func TestListPersonas_Errors(t *testing.T) {
 		err  error
 		want int
 	}{
-		{"unknown collector", domain.ErrCollectorNotFound, http.StatusNotFound},
+		{"unknown tax practice", domain.ErrTaxPracticeNotFound, http.StatusNotFound},
 		{"forbidden", domain.ErrForbidden, http.StatusForbidden},
 		{"other error", errors.New("boom"), http.StatusInternalServerError},
 	} {

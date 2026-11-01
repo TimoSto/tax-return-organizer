@@ -14,20 +14,20 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-// PersonaStoreFactory returns an empty store for the given test whose only existing collectors are the given ones.
-// Repositories must report every other collector as domain.ErrCollectorNotFound.
-type PersonaStoreFactory func(t *testing.T, collectors ...domain.CollectorID) outbound.PersonaStore
+// PersonaStoreFactory returns an empty store for the given test whose only existing tax practices are the given ones.
+// Repositories must report every other tax practice as domain.ErrTaxPracticeNotFound.
+type PersonaStoreFactory func(t *testing.T, taxPractices ...domain.TaxPracticeID) outbound.PersonaStore
 
 // TestPersonaRepository runs the contract tests against stores created by newStore. Each persona is saved through
-// the repository of its own collector, as a use case would.
+// the repository of its own tax practice, as a use case would.
 func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 	t.Helper()
 
 	ctx := context.Background()
 
 	var (
-		aliceID = domaintest.CollectorID()
-		bobID   = domaintest.CollectorID()
+		aliceID = domaintest.TaxPracticeID()
+		bobID   = domaintest.TaxPracticeID()
 	)
 
 	payslip := domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly,
@@ -60,130 +60,130 @@ func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 	bobs := personaWithItems(bobID, "Self-employed", "Freelancer", bobsDays)
 
 	for _, tc := range []struct {
-		name         string
-		saves        []*domain.Persona
-		getCollector domain.CollectorID
-		getID        domain.PersonaID
-		exp          *domain.Persona
-		saveErr      error
-		expErr       error
+		name           string
+		saves          []*domain.Persona
+		getTaxPractice domain.TaxPracticeID
+		getID          domain.PersonaID
+		exp            *domain.Persona
+		saveErr        error
+		expErr         error
 	}{
 		{
-			name:         "Get saved persona with its items in order",
-			saves:        []*domain.Persona{employed},
-			getCollector: aliceID,
-			getID:        employed.ID(),
-			exp:          employed,
+			name:           "Get saved persona with its items in order",
+			saves:          []*domain.Persona{employed},
+			getTaxPractice: aliceID,
+			getID:          employed.ID(),
+			exp:            employed,
 		},
 		{
-			name:         "A document spec with an empty list of metadata fields round-trips",
-			saves:        []*domain.Persona{withEmptyFields},
-			getCollector: aliceID,
-			getID:        withEmptyFields.ID(),
-			exp:          withEmptyFields,
+			name:           "A document spec with an empty list of metadata fields round-trips",
+			saves:          []*domain.Persona{withEmptyFields},
+			getTaxPractice: aliceID,
+			getID:          withEmptyFields.ID(),
+			exp:            withEmptyFields,
 		},
 		{
-			name:         "Get persona with empty description and no items",
-			saves:        []*domain.Persona{letting},
-			getCollector: aliceID,
-			getID:        letting.ID(),
-			exp:          letting,
+			name:           "Get persona with empty description and no items",
+			saves:          []*domain.Persona{letting},
+			getTaxPractice: aliceID,
+			getID:          letting.ID(),
+			exp:            letting,
 		},
 		{
-			name:         "Saving again replaces the persona, reorders items and keeps their ids",
-			saves:        []*domain.Persona{employed, employedRearranged},
-			getCollector: aliceID,
-			getID:        employed.ID(),
-			exp:          employedRearranged,
+			name:           "Saving again replaces the persona, reorders items and keeps their ids",
+			saves:          []*domain.Persona{employed, employedRearranged},
+			getTaxPractice: aliceID,
+			getID:          employed.ID(),
+			exp:            employedRearranged,
 		},
 		{
-			name:         "Saving again updates the instance fields of an item",
-			saves:        []*domain.Persona{employed, employedNoticeSingle},
-			getCollector: aliceID,
-			getID:        employed.ID(),
-			exp:          employedNoticeSingle,
+			name:           "Saving again updates the instance fields of an item",
+			saves:          []*domain.Persona{employed, employedNoticeSingle},
+			getTaxPractice: aliceID,
+			getID:          employed.ID(),
+			exp:            employedNoticeSingle,
 		},
 		{
-			name:         "Saving again deletes removed items",
-			saves:        []*domain.Persona{employed, employedReduced},
-			getCollector: aliceID,
-			getID:        employed.ID(),
-			exp:          employedReduced,
+			name:           "Saving again deletes removed items",
+			saves:          []*domain.Persona{employed, employedReduced},
+			getTaxPractice: aliceID,
+			getID:          employed.ID(),
+			exp:            employedReduced,
 		},
 		{
-			name:         "Saving again without items deletes all items",
-			saves:        []*domain.Persona{employed, employedCleared},
-			getCollector: aliceID,
-			getID:        employed.ID(),
-			exp:          employedCleared,
+			name:           "Saving again without items deletes all items",
+			saves:          []*domain.Persona{employed, employedCleared},
+			getTaxPractice: aliceID,
+			getID:          employed.ID(),
+			exp:            employedCleared,
 		},
 		{
-			name:         "Saving a persona id of another collector is rejected and keeps the original",
-			saves:        []*domain.Persona{employed, hijack},
-			saveErr:      domain.ErrPersonaNotFound,
-			getCollector: aliceID,
-			getID:        employed.ID(),
-			exp:          employed,
+			name:           "Saving a persona id of another tax practice is rejected and keeps the original",
+			saves:          []*domain.Persona{employed, hijack},
+			saveErr:        domain.ErrPersonaNotFound,
+			getTaxPractice: aliceID,
+			getID:          employed.ID(),
+			exp:            employed,
 		},
 		{
-			name:         "Another persona may use the same item id",
-			saves:        []*domain.Persona{employed, sharedItem},
-			getCollector: aliceID,
-			getID:        sharedItem.ID(),
-			exp:          sharedItem,
+			name:           "Another persona may use the same item id",
+			saves:          []*domain.Persona{employed, sharedItem},
+			getTaxPractice: aliceID,
+			getID:          sharedItem.ID(),
+			exp:            sharedItem,
 		},
 		{
-			name:         "Removing an item from one persona keeps it in another persona with the same item id",
-			saves:        []*domain.Persona{employed, sharedItem, employedReduced},
-			getCollector: aliceID,
-			getID:        sharedItem.ID(),
-			exp:          sharedItem,
+			name:           "Removing an item from one persona keeps it in another persona with the same item id",
+			saves:          []*domain.Persona{employed, sharedItem, employedReduced},
+			getTaxPractice: aliceID,
+			getID:          sharedItem.ID(),
+			exp:            sharedItem,
 		},
 		{
-			name:         "A persona of another collector may use the same item id",
-			saves:        []*domain.Persona{employed, bobsPayslip},
-			getCollector: bobID,
-			getID:        bobsPayslip.ID(),
-			exp:          bobsPayslip,
+			name:           "A persona of another tax practice may use the same item id",
+			saves:          []*domain.Persona{employed, bobsPayslip},
+			getTaxPractice: bobID,
+			getID:          bobsPayslip.ID(),
+			exp:            bobsPayslip,
 		},
 		{
-			name:         "Get unknown persona",
-			saves:        []*domain.Persona{employed},
-			getCollector: aliceID,
-			getID:        newPersonaID(),
-			expErr:       domain.ErrPersonaNotFound,
+			name:           "Get unknown persona",
+			saves:          []*domain.Persona{employed},
+			getTaxPractice: aliceID,
+			getID:          newPersonaID(),
+			expErr:         domain.ErrPersonaNotFound,
 		},
 		{
-			name:         "Get from empty repository",
-			getCollector: aliceID,
-			getID:        employed.ID(),
-			expErr:       domain.ErrPersonaNotFound,
+			name:           "Get from empty repository",
+			getTaxPractice: aliceID,
+			getID:          employed.ID(),
+			expErr:         domain.ErrPersonaNotFound,
 		},
 		{
-			name:         "Persona of another collector is not found",
-			saves:        []*domain.Persona{employed, bobs},
-			getCollector: bobID,
-			getID:        employed.ID(),
-			expErr:       domain.ErrPersonaNotFound,
+			name:           "Persona of another tax practice is not found",
+			saves:          []*domain.Persona{employed, bobs},
+			getTaxPractice: bobID,
+			getID:          employed.ID(),
+			expErr:         domain.ErrPersonaNotFound,
 		},
 		{
-			name:         "Other personas are left untouched",
-			saves:        []*domain.Persona{employed, letting, bobs},
-			getCollector: bobID,
-			getID:        bobs.ID(),
-			exp:          bobs,
+			name:           "Other personas are left untouched",
+			saves:          []*domain.Persona{employed, letting, bobs},
+			getTaxPractice: bobID,
+			getID:          bobs.ID(),
+			exp:            bobs,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := newStore(t, aliceID, bobID)
 
 			for _, p := range tc.saves {
-				if err := store.For(p.CollectorID()).SavePersona(ctx, p); err != nil && !errors.Is(err, tc.saveErr) {
+				if err := store.For(p.TaxPracticeID()).SavePersona(ctx, p); err != nil && !errors.Is(err, tc.saveErr) {
 					t.Fatalf("SavePersona() error = %v, want nil or %v", err, tc.saveErr)
 				}
 			}
 
-			got, err := store.For(tc.getCollector).GetPersona(ctx, tc.getID)
+			got, err := store.For(tc.getTaxPractice).GetPersona(ctx, tc.getID)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("GetPersona() error = %v, wantErr %v", err, tc.expErr)
@@ -198,14 +198,14 @@ func TestPersonaRepository(t *testing.T, newStore PersonaStoreFactory) {
 
 // personaWithItems returns a persona with the given items, or none.
 func personaWithItems(
-	collectorID domain.CollectorID, name, description string, items ...domain.ItemDefinition,
+	taxPracticeID domain.TaxPracticeID, name, description string, items ...domain.ItemDefinition,
 ) *domain.Persona {
-	return domaintest.Persona(domaintest.PersonaID(), collectorID, name, description, items...)
+	return domaintest.Persona(domaintest.PersonaID(), taxPracticeID, name, description, items...)
 }
 
-// variant returns a persona with the id of p but another name, collector and items.
-func variant(p *domain.Persona, name string, collectorID domain.CollectorID, items ...domain.ItemDefinition) *domain.Persona {
-	return domaintest.Persona(p.ID(), collectorID, name, p.Description(), items...)
+// variant returns a persona with the id of p but another name, tax practice and items.
+func variant(p *domain.Persona, name string, taxPracticeID domain.TaxPracticeID, items ...domain.ItemDefinition) *domain.Persona {
+	return domaintest.Persona(p.ID(), taxPracticeID, name, p.Description(), items...)
 }
 
 // TestPersonaRepositoryList runs the contract tests of ListPersonas against stores created by newStore.
@@ -215,9 +215,9 @@ func TestPersonaRepositoryList(t *testing.T, newStore PersonaStoreFactory) {
 	ctx := context.Background()
 
 	var (
-		aliceID = domaintest.CollectorID()
-		bobID   = domaintest.CollectorID()
-		noneID  = domaintest.CollectorID()
+		aliceID = domaintest.TaxPracticeID()
+		bobID   = domaintest.TaxPracticeID()
+		noneID  = domaintest.TaxPracticeID()
 	)
 
 	payslip := domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly,
@@ -234,41 +234,41 @@ func TestPersonaRepositoryList(t *testing.T, newStore PersonaStoreFactory) {
 	bobs := personaWithItems(bobID, "Self-employed", "Freelancer", bobsDays)
 
 	for _, tc := range []struct {
-		name        string
-		saves       []*domain.Persona
-		collectorID domain.CollectorID
-		exp         []*domain.Persona
-		expErr      error
+		name          string
+		saves         []*domain.Persona
+		taxPracticeID domain.TaxPracticeID
+		exp           []*domain.Persona
+		expErr        error
 	}{
 		{
-			name:        "Lists all personas with their items in order",
-			saves:       []*domain.Persona{alpha1, zeta, alpha2},
-			collectorID: aliceID,
-			exp:         []*domain.Persona{alpha1, zeta, alpha2},
+			name:          "Lists all personas with their items in order",
+			saves:         []*domain.Persona{alpha1, zeta, alpha2},
+			taxPracticeID: aliceID,
+			exp:           []*domain.Persona{alpha1, zeta, alpha2},
 		},
 		{
-			name:        "Personas of other collectors are not listed",
-			saves:       []*domain.Persona{zeta, bobs},
-			collectorID: bobID,
-			exp:         []*domain.Persona{bobs},
+			name:          "Personas of other tax practices are not listed",
+			saves:         []*domain.Persona{zeta, bobs},
+			taxPracticeID: bobID,
+			exp:           []*domain.Persona{bobs},
 		},
 		{
-			name:        "A collector without personas yields an empty list",
-			saves:       []*domain.Persona{zeta},
-			collectorID: noneID,
-			exp:         []*domain.Persona{},
+			name:          "A tax practice without personas yields an empty list",
+			saves:         []*domain.Persona{zeta},
+			taxPracticeID: noneID,
+			exp:           []*domain.Persona{},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := newStore(t, aliceID, bobID, noneID)
 
 			for _, p := range tc.saves {
-				if err := store.For(p.CollectorID()).SavePersona(ctx, p); err != nil {
+				if err := store.For(p.TaxPracticeID()).SavePersona(ctx, p); err != nil {
 					t.Fatalf("SavePersona() error = %v", err)
 				}
 			}
 
-			got, err := store.For(tc.collectorID).ListPersonas(ctx)
+			got, err := store.For(tc.taxPracticeID).ListPersonas(ctx)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("ListPersonas() error = %v, wantErr %v", err, tc.expErr)
@@ -286,7 +286,7 @@ func TestPersonaRepositoryList(t *testing.T, newStore PersonaStoreFactory) {
 	}
 }
 
-// TestPersonaRepositoryIsolation runs the contract tests that a repository bound to one collector cannot reach the
+// TestPersonaRepositoryIsolation runs the contract tests that a repository bound to one tax practice cannot reach the
 // personas of another one, whatever the caller passes.
 func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) {
 	t.Helper()
@@ -294,14 +294,14 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 	ctx := context.Background()
 
 	var (
-		aliceID = domaintest.CollectorID()
-		bobID   = domaintest.CollectorID()
+		aliceID = domaintest.TaxPracticeID()
+		bobID   = domaintest.TaxPracticeID()
 	)
 
 	alices := personaWithItems(aliceID, "Employed", "Has a job")
 	bobs := personaWithItems(bobID, "Self-employed", "Freelancer")
 
-	t.Run("A repository bound to another collector cannot get a persona by its id", func(t *testing.T) {
+	t.Run("A repository bound to another tax practice cannot get a persona by its id", func(t *testing.T) {
 		store := newStore(t, aliceID, bobID)
 		mustSave(ctx, t, store.For(aliceID), alices)
 
@@ -310,7 +310,7 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 		}
 	})
 
-	t.Run("A repository bound to another collector does not list the persona", func(t *testing.T) {
+	t.Run("A repository bound to another tax practice does not list the persona", func(t *testing.T) {
 		store := newStore(t, aliceID, bobID)
 		mustSave(ctx, t, store.For(aliceID), alices)
 		mustSave(ctx, t, store.For(bobID), bobs)
@@ -325,14 +325,14 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 		}
 	})
 
-	t.Run("Saving a persona of another collector is rejected and changes nothing", func(t *testing.T) {
+	t.Run("Saving a persona of another tax practice is rejected and changes nothing", func(t *testing.T) {
 		store := newStore(t, aliceID, bobID)
 
 		if err := store.For(aliceID).SavePersona(ctx, bobs); !errors.Is(err, outbound.ErrTenantMismatch) {
 			t.Fatalf("SavePersona() error = %v, want %v", err, outbound.ErrTenantMismatch)
 		}
 
-		for _, id := range []domain.CollectorID{aliceID, bobID} {
+		for _, id := range []domain.TaxPracticeID{aliceID, bobID} {
 			got, err := store.For(id).ListPersonas(ctx)
 			if err != nil || len(got) != 0 {
 				t.Errorf("ListPersonas(%s) = %v, %v, want an empty list", id, got, err)
@@ -341,42 +341,42 @@ func TestPersonaRepositoryIsolation(t *testing.T, newStore PersonaStoreFactory) 
 	})
 }
 
-// TestPersonaRepositoryUnknownCollector runs the contract tests that a repository bound to a collector that does
-// not exist reports domain.ErrCollectorNotFound on every method and saves nothing.
-func TestPersonaRepositoryUnknownCollector(t *testing.T, newStore PersonaStoreFactory) {
+// TestPersonaRepositoryUnknownTaxPractice runs the contract tests that a repository bound to a tax practice that does
+// not exist reports domain.ErrTaxPracticeNotFound on every method and saves nothing.
+func TestPersonaRepositoryUnknownTaxPractice(t *testing.T, newStore PersonaStoreFactory) {
 	t.Helper()
 
 	ctx := context.Background()
 
 	var (
-		aliceID   = domaintest.CollectorID()
-		unknownID = domaintest.CollectorID()
+		aliceID   = domaintest.TaxPracticeID()
+		unknownID = domaintest.TaxPracticeID()
 	)
 
-	t.Run("Get reports the unknown collector, not the missing persona", func(t *testing.T) {
+	t.Run("Get reports the unknown tax practice, not the missing persona", func(t *testing.T) {
 		store := newStore(t, aliceID)
 
-		if _, err := store.For(unknownID).GetPersona(ctx, newPersonaID()); !errors.Is(err, domain.ErrCollectorNotFound) {
-			t.Errorf("GetPersona() error = %v, want %v", err, domain.ErrCollectorNotFound)
+		if _, err := store.For(unknownID).GetPersona(ctx, newPersonaID()); !errors.Is(err, domain.ErrTaxPracticeNotFound) {
+			t.Errorf("GetPersona() error = %v, want %v", err, domain.ErrTaxPracticeNotFound)
 		}
 	})
 
-	t.Run("List reports the unknown collector instead of an empty list", func(t *testing.T) {
+	t.Run("List reports the unknown tax practice instead of an empty list", func(t *testing.T) {
 		store := newStore(t, aliceID)
 
 		got, err := store.For(unknownID).ListPersonas(ctx)
-		if !errors.Is(err, domain.ErrCollectorNotFound) {
-			t.Errorf("ListPersonas() = %v, %v, want error %v", got, err, domain.ErrCollectorNotFound)
+		if !errors.Is(err, domain.ErrTaxPracticeNotFound) {
+			t.Errorf("ListPersonas() = %v, %v, want error %v", got, err, domain.ErrTaxPracticeNotFound)
 		}
 	})
 
-	t.Run("Saving for an unknown collector is rejected and changes nothing", func(t *testing.T) {
+	t.Run("Saving for an unknown tax practice is rejected and changes nothing", func(t *testing.T) {
 		store := newStore(t, aliceID)
 		item := domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{})
 		orphan := personaWithItems(unknownID, "Orphan", "", item)
 
-		if err := store.For(unknownID).SavePersona(ctx, orphan); !errors.Is(err, domain.ErrCollectorNotFound) {
-			t.Fatalf("SavePersona() error = %v, want %v", err, domain.ErrCollectorNotFound)
+		if err := store.For(unknownID).SavePersona(ctx, orphan); !errors.Is(err, domain.ErrTaxPracticeNotFound) {
+			t.Fatalf("SavePersona() error = %v, want %v", err, domain.ErrTaxPracticeNotFound)
 		}
 
 		// The item id was not taken by the rejected save.
@@ -393,15 +393,15 @@ func TestPersonaRepositoryUnknownCollector(t *testing.T, newStore PersonaStoreFa
 		}
 	})
 
-	t.Run("Saving a persona id of another collector for an unknown collector reports the collector", func(t *testing.T) {
+	t.Run("Saving a persona id of another tax practice for an unknown tax practice reports the tax practice", func(t *testing.T) {
 		store := newStore(t, aliceID)
 		alices := personaWithItems(aliceID, "Employed", "Has a job")
 		mustSave(ctx, t, store.For(aliceID), alices)
 
-		// Both causes apply. The collector takes precedence, like in GetPersona.
+		// Both causes apply. The tax practice takes precedence, like in GetPersona.
 		hijack := variant(alices, "Hijacked", unknownID)
-		if err := store.For(unknownID).SavePersona(ctx, hijack); !errors.Is(err, domain.ErrCollectorNotFound) {
-			t.Fatalf("SavePersona() error = %v, want %v", err, domain.ErrCollectorNotFound)
+		if err := store.For(unknownID).SavePersona(ctx, hijack); !errors.Is(err, domain.ErrTaxPracticeNotFound) {
+			t.Fatalf("SavePersona() error = %v, want %v", err, domain.ErrTaxPracticeNotFound)
 		}
 
 		got, err := store.For(aliceID).GetPersona(ctx, alices.ID())

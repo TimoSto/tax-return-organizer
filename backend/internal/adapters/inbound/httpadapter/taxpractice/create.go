@@ -1,5 +1,5 @@
-// Package collector contains the HTTP handlers of the collector resource.
-package collector
+// Package taxpractice contains the HTTP handlers of the tax practice resource.
+package taxpractice
 
 import (
 	"net/http"
@@ -19,11 +19,11 @@ type createResponse struct {
 	ID string `json:"id"`
 }
 
-// Create is POST /collectors.
-func Create(creator inbound.CreateCollector) httpx.Route {
+// Create is POST /tax-practices.
+func Create(creator inbound.CreateTaxPractice) httpx.Route {
 	return httpx.Route{
-		Pattern: "POST /collectors",
-		// Public until the operator creates collectors (docs/AUTHENTICATION.md).
+		Pattern: "POST /tax-practices",
+		// Public until the operator creates tax practices (docs/AUTHENTICATION.md).
 		Public: true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req createRequest
@@ -32,7 +32,7 @@ func Create(creator inbound.CreateCollector) httpx.Route {
 				return
 			}
 
-			id, err := creator.Execute(r.Context(), inbound.CreateCollectorCommand{Name: req.Name, Email: req.Email, Locale: req.Locale})
+			id, err := creator.Execute(r.Context(), inbound.CreateTaxPracticeCommand{Name: req.Name, Email: req.Email, Locale: req.Locale})
 			if err != nil {
 				httpx.WriteError(w, r, err)
 

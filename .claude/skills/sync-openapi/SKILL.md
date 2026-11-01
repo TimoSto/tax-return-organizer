@@ -9,7 +9,7 @@ description: Update backend/api/openapi.yaml so it matches the inbound HTTP hand
 
 ## Procedure
 
-1. Read `backend/api/openapi.yaml` and every non-test file under `backend/internal/adapters/inbound/httpadapter/`: `routes.go`, `middleware.go`, `httpx/httpx.go` and each resource package (`collector/`, `persona/`, `health/`, ...).
+1. Read `backend/api/openapi.yaml` and every non-test file under `backend/internal/adapters/inbound/httpadapter/`: `routes.go`, `middleware.go`, `httpx/httpx.go` and each resource package (`taxpractice/`, `persona/`, `health/`, ...).
 2. For every `httpx.Route` (its `Pattern` is `"METHOD /path"`; `{name}` segments are path parameters) make sure the spec has:
    - the path and method, a unique `operationId` and the path parameters,
    - the request body schema, taken from the `*Request` struct and its `json` tags (`DisallowUnknownFields` is on, so the schema should not allow extras),

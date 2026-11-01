@@ -2,7 +2,7 @@
 
 // Command e2e runs the backend against a throwaway Postgres testcontainer.
 // The database is wiped on every run; it needs a running Docker daemon.
-// Every request with "Authorization: Bearer e2e-employee-a" acts as employeeA, an employee of the seeded collector.
+// Every request with "Authorization: Bearer e2e-employee-a" acts as employeeA, an employee of the seeded tax practice.
 // It is excluded from normal builds: use -tags e2e.
 package main
 
@@ -28,10 +28,10 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/logging"
 )
 
-// defaultCollectorID is the id of the collector seeded on every run, so e2e tests can reference it.
-var defaultCollectorID = domain.CollectorID(uuid.MustParse("00000000-0000-4000-8000-00000000aaaa"))
+// defaultTaxPracticeID is the id of the tax practice seeded on every run, so e2e tests can reference it.
+var defaultTaxPracticeID = domain.TaxPracticeID(uuid.MustParse("00000000-0000-4000-8000-00000000aaaa"))
 
-// employeeAID is the user id of employeeA, the employee of the default collector that sessionToken logs in as.
+// employeeAID is the user id of employeeA, the employee of the default tax practice that sessionToken logs in as.
 // There are no accounts yet, so it exists only in the actor.
 //
 // TODO(auth): delete with staticSessions; seed employeeA as a real staff account instead.
@@ -94,8 +94,8 @@ func runWithContext(ctx context.Context, getenv func(string) string) error {
 	return backend.Run(ctx, cfg)
 }
 
-// seed migrates the database and creates the default collector, with its predefined personas, through the
-// create-collector use case so the seed follows any change to how collectors are created.
+// seed migrates the database and creates the default tax practice, with its predefined personas, through the
+// create-tax-practice use case so the seed follows any change to how tax practices are created.
 // backend.Run migrates again afterwards, which is a no-op.
 func seed(ctx context.Context, dsn string) error {
 	if err := postgres.Migrate(ctx, dsn); err != nil {
@@ -108,19 +108,19 @@ func seed(ctx context.Context, dsn string) error {
 	}
 	defer pool.Close()
 
-	create := backend.NewCreateCollector(backend.NewTransactor(pool), seedIDs{})
+	create := backend.NewCreateTaxPractice(backend.NewTransactor(pool), seedIDs{})
 
-	if _, err := create.Execute(ctx, inbound.CreateCollectorCommand{Name: "E2E Collector", Email: "e2e@example.com"}); err != nil {
-		return fmt.Errorf("create collector: %w", err)
+	if _, err := create.Execute(ctx, inbound.CreateTaxPracticeCommand{Name: "E2E Tax Practice", Email: "e2e@example.com"}); err != nil {
+		return fmt.Errorf("create tax practice: %w", err)
 	}
 
 	return nil
 }
 
-// seedIDs draws the well-known collector id and random ids otherwise.
+// seedIDs draws the well-known tax practice id and random ids otherwise.
 type seedIDs struct{ idgen.Random }
 
-func (seedIDs) NewCollectorID() (domain.CollectorID, error) { return defaultCollectorID, nil }
+func (seedIDs) NewTaxPracticeID() (domain.TaxPracticeID, error) { return defaultTaxPracticeID, nil }
 
 // staticSessions resolves sessionToken to employeeA and no other token.
 //
@@ -132,5 +132,5 @@ func (staticSessions) ResolveSession(_ context.Context, token string) (domain.Ac
 		return domain.Actor{}, false, nil
 	}
 
-	return domain.NewStaffActor(defaultCollectorID, employeeAID), true, nil
+	return domain.NewStaffActor(defaultTaxPracticeID, employeeAID), true, nil
 }

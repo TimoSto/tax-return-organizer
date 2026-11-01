@@ -123,9 +123,9 @@ linters:
           deny:
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/core/port/outbound
               desc: handlers talk to use cases, not to repositories
-        http-collector-isolated:
+        http-taxpractice-isolated:
           files:
-            - "**/httpadapter/collector/**"
+            - "**/httpadapter/taxpractice/**"
           deny:
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona
               desc: resource packages must not import each other
@@ -135,7 +135,7 @@ linters:
           files:
             - "**/httpadapter/persona/**"
           deny:
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/taxpractice
               desc: resource packages must not import each other
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health
               desc: resource packages must not import each other
@@ -143,13 +143,13 @@ linters:
           files:
             - "**/httpadapter/health/**"
           deny:
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/taxpractice
               desc: resource packages must not import each other
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona
               desc: resource packages must not import each other
-        pg-collector-isolated:
+        pg-taxpractice-isolated:
           files:
-            - "**/outbound/postgres/collector/**"
+            - "**/outbound/postgres/taxpractice/**"
           deny:
             - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/persona
               desc: repositories of different resources must not import each other
@@ -157,7 +157,7 @@ linters:
           files:
             - "**/outbound/postgres/persona/**"
           deny:
-            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/collector
+            - pkg: github.com/TimoSto/tax-return-organizer/backend/internal/adapters/outbound/postgres/taxpractice
               desc: repositories of different resources must not import each other
     sloglint:
       # Log calls that have a context in scope must use the *Context variants, so the request id is attached.

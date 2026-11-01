@@ -22,7 +22,7 @@ const (
 	MaxBodyBytes = 1 << 20
 )
 
-// Route is an endpoint: a ServeMux pattern ("POST /collectors") and its handler.
+// Route is an endpoint: a ServeMux pattern ("POST /tax-practices") and its handler.
 type Route struct {
 	Pattern string
 	Handler http.Handler
@@ -43,7 +43,7 @@ type Problem struct {
 	Title  string `json:"title"`
 	Status int    `json:"status"`
 	Detail string `json:"detail,omitempty"`
-	// Code is the stable snake_case identifier of the problem, e.g. "collector_not_found".
+	// Code is the stable snake_case identifier of the problem, e.g. "tax_practice_not_found".
 	Code string `json:"code"`
 	// RequestID repeats the X-Request-ID header, so it survives when only the body is kept.
 	RequestID string `json:"requestId,omitempty"`

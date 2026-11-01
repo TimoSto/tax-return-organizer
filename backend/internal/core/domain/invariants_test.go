@@ -36,30 +36,30 @@ func TestParseEmail_LowercasesAndBoundsLength(t *testing.T) {
 	}
 }
 
-func TestNewCollector_NormalizesEmailAndBoundsName(t *testing.T) {
-	c, err := domain.NewCollector(testCollectorID, "Ann", " Ann@Example.com ")
+func TestNewTaxPractice_NormalizesEmailAndBoundsName(t *testing.T) {
+	c, err := domain.NewTaxPractice(testTaxPracticeID, "Ann", " Ann@Example.com ")
 	if err != nil || c.Email() != "ann@example.com" {
-		t.Errorf("NewCollector() = %v, %v, want a lowercased email", c, err)
+		t.Errorf("NewTaxPractice() = %v, %v, want a lowercased email", c, err)
 	}
 
-	if _, err := domain.NewCollector(testCollectorID, runes(domain.MaxCollectorNameLength), "a@example.com"); err != nil {
+	if _, err := domain.NewTaxPractice(testTaxPracticeID, runes(domain.MaxTaxPracticeNameLength), "a@example.com"); err != nil {
 		t.Errorf("name at the limit: %v", err)
 	}
 
-	if _, err := domain.NewCollector(testCollectorID, runes(domain.MaxCollectorNameLength+1), "a@example.com"); !errors.Is(err, domain.ErrNameTooLong) {
+	if _, err := domain.NewTaxPractice(testTaxPracticeID, runes(domain.MaxTaxPracticeNameLength+1), "a@example.com"); !errors.Is(err, domain.ErrNameTooLong) {
 		t.Errorf("name over the limit: error = %v, want ErrNameTooLong", err)
 	}
 }
 
-func TestRehydrate_RejectsInvalidCollectorID(t *testing.T) {
-	var zero domain.CollectorID
+func TestRehydrate_RejectsInvalidTaxPracticeID(t *testing.T) {
+	var zero domain.TaxPracticeID
 
-	if _, err := domain.RehydrateCollector(zero, "Ann", "a@example.com"); !errors.Is(err, domain.ErrInvalidCollectorID) {
-		t.Errorf("RehydrateCollector(zero id) error = %v, want ErrInvalidCollectorID", err)
+	if _, err := domain.RehydrateTaxPractice(zero, "Ann", "a@example.com"); !errors.Is(err, domain.ErrInvalidTaxPracticeID) {
+		t.Errorf("RehydrateTaxPractice(zero id) error = %v, want ErrInvalidTaxPracticeID", err)
 	}
 
-	if _, err := domain.RehydratePersona(domain.PersonaID(uuid.New()), zero, "Employed", "", nil); !errors.Is(err, domain.ErrInvalidCollectorID) {
-		t.Errorf("RehydratePersona(zero id) error = %v, want ErrInvalidCollectorID", err)
+	if _, err := domain.RehydratePersona(domain.PersonaID(uuid.New()), zero, "Employed", "", nil); !errors.Is(err, domain.ErrInvalidTaxPracticeID) {
+		t.Errorf("RehydratePersona(zero id) error = %v, want ErrInvalidTaxPracticeID", err)
 	}
 }
 
@@ -75,7 +75,7 @@ func TestNewPersona_BoundsTexts(t *testing.T) {
 		{"description too long", "Employed", runes(domain.MaxPersonaDescriptionLength + 1), domain.ErrPersonaDescriptionTooLong},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := domain.NewPersona(id, testCollectorID, tc.personaName, tc.description); !errors.Is(err, tc.expErr) {
+			if _, err := domain.NewPersona(id, testTaxPracticeID, tc.personaName, tc.description); !errors.Is(err, tc.expErr) {
 				t.Errorf("error = %v, want %v", err, tc.expErr)
 			}
 		})
@@ -83,7 +83,7 @@ func TestNewPersona_BoundsTexts(t *testing.T) {
 }
 
 func TestPersona_AddItem_RejectsDuplicateID(t *testing.T) {
-	p, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "Employed", "")
+	p, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testTaxPracticeID, "Employed", "")
 	id := newItemID()
 
 	if _, err := p.AddItem(id, "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil); err != nil {
@@ -107,7 +107,7 @@ func TestPersona_AddItem_RejectsDuplicateID(t *testing.T) {
 }
 
 func TestPersona_AddItem_BoundsItemCount(t *testing.T) {
-	p, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "Employed", "")
+	p, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testTaxPracticeID, "Employed", "")
 
 	for range domain.MaxItemsPerPersona {
 		if _, err := p.AddItem(newItemID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil); err != nil {
@@ -126,7 +126,7 @@ func TestRehydratePersona_RejectsDuplicateIDsAndTooManyItems(t *testing.T) {
 	item, _ := domain.NewItemDefinition(id, "Payslip", domain.RecurrenceMonthly, spec, nil)
 	pid := domain.PersonaID(uuid.New())
 
-	if _, err := domain.RehydratePersona(pid, testCollectorID, "Employed", "", []domain.ItemDefinition{item, item}); !errors.Is(err, domain.ErrDuplicateItemID) {
+	if _, err := domain.RehydratePersona(pid, testTaxPracticeID, "Employed", "", []domain.ItemDefinition{item, item}); !errors.Is(err, domain.ErrDuplicateItemID) {
 		t.Errorf("duplicate: error = %v, want ErrDuplicateItemID", err)
 	}
 
@@ -135,11 +135,11 @@ func TestRehydratePersona_RejectsDuplicateIDsAndTooManyItems(t *testing.T) {
 		items[i], _ = domain.NewItemDefinition(newItemID(), "Payslip", domain.RecurrenceMonthly, spec, nil)
 	}
 
-	if _, err := domain.RehydratePersona(pid, testCollectorID, "Employed", "", items); !errors.Is(err, domain.ErrTooManyItems) {
+	if _, err := domain.RehydratePersona(pid, testTaxPracticeID, "Employed", "", items); !errors.Is(err, domain.ErrTooManyItems) {
 		t.Errorf("too many: error = %v, want ErrTooManyItems", err)
 	}
 
-	if _, err := domain.RehydratePersona(pid, testCollectorID, "Employed", "", items[:domain.MaxItemsPerPersona]); err != nil {
+	if _, err := domain.RehydratePersona(pid, testTaxPracticeID, "Employed", "", items[:domain.MaxItemsPerPersona]); err != nil {
 		t.Errorf("at the limit: %v", err)
 	}
 }

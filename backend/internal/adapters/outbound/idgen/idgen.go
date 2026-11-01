@@ -15,14 +15,14 @@ type Random struct{}
 
 var _ outbound.IDGenerator = Random{}
 
-// NewCollectorID returns a random collector id.
-func (Random) NewCollectorID() (domain.CollectorID, error) {
+// NewTaxPracticeID returns a random tax practice id.
+func (Random) NewTaxPracticeID() (domain.TaxPracticeID, error) {
 	id, err := uuid.NewRandom()
 	if err != nil {
-		return domain.CollectorID{}, fmt.Errorf("generate collector id: %w", err)
+		return domain.TaxPracticeID{}, fmt.Errorf("generate tax practice id: %w", err)
 	}
 
-	return domain.CollectorID(id), nil
+	return domain.TaxPracticeID(id), nil
 }
 
 // NewPersonaID returns a random persona id.

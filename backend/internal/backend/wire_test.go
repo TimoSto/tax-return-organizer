@@ -20,17 +20,17 @@ func TestMain(m *testing.M) {
 	os.Exit(postgrestest.Run(m))
 }
 
-// unknownCollectorID is a collector that is never stored.
-var unknownCollectorID = domaintest.CollectorID()
+// unknownTaxPracticeID is a tax practice that is never stored.
+var unknownTaxPracticeID = domaintest.TaxPracticeID()
 
-// collectorSessions takes the token as a collector id and resolves it to an employee of that collector, so a test
-// can act for any collector.
+// taxPracticeSessions takes the token as a tax practice id and resolves it to an employee of that tax practice, so a test
+// can act for any tax practice.
 //
-// TODO(auth): delete once wire builds ResolveSession; the tests then log in, or seed a session, per collector.
-type collectorSessions struct{}
+// TODO(auth): delete once wire builds ResolveSession; the tests then log in, or seed a session, per tax practice.
+type taxPracticeSessions struct{}
 
-func (collectorSessions) ResolveSession(_ context.Context, token string) (domain.Actor, bool, error) {
-	id, err := domain.ParseCollectorID(token)
+func (taxPracticeSessions) ResolveSession(_ context.Context, token string) (domain.Actor, bool, error) {
+	id, err := domain.ParseTaxPracticeID(token)
 	if err != nil {
 		return domain.Actor{}, false, nil //nolint:nilerr // an unparsable token is unknown, not a failure
 	}
@@ -38,10 +38,10 @@ func (collectorSessions) ResolveSession(_ context.Context, token string) (domain
 	return domain.NewStaffActor(id, domain.UserID{}), true, nil
 }
 
-// get sends a GET request with a session for collectorID.
-func get(h http.Handler, path string, collectorID domain.CollectorID) *httptest.ResponseRecorder {
+// get sends a GET request with a session for taxPracticeID.
+func get(h http.Handler, path string, taxPracticeID domain.TaxPracticeID) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodGet, path, nil)
-	req.Header.Set("Authorization", "Bearer "+collectorID.String())
+	req.Header.Set("Authorization", "Bearer "+taxPracticeID.String())
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -53,20 +53,20 @@ type pinger struct{ err error }
 
 func (p pinger) Ping(context.Context) error { return p.err }
 
-// newHandler wires the use cases on the Postgres repositories as Run does. It stores a new collector and returns
-// its id: every test works in its own collector, so the tests share the database without seeing each other's data.
-func newHandler(t *testing.T, ready health.Pinger) (http.Handler, Repositories, domain.CollectorID) {
+// newHandler wires the use cases on the Postgres repositories as Run does. It stores a new tax practice and returns
+// its id: every test works in its own tax practice, so the tests share the database without seeing each other's data.
+func newHandler(t *testing.T, ready health.Pinger) (http.Handler, Repositories, domain.TaxPracticeID) {
 	t.Helper()
 
 	pool := postgrestest.RequirePool(t)
 	repos := postgresRepositories(pool)
-	id := domaintest.CollectorID()
+	id := domaintest.TaxPracticeID()
 
-	if err := repos.Collectors.SaveCollector(context.Background(), domaintest.Collector(id, "K", "k@example.com")); err != nil {
-		t.Fatalf("seed collector: %v", err)
+	if err := repos.TaxPractices.SaveTaxPractice(context.Background(), domaintest.TaxPractice(id, "K", "k@example.com")); err != nil {
+		t.Fatalf("seed tax practice: %v", err)
 	}
 
-	h, err := wire(repos, NewTransactor(pool), ready, collectorSessions{})
+	h, err := wire(repos, NewTransactor(pool), ready, taxPracticeSessions{})
 	if err != nil {
 		t.Fatalf("wire: %v", err)
 	}
@@ -74,10 +74,10 @@ func newHandler(t *testing.T, ready health.Pinger) (http.Handler, Repositories, 
 	return h, repos, id
 }
 
-func TestWire_CreateCollector(t *testing.T) {
+func TestWire_CreateTaxPractice(t *testing.T) {
 	h, _, _ := newHandler(t, pinger{})
 
-	req := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
+	req := httptest.NewRequest(http.MethodPost, "/tax-practices", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -124,18 +124,18 @@ func TestWire_Healthz(t *testing.T) {
 	}
 }
 
-func TestWire_GetCollector(t *testing.T) {
-	h, _, collectorID := newHandler(t, pinger{})
+func TestWire_GetTaxPractice(t *testing.T) {
+	h, _, taxPracticeID := newHandler(t, pinger{})
 
-	if rec := get(h, "/collector", collectorID); rec.Code != http.StatusOK {
+	if rec := get(h, "/tax-practice", taxPracticeID); rec.Code != http.StatusOK {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 }
 
-func TestWire_GetCollector_NotFound(t *testing.T) {
+func TestWire_GetTaxPractice_NotFound(t *testing.T) {
 	h, _, _ := newHandler(t, pinger{})
 
-	if rec := get(h, "/collector", unknownCollectorID); rec.Code != http.StatusNotFound {
+	if rec := get(h, "/tax-practice", unknownTaxPracticeID); rec.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
 	}
 }
@@ -144,7 +144,7 @@ func TestWire_Unauthenticated(t *testing.T) {
 	h, _, _ := newHandler(t, pinger{})
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collector", nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/tax-practice", nil))
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
@@ -152,20 +152,20 @@ func TestWire_Unauthenticated(t *testing.T) {
 }
 
 func TestWire_GetPersona(t *testing.T) {
-	h, repos, collectorID := newHandler(t, pinger{})
-	p := domaintest.Persona(domaintest.PersonaID(), collectorID, "Employed", "")
+	h, repos, taxPracticeID := newHandler(t, pinger{})
+	p := domaintest.Persona(domaintest.PersonaID(), taxPracticeID, "Employed", "")
 
-	if err := repos.Personas.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
+	if err := repos.Personas.For(p.TaxPracticeID()).SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
 	for _, tc := range []struct {
 		name  string
-		actor domain.CollectorID
+		actor domain.TaxPracticeID
 		want  int
 	}{
-		{"found", collectorID, http.StatusOK},
-		{"other collector", unknownCollectorID, http.StatusNotFound},
+		{"found", taxPracticeID, http.StatusOK},
+		{"other tax practice", unknownTaxPracticeID, http.StatusNotFound},
 	} {
 		if rec := get(h, "/personas/"+p.ID().String(), tc.actor); rec.Code != tc.want {
 			t.Errorf("%s: status = %d, want %d", tc.name, rec.Code, tc.want)
@@ -174,20 +174,20 @@ func TestWire_GetPersona(t *testing.T) {
 }
 
 func TestWire_ListPersonas(t *testing.T) {
-	h, repos, collectorID := newHandler(t, pinger{})
-	p := domaintest.Persona(domaintest.PersonaID(), collectorID, "Employed", "")
+	h, repos, taxPracticeID := newHandler(t, pinger{})
+	p := domaintest.Persona(domaintest.PersonaID(), taxPracticeID, "Employed", "")
 
-	if err := repos.Personas.For(p.CollectorID()).SavePersona(context.Background(), p); err != nil {
+	if err := repos.Personas.For(p.TaxPracticeID()).SavePersona(context.Background(), p); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
 	for _, tc := range []struct {
 		name  string
-		actor domain.CollectorID
+		actor domain.TaxPracticeID
 		want  int
 	}{
-		{"found", collectorID, http.StatusOK},
-		{"unknown collector", unknownCollectorID, http.StatusNotFound},
+		{"found", taxPracticeID, http.StatusOK},
+		{"unknown tax practice", unknownTaxPracticeID, http.StatusNotFound},
 	} {
 		if rec := get(h, "/personas", tc.actor); rec.Code != tc.want {
 			t.Errorf("%s: status = %d, want %d", tc.name, rec.Code, tc.want)

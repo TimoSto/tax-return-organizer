@@ -12,11 +12,11 @@ import (
 // here (TestEveryDomainErrorHasAProblemCode in internal/backend fails otherwise) and the code in the Problem.code
 // enum of api/openapi.yaml (TestOpenAPI_ProblemCodes fails otherwise).
 var problemCodes = map[*domain.Error]string{
-	domain.ErrCollectorNotFound:         "collector_not_found",
+	domain.ErrTaxPracticeNotFound:       "tax_practice_not_found",
 	domain.ErrDuplicateMetadataField:    "duplicate_metadata_field",
 	domain.ErrForbidden:                 "forbidden",
 	domain.ErrInstanceLabelNotRequired:  "instance_label_not_required",
-	domain.ErrInvalidCollectorID:        "invalid_collector_id",
+	domain.ErrInvalidTaxPracticeID:      "invalid_tax_practice_id",
 	domain.ErrInvalidEmail:              "invalid_email",
 	domain.ErrInvalidItemID:             "invalid_item_id",
 	domain.ErrInvalidPersonaID:          "invalid_persona_id",
@@ -27,8 +27,8 @@ var problemCodes = map[*domain.Error]string{
 	domain.ErrItemTitleTooLong:          "item_title_too_long",
 	domain.ErrMetadataFieldNameRequired: "metadata_field_name_required",
 	domain.ErrMetadataFieldNameTooLong:  "metadata_field_name_too_long",
-	domain.ErrNameRequired:              "collector_name_required",
-	domain.ErrNameTooLong:               "collector_name_too_long",
+	domain.ErrNameRequired:              "tax_practice_name_required",
+	domain.ErrNameTooLong:               "tax_practice_name_too_long",
 	domain.ErrPersonaDescriptionTooLong: "persona_description_too_long",
 	domain.ErrPersonaNameRequired:       "persona_name_required",
 	domain.ErrPersonaNameTooLong:        "persona_name_too_long",

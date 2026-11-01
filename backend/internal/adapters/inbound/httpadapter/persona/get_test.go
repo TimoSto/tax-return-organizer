@@ -16,7 +16,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-var testCollectorID = domaintest.CollectorID()
+var testTaxPracticeID = domaintest.TaxPracticeID()
 
 var testID = domain.PersonaID(uuid.MustParse("3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b"))
 
@@ -30,7 +30,7 @@ func doGet(t *testing.T, get getFunc, method, id string) *httptest.ResponseRecor
 	t.Helper()
 
 	req := httptest.NewRequest(method, "/personas/"+id, nil)
-	req = req.WithContext(httpx.WithActor(req.Context(), domaintest.Staff(testCollectorID)))
+	req = req.WithContext(httpx.WithActor(req.Context(), domaintest.Staff(testTaxPracticeID)))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := persona.Get(get)
@@ -42,29 +42,29 @@ func doGet(t *testing.T, get getFunc, method, id string) *httptest.ResponseRecor
 
 func TestGetPersona_OK(t *testing.T) {
 	var (
-		gotID        domain.PersonaID
-		gotCollector domain.CollectorID
+		gotID          domain.PersonaID
+		gotTaxPractice domain.TaxPracticeID
 	)
 
 	rec := doGet(t, func(_ context.Context, actor domain.Actor, id domain.PersonaID) (*domain.Persona, error) {
-		gotID, gotCollector = id, actor.CollectorID()
+		gotID, gotTaxPractice = id, actor.TaxPracticeID()
 
-		return domaintest.Persona(testID, testCollectorID, "Employed", "Has a job"), nil
+		return domaintest.Persona(testID, testTaxPracticeID, "Employed", "Has a job"), nil
 	}, http.MethodGet, testID.String())
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
 
-	if gotCollector != testCollectorID {
-		t.Errorf("use case got collector %v, want %v", gotCollector, testCollectorID)
+	if gotTaxPractice != testTaxPracticeID {
+		t.Errorf("use case got tax practice %v, want %v", gotTaxPractice, testTaxPracticeID)
 	}
 
 	if gotID != testID {
 		t.Errorf("port got %v, want %v", gotID, testID)
 	}
 
-	want := `{"id":"` + testID.String() + `","collectorId":"` + testCollectorID.String() +
+	want := `{"id":"` + testID.String() + `","taxPracticeId":"` + testTaxPracticeID.String() +
 		`","name":"Employed","description":"Has a job","items":[]}`
 	if got := strings.TrimSpace(rec.Body.String()); got != want {
 		t.Errorf("body = %s, want %s", got, want)
@@ -109,7 +109,7 @@ func TestGetPersona_Items(t *testing.T) {
 	docID, dataID := domaintest.ItemID(), domaintest.ItemID()
 
 	rec := doGet(t, func(context.Context, domain.Actor, domain.PersonaID) (*domain.Persona, error) {
-		return domaintest.Persona(testID, testCollectorID, "Employed", "",
+		return domaintest.Persona(testID, testTaxPracticeID, "Employed", "",
 			domaintest.Item(docID, "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{MetadataFields: []domain.MetadataField{
 				{Name: "Employer", ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
 			}}),

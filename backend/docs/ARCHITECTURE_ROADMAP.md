@@ -29,7 +29,7 @@ Decision:
 
 *Status: proposed. When: with the `ClientTaxYear` repository.*
 
-`SavePersona` replaces the whole persona in one batch, and that is fine for at most 100 items with a single editor. A tax year is different. It holds hundreds of `RequiredItem`s (12 periods × items × instances), and the client and the collector write to it at the same time (upload vs. `Close`, see "Transactions" in [ARCHITECTURE.md](ARCHITECTURE.md#transactions)). Copying the persona pattern would rewrite every item on each upload, and the last save would silently win.
+`SavePersona` replaces the whole persona in one batch, and that is fine for at most 100 items with a single editor. A tax year is different. It holds hundreds of `RequiredItem`s (12 periods × items × instances), and the client and the tax practice write to it at the same time (upload vs. `Close`, see "Transactions" in [ARCHITECTURE.md](ARCHITECTURE.md#transactions)). Copying the persona pattern would rewrite every item on each upload, and the last save would silently win.
 
 Proposal:
 
@@ -37,27 +37,27 @@ Proposal:
 - The repository offers targeted writes (`AddDocument`, `EnterValue`, ...) that each change the rows they need plus the version, not a full replace. The aggregate still checks the rules (open year, spec, `Done()`) before the write.
 - Read models for the views that span aggregates or need only a projection: the client's item list with its state, and the staff overview "outstanding items per client". Add them as query ports with their own result types (as "Inbound and outbound ports" already allows) instead of loading whole aggregates.
 
-### 3. Collectors are created by the operator
+### 3. Tax practices are created by the operator
 
 *Status: decided. When: with authentication (step 4 in [AUTHENTICATION.md](AUTHENTICATION.md#implementation-order)).*
 
-`POST /collectors` takes no credentials, so anything that can reach the backend can create tenants. Decision: there is no self-service signup. The operator creates a collector with a `docker create-collector` subcommand (next to `docker migrate`). It takes the collector's name, its slug (part of the login URL `/k/{slug}/login`, see [AUTHENTICATION.md](AUTHENTICATION.md#accounts-and-sessions)) and the owner's email, and runs the `createcollector` use case, which also creates the owner's staff account, and the owner is invited by email once invites exist. `POST /collectors` is then removed from the API. The BFF only calls `GET /collector`, so it is not affected.
+`POST /tax-practices` takes no credentials, so anything that can reach the backend can create tenants. Decision: there is no self-service signup. The operator creates a tax practice with a `docker create-tax-practice` subcommand (next to `docker migrate`). It takes the tax practice's name, its slug (part of the login URL `/k/{slug}/login`, see [AUTHENTICATION.md](AUTHENTICATION.md#accounts-and-sessions)) and the owner's email, and runs the `createtaxpractice` use case, which also creates the owner's staff account, and the owner is invited by email once invites exist. `POST /tax-practices` is then removed from the API. The BFF only calls `GET /tax-practice`, so it is not affected.
 
 ## Medium
 
-### 4. Drop the collector existence checks with authentication
+### 4. Drop the tax practice existence checks with authentication
 
-*Status: decided. When: auth step 3, with `ResolveSession`. Routes have lost `{collectorId}` already, but while the actor comes from the static e2e resolver its collector is not guaranteed to exist, so the checks stay until real sessions do.*
+*Status: decided. When: auth step 3, with `ResolveSession`. Routes have lost `{taxPracticeId}` already, but while the actor comes from the static e2e resolver its tax practice is not guaranteed to exist, so the checks stay until real sessions do.*
 
-Every tenant-scoped repository returns `domain.ErrCollectorNotFound` for an unknown collector (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Reads start `FROM collectors c LEFT JOIN ...`, `SavePersona` probes `collectors` in its batch to tell the two causes of an empty upsert apart, and `TestPersonaRepositoryUnknownCollector` pins it. It exists only because the collector id comes from the URL today. With authentication the actor is built from an account, which has a foreign key to its collector, and its sessions are deleted with it, so the collector of an actor always exists.
+Every tenant-scoped repository returns `domain.ErrTaxPracticeNotFound` for an unknown tax practice (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Reads start `FROM tax_practices c LEFT JOIN ...`, `SavePersona` probes `tax practices` in its batch to tell the two causes of an empty upsert apart, and `TestPersonaRepositoryUnknownTaxPractice` pins it. It exists only because the tax practice id comes from the URL today. With authentication the actor is built from an account, which has a foreign key to its tax practice, and its sessions are deleted with it, so the tax practice of an actor always exists.
 
-Plan: once actors come from real sessions, remove the existence checks from the repositories and the contract tests. Reads query the resource table directly; a foreign key violation on a write is then a bug (500), not `ErrCollectorNotFound`. `GetCollector` keeps its not-found for the unscoped `CollectorRepository`.
+Plan: once actors come from real sessions, remove the existence checks from the repositories and the contract tests. Reads query the resource table directly; a foreign key violation on a write is then a bug (500), not `ErrTaxPracticeNotFound`. `GetTaxPractice` keeps its not-found for the unscoped `TaxPracticeRepository`.
 
 ### 5. Repositories may make their own writes atomic
 
 *Status: proposed. When: together with 4, or with the tax year repository.*
 
-Repositories may not open a transaction (`pgdb.DBTX` has no `Begin`), so a multi-statement save has to be one pgx batch. `SavePersona` therefore queues a CTE upsert per item and a collector probe. That SQL is hard to review, and the tax year repository would copy it.
+Repositories may not open a transaction (`pgdb.DBTX` has no `Begin`), so a multi-statement save has to be one pgx batch. `SavePersona` therefore queues a CTE upsert per item and a tax practice probe. That SQL is hard to review, and the tax year repository would copy it.
 
 Proposal: add `Begin(ctx) (pgx.Tx, error)` to `pgdb.DBTX`. On the pool it starts a transaction, on a `pgx.Tx` it creates a savepoint. A repository can then make its own save atomic, and the use case still owns the outer transaction when there is one. Write the saves set-based: one upsert of all items from `unnest` arrays and one delete of the removed ones. The `Transactor` stays the way to make writes through **several** repositories atomic.
 
@@ -79,36 +79,36 @@ The authentication design logs security events. Under DSGVO and § 203 StGB, the
 
 *Status: proposed; the schema part is done. When: together with the read models of 2.*
 
-The stores filter every query by their collector, but only the code enforces that. Postgres row-level security (RLS) would make the database refuse other tenants' rows as well, which catches hand-written SQL that forgets the filter. That risk grows with the read models of 2, which join across tables. See also "Known limits" in [tenant-scoped-stores.md](tenant-scoped-stores.md#known-limits).
+The stores filter every query by their tax practice, but only the code enforces that. Postgres row-level security (RLS) would make the database refuse other tenants' rows as well, which catches hand-written SQL that forgets the filter. That risk grows with the read models of 2, which join across tables. See also "Known limits" in [tenant-scoped-stores.md](tenant-scoped-stores.md#known-limits).
 
-**No use case needs a `Transactor` for it.** RLS needs the tenant set in the transaction of every query, and the adapter can open that transaction itself. A repository from `Store.For(collectorID)` already knows its tenant, so each of its methods sets it before its own statements:
+**No use case needs a `Transactor` for it.** RLS needs the tenant set in the transaction of every query, and the adapter can open that transaction itself. A repository from `Store.For(taxPracticeID)` already knows its tenant, so each of its methods sets it before its own statements:
 
 ```sql
-SELECT set_config('app.collector_id', $1, true);  -- true: for this transaction only, like SET LOCAL
+SELECT set_config('app.tax_practice_id', $1, true);  -- true: for this transaction only, like SET LOCAL
 SELECT ... FROM personas ...;
 ```
 
 - On the pool, both statements go out as one pgx batch, which runs as one implicit transaction: one round trip, as today. Sending an explicit `BEGIN ... COMMIT` in the same batch is the more obviously correct variant at the same cost. A test pins whichever is chosen.
-- Inside `InTx` the same statement runs in the outer transaction. Each method sets its tenant again, so `createcollector` keeps working when it saves the personas of a new collector.
+- Inside `InTx` the same statement runs in the outer transaction. Each method sets its tenant again, so `createtaxpractice` keeps working when it saves the personas of a new tax practice.
 - The `Transactor` keeps its only job: making writes through several repositories atomic.
 - Not an option: setting the tenant once per connection (when it is taken from the pool, reset when it is returned). One missing reset hands the setting to the next request on that connection, the very leak RLS is meant to prevent.
 
-Policies fail closed: `collector_id = current_setting('app.collector_id', true)::uuid` is NULL when the setting is missing, so no row is visible.
+Policies fail closed: `tax_practice_id = current_setting('app.tax_practice_id', true)::uuid` is NULL when the setting is missing, so no row is visible.
 
 Consequences:
 
-- **Schema (done).** Every tenant table has its own `collector_id`, child tables included, tied to the parent by a composite foreign key (see "Every tenant table carries `collector_id`" in [tenant-scoped-stores.md](tenant-scoped-stores.md#rules)). So each policy is a direct comparison, without a subquery on the parent. What remains is the policies themselves, with `ENABLE` and `FORCE ROW LEVEL SECURITY` on each table; without `FORCE` the table owner ignores the policies.
+- **Schema (done).** Every tenant table has its own `tax_practice_id`, child tables included, tied to the parent by a composite foreign key (see "Every tenant table carries `tax_practice_id`" in [tenant-scoped-stores.md](tenant-scoped-stores.md#rules)). So each policy is a direct comparison, without a subquery on the parent. What remains is the policies themselves, with `ENABLE` and `FORCE ROW LEVEL SECURITY` on each table; without `FORCE` the table owner ignores the policies.
 - **Database roles.** The app connects as a role that owns no tables and has no `BYPASSRLS`. Migrations run as the owner, so `docker migrate` becomes the normal way to migrate; `MIGRATE_ON_START` with a single role no longer works.
 - **Tests.** testcontainers connects as superuser, and a superuser bypasses RLS silently, so every RLS test would pass without policies. `postgrestest` creates the app role, and the repository tests connect with it.
-- **Unscoped tables.** `collectors` (the tenant root) and later `sessions`, which a request reads by token before any tenant is known, get no tenant policy. RLS protects only what is behind a `...Store`. `accounts` and `password_credentials` are tenant tables with policies: login resolves the slug to a collector first, so the tenant is known when it reads them.
-- **Jobs across tenants.** The cleanup of unreferenced document content (1), session expiry and `docker create-collector` run with their own role that has `BYPASSRLS`, or work tenant by tenant.
+- **Unscoped tables.** `tax practices` (the tenant root) and later `sessions`, which a request reads by token before any tenant is known, get no tenant policy. RLS protects only what is behind a `...Store`. `accounts` and `password_credentials` are tenant tables with policies: login resolves the slug to a tax practice first, so the tenant is known when it reads them.
+- **Jobs across tenants.** The cleanup of unreferenced document content (1), session expiry and `docker create-tax-practice` run with their own role that has `BYPASSRLS`, or work tenant by tenant.
 - **Errors.** An insert for another tenant fails with SQLSTATE `42501` ("new row violates row-level security policy"); the adapter maps it to `outbound.ErrTenantMismatch`. Reads and updates of other tenants' rows see no rows, as today.
-- **Cost.** One extra statement per batch and one predicate per query, on `collector_id`, which is indexed anyway. The effort per adapter is smallest with the set-based saves of 5; the per-item batches of `SavePersona` today would each have to carry the `set_config` as well.
+- **Cost.** One extra statement per batch and one predicate per query, on `tax_practice_id`, which is indexed anyway. The effort per adapter is smallest with the set-based saves of 5; the per-item batches of `SavePersona` today would each have to carry the `set_config` as well.
 
 ## Low: cleanups
 
-9. **Problem details everywhere.** `ServeMux` answers unknown routes (404) and wrong methods (405) with `text/plain`. Wrap the mux so these become problem+json too. The request log carries no actor; add the user and collector id once authentication exists (never the email).
-10. **`IDGenerator` without errors.** Since Go 1.24 `crypto/rand` does not fail (it crashes the program instead), so the error results of `NewCollectorID`, `NewPersonaID` and `NewItemID` and their handling in `createcollector.newPersonaIDs` are dead code.
+9. **Problem details everywhere.** `ServeMux` answers unknown routes (404) and wrong methods (405) with `text/plain`. Wrap the mux so these become problem+json too. The request log carries no actor; add the user and tax practice id once authentication exists (never the email).
+10. **`IDGenerator` without errors.** Since Go 1.24 `crypto/rand` does not fail (it crashes the program instead), so the error results of `NewTaxPracticeID`, `NewPersonaID` and `NewItemID` and their handling in `createtaxpractice.newPersonaIDs` are dead code.
 11. **`Clock` port.** Tax years (`ClosedAt`) and sessions (expiry) need the current time. Add `outbound.Clock` with the first of them, as planned in [AUTHENTICATION.md](AUTHENTICATION.md#ports-and-adapters).
 12. **Error registry.** `domain.Errors()` is a mutable, package-level registry in production code that only `TestEveryDomainErrorHasAProblemCode` uses. Acceptable while it stays that small; noted so it does not grow into more.
 13. **Sort personas in the BFF.** `ListPersonas` returns personas in no particular order (see "Lists are sorted for display by the BFF" in [ARCHITECTURE.md](ARCHITECTURE.md#lists-are-sorted-for-display-by-the-bff)). When the BFF shows them, it sorts the names with `Intl.Collator` for the user's locale, so "alpha", "Ärger" and "Zeta" come in reading order.

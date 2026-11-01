@@ -5,7 +5,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 )
 
-// Predefined returns the built-in personas every collector starts with. Each call returns a fresh slice.
+// Predefined returns the built-in personas every tax practice starts with. Each call returns a fresh slice.
 func Predefined() []PersonaTemplate {
 	return []PersonaTemplate{
 		{

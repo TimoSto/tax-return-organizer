@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	// testCollectorID is the collector the tests act for.
-	testCollectorID = domaintest.CollectorID()
+	// testTaxPracticeID is the tax practice the tests act for.
+	testTaxPracticeID = domaintest.TaxPracticeID()
 )
 
 func TestWriteError_Status(t *testing.T) {
@@ -29,7 +29,7 @@ func TestWriteError_Status(t *testing.T) {
 	}{
 		{domain.ErrNameRequired, http.StatusBadRequest},
 		{domain.ErrInvalidEmail, http.StatusBadRequest},
-		{domain.ErrInvalidCollectorID, http.StatusBadRequest},
+		{domain.ErrInvalidTaxPracticeID, http.StatusBadRequest},
 		{domain.ErrPersonaNameRequired, http.StatusBadRequest},
 		{domain.ErrItemTitleRequired, http.StatusBadRequest},
 		{domain.ErrInvalidRecurrence, http.StatusBadRequest},
@@ -47,13 +47,13 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrTooManyItems, http.StatusBadRequest},
 		// Server-side faults: a duplicate id comes from our own generator, stored data from our own writes.
 		{fmt.Errorf("add item: %w", domain.ErrDuplicateItemID), http.StatusInternalServerError},
-		{outbound.CorruptData("collector 1", domain.ErrInvalidEmail), http.StatusInternalServerError},
-		{fmt.Errorf("get collector: %w", outbound.CorruptData("collector 1", domain.ErrNameRequired)), http.StatusInternalServerError},
+		{outbound.CorruptData("tax practice 1", domain.ErrInvalidEmail), http.StatusInternalServerError},
+		{fmt.Errorf("get tax practice: %w", outbound.CorruptData("tax practice 1", domain.ErrNameRequired)), http.StatusInternalServerError},
 		{domain.ErrItemIDTaken, http.StatusInternalServerError},
 		{locale.ErrInvalidLocale, http.StatusBadRequest},
-		{domain.ErrCollectorIDTaken, http.StatusInternalServerError},
+		{domain.ErrTaxPracticeIDTaken, http.StatusInternalServerError},
 		{fmt.Errorf("wrapped: %w", domain.ErrSpecMismatch), http.StatusBadRequest},
-		{domain.ErrCollectorNotFound, http.StatusNotFound},
+		{domain.ErrTaxPracticeNotFound, http.StatusNotFound},
 		{domain.ErrPersonaNotFound, http.StatusNotFound},
 		{domain.ErrItemNotFound, http.StatusNotFound},
 		{fmt.Errorf("get persona: %w", domain.ErrForbidden), http.StatusForbidden},
@@ -109,7 +109,7 @@ func TestWriteError_InternalErrorIsGeneric(t *testing.T) {
 }
 
 func TestActor(t *testing.T) {
-	want := domain.NewStaffActor(testCollectorID, domain.UserID{})
+	want := domain.NewStaffActor(testTaxPracticeID, domain.UserID{})
 
 	var got domain.Actor
 
@@ -141,7 +141,7 @@ func TestActor(t *testing.T) {
 func TestParsePathID(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /c/{id}", func(w http.ResponseWriter, r *http.Request) {
-		id, ok := httpx.ParsePathID(w, r, "id", domain.ParseCollectorID)
+		id, ok := httpx.ParsePathID(w, r, "id", domain.ParseTaxPracticeID)
 		if ok {
 			_, _ = w.Write([]byte(id.String()))
 		}
@@ -151,7 +151,7 @@ func TestParsePathID(t *testing.T) {
 		path, body string
 		want       int
 	}{
-		{"/c/" + testCollectorID.String(), testCollectorID.String(), http.StatusOK},
+		{"/c/" + testTaxPracticeID.String(), testTaxPracticeID.String(), http.StatusOK},
 		{"/c/!", "", http.StatusBadRequest},
 	} {
 		rec := httptest.NewRecorder()
@@ -162,7 +162,7 @@ func TestParsePathID(t *testing.T) {
 			_ = json.NewDecoder(rec.Body).Decode(&p)
 			tc.body = ""
 
-			if p.Code != "invalid_collector_id" {
+			if p.Code != "invalid_tax_practice_id" {
 				t.Errorf("%s code = %q", tc.path, p.Code)
 			}
 
@@ -180,15 +180,15 @@ func TestWriteError_ProblemShape(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req = req.WithContext(logging.WithRequestID(req.Context(), "req-1"))
 
-	httpx.WriteError(rec, req, fmt.Errorf("get collector: %w", domain.ErrCollectorNotFound))
+	httpx.WriteError(rec, req, fmt.Errorf("get tax practice: %w", domain.ErrTaxPracticeNotFound))
 
 	if ct := rec.Header().Get("Content-Type"); ct != "application/problem+json" {
 		t.Errorf("content type = %q", ct)
 	}
 
 	want := httpx.Problem{
-		Type: "/problems/collector-not-found", Title: "Not Found", Status: 404,
-		Detail: "collector not found", Code: "collector_not_found", RequestID: "req-1",
+		Type: "/problems/tax-practice-not-found", Title: "Not Found", Status: 404,
+		Detail: "tax practice not found", Code: "tax_practice_not_found", RequestID: "req-1",
 	}
 
 	var got httpx.Problem

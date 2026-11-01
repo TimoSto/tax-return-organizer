@@ -30,10 +30,10 @@ func (s sessionStub) ResolveSession(_ context.Context, token string) (domain.Act
 	return s.actor, token == validToken, nil
 }
 
-// getCollectorFunc records the actor the handler passed, to check what the middleware resolved.
-type getCollectorFunc func(context.Context, domain.Actor) (*domain.Collector, error)
+// getTaxPracticeFunc records the actor the handler passed, to check what the middleware resolved.
+type getTaxPracticeFunc func(context.Context, domain.Actor) (*domain.TaxPractice, error)
 
-func (f getCollectorFunc) Execute(ctx context.Context, actor domain.Actor) (*domain.Collector, error) {
+func (f getTaxPracticeFunc) Execute(ctx context.Context, actor domain.Actor) (*domain.TaxPractice, error) {
 	return f(ctx, actor)
 }
 
@@ -42,10 +42,10 @@ func authHandler(t *testing.T, sessions httpadapter.SessionResolver, got *domain
 
 	d := fullDeps()
 	d.Sessions = sessions
-	d.GetCollector = getCollectorFunc(func(_ context.Context, a domain.Actor) (*domain.Collector, error) {
+	d.GetTaxPractice = getTaxPracticeFunc(func(_ context.Context, a domain.Actor) (*domain.TaxPractice, error) {
 		*got = a
 
-		return domaintest.Collector(a.CollectorID(), "Jane", "jane@example.com"), nil
+		return domaintest.TaxPractice(a.TaxPracticeID(), "Jane", "jane@example.com"), nil
 	})
 
 	h, err := httpadapter.NewHandler(d)
@@ -57,14 +57,14 @@ func authHandler(t *testing.T, sessions httpadapter.SessionResolver, got *domain
 }
 
 func TestAuthenticate_ValidToken(t *testing.T) {
-	want := domain.NewStaffActor(domaintest.CollectorID(), domain.UserID{})
+	want := domain.NewStaffActor(domaintest.TaxPracticeID(), domain.UserID{})
 
 	var got domain.Actor
 
 	h := authHandler(t, sessionStub{actor: want}, &got)
 
 	for _, header := range []string{"Bearer " + validToken, "bearer " + validToken} {
-		req := httptest.NewRequest(http.MethodGet, "/collector", nil)
+		req := httptest.NewRequest(http.MethodGet, "/tax-practice", nil)
 		req.Header.Set("Authorization", header)
 
 		rec := httptest.NewRecorder()
@@ -79,10 +79,10 @@ func TestAuthenticate_ValidToken(t *testing.T) {
 func TestAuthenticate_Rejects(t *testing.T) {
 	var got domain.Actor
 
-	h := authHandler(t, sessionStub{actor: domain.NewStaffActor(domaintest.CollectorID(), domain.UserID{})}, &got)
+	h := authHandler(t, sessionStub{actor: domain.NewStaffActor(domaintest.TaxPracticeID(), domain.UserID{})}, &got)
 
 	for _, header := range []string{"", "Bearer", "Bearer ", "Basic " + validToken, validToken, "Bearer unknown"} {
-		req := httptest.NewRequest(http.MethodGet, "/collector", nil)
+		req := httptest.NewRequest(http.MethodGet, "/tax-practice", nil)
 		if header != "" {
 			req.Header.Set("Authorization", header)
 		}
@@ -112,7 +112,7 @@ func TestAuthenticate_ResolverError(t *testing.T) {
 
 	h := authHandler(t, sessionStub{err: errors.New("db down")}, &got)
 
-	req := httptest.NewRequest(http.MethodGet, "/collector", nil)
+	req := httptest.NewRequest(http.MethodGet, "/tax-practice", nil)
 	req.Header.Set("Authorization", "Bearer "+validToken)
 
 	rec := httptest.NewRecorder()

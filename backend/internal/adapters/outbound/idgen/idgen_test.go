@@ -7,16 +7,16 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
-func TestRandom_NewCollectorID(t *testing.T) {
-	seen := map[domain.CollectorID]bool{}
+func TestRandom_NewTaxPracticeID(t *testing.T) {
+	seen := map[domain.TaxPracticeID]bool{}
 
 	for range 200 {
-		id, err := idgen.Random{}.NewCollectorID()
+		id, err := idgen.Random{}.NewTaxPracticeID()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if _, err := domain.ParseCollectorID(id.String()); err != nil {
+		if _, err := domain.ParseTaxPracticeID(id.String()); err != nil {
 			t.Fatalf("generated id %q is not parseable: %v", id, err)
 		}
 

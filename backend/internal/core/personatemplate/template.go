@@ -1,4 +1,4 @@
-// Package personatemplate holds predefined personas and the logic to copy them to a collector.
+// Package personatemplate holds predefined personas and the logic to copy them to a tax practice.
 package personatemplate
 
 import (
@@ -8,8 +8,8 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
 )
 
-// PersonaTemplate is a predefined persona that is copied to a collector, in the collector's locale.
-// The copy is a normal persona that the collector owns and may change, nothing links it back to the template.
+// PersonaTemplate is a predefined persona that is copied to a tax practice, in the tax practice's locale.
+// The copy is a normal persona that the tax practice owns and may change, nothing links it back to the template.
 type PersonaTemplate struct {
 	Name        locale.Localized
 	Description locale.Localized
@@ -63,14 +63,14 @@ func fields(ts []MetadataFieldTemplate, l locale.Locale) []domain.MetadataField 
 	return fs
 }
 
-// Instantiate creates a persona of the collector from the template, with all texts in locale l.
+// Instantiate creates a persona of the tax practice from the template, with all texts in locale l.
 // It is pure: the caller supplies the persona id and one item id per item of the template, in order.
-func (t PersonaTemplate) Instantiate(collectorID domain.CollectorID, l locale.Locale, personaID domain.PersonaID, itemIDs []domain.ItemID) (*domain.Persona, error) {
+func (t PersonaTemplate) Instantiate(taxPracticeID domain.TaxPracticeID, l locale.Locale, personaID domain.PersonaID, itemIDs []domain.ItemID) (*domain.Persona, error) {
 	if len(itemIDs) != len(t.Items) {
 		return nil, fmt.Errorf("persona template %q has %d items, got %d item ids", t.Name.For(locale.DefaultLocale), len(t.Items), len(itemIDs))
 	}
 
-	p, err := domain.NewPersona(personaID, collectorID, t.Name.For(l), t.Description.For(l))
+	p, err := domain.NewPersona(personaID, taxPracticeID, t.Name.For(l), t.Description.For(l))
 	if err != nil {
 		return nil, err
 	}

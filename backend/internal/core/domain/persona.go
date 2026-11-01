@@ -10,7 +10,7 @@ import (
 var (
 	// ErrPersonaNameRequired is returned for a blank persona name.
 	ErrPersonaNameRequired = invalid("persona name is required")
-	// ErrPersonaNotFound is returned when a collector has no persona with the requested id.
+	// ErrPersonaNotFound is returned when a tax practice has no persona with the requested id.
 	ErrPersonaNotFound = notFound("persona not found")
 	// ErrPersonaNameTooLong is returned for a persona name longer than MaxPersonaNameLength.
 	ErrPersonaNameTooLong = invalid("persona name is too long")
@@ -34,27 +34,27 @@ var ErrItemIDTaken = errors.New("item definition id already taken")
 // It is the aggregate root of its item definitions: they are only read and changed through the persona.
 // Create personas with NewPersona or RehydratePersona, so they are always valid.
 type Persona struct {
-	id          PersonaID
-	collectorID CollectorID
-	name        string
-	description string
-	// items are in the order the collector arranged them.
+	id            PersonaID
+	taxPracticeID TaxPracticeID
+	name          string
+	description   string
+	// items are in the order the tax practice arranged them.
 	items []ItemDefinition
 }
 
 // NewPersona validates the input and returns a persona with the given id and no items.
-func NewPersona(id PersonaID, collectorID CollectorID, name, description string) (*Persona, error) {
-	return RehydratePersona(id, collectorID, name, description, nil)
+func NewPersona(id PersonaID, taxPracticeID TaxPracticeID, name, description string) (*Persona, error) {
+	return RehydratePersona(id, taxPracticeID, name, description, nil)
 }
 
 // RehydratePersona rebuilds a persona that was stored earlier, e.g. when a repository loads it. It applies the same
 // rules as NewPersona, so corrupt stored data is reported instead of becoming an invalid persona. The items are
 // copied.
 func RehydratePersona(
-	id PersonaID, collectorID CollectorID, name, description string, items []ItemDefinition,
+	id PersonaID, taxPracticeID TaxPracticeID, name, description string, items []ItemDefinition,
 ) (*Persona, error) {
-	if collectorID == (CollectorID{}) {
-		return nil, ErrInvalidCollectorID
+	if taxPracticeID == (TaxPracticeID{}) {
+		return nil, ErrInvalidTaxPracticeID
 	}
 
 	name, description = strings.TrimSpace(name), strings.TrimSpace(description)
@@ -75,7 +75,7 @@ func RehydratePersona(
 		return nil, ErrTooManyItems
 	}
 
-	p := &Persona{id: id, collectorID: collectorID, name: name, description: description}
+	p := &Persona{id: id, taxPracticeID: taxPracticeID, name: name, description: description}
 	for _, item := range items {
 		if p.itemIndex(item.id) >= 0 {
 			return nil, fmt.Errorf("%w: %s", ErrDuplicateItemID, item.id)
@@ -90,8 +90,8 @@ func RehydratePersona(
 // ID returns the id of the persona.
 func (p *Persona) ID() PersonaID { return p.id }
 
-// CollectorID returns the collector the persona belongs to.
-func (p *Persona) CollectorID() CollectorID { return p.collectorID }
+// TaxPracticeID returns the tax practice the persona belongs to.
+func (p *Persona) TaxPracticeID() TaxPracticeID { return p.taxPracticeID }
 
 // Name returns the name of the persona.
 func (p *Persona) Name() string { return p.name }
@@ -99,7 +99,7 @@ func (p *Persona) Name() string { return p.name }
 // Description returns the description of the persona, which may be empty.
 func (p *Persona) Description() string { return p.description }
 
-// Items returns the item definitions in the order the collector arranged them. The result is a copy:
+// Items returns the item definitions in the order the tax practice arranged them. The result is a copy:
 // use AddItem, UpdateItem and RemoveItem to change the persona.
 func (p *Persona) Items() []ItemDefinition {
 	if p.items == nil {
