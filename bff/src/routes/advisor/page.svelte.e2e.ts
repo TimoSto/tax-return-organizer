@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 
 // The BFF fetches server-side, so page.route() cannot intercept it. Must match BACKEND_URL in playwright.config.ts.
 const MOCK_BACKEND_PORT = 4174;
+// Must match BACKEND_TOKEN in playwright.config.ts.
+const MOCK_BACKEND_TOKEN = 'playwright-token';
 
 let backend: Server;
 
@@ -10,7 +12,15 @@ test.beforeAll(async () => {
 	backend = createServer((req, res) => {
 		res.setHeader('Content-Type', 'application/json');
 
-		if (req.method === 'GET' && req.url === '/collectors/00000000-0000-4000-8000-00000000aaaa') {
+		if (req.headers.authorization !== `Bearer ${MOCK_BACKEND_TOKEN}`) {
+			res.statusCode = 401;
+			res.setHeader('WWW-Authenticate', 'Bearer');
+			res.end(JSON.stringify({ code: 'unauthenticated' }));
+
+			return;
+		}
+
+		if (req.method === 'GET' && req.url === '/collector') {
 			res.end(
 				JSON.stringify({
 					id: '00000000-0000-4000-8000-00000000aaaa',

@@ -41,17 +41,17 @@ Proposal:
 
 *Status: decided. When: with authentication (step 4 in [AUTHENTICATION.md](AUTHENTICATION.md#implementation-order)).*
 
-`POST /collectors` takes no credentials, so anything that can reach the backend can create tenants. Decision: there is no self-service signup. The operator creates a collector with a `docker create-collector` subcommand (next to `docker migrate`). It takes the collector's name, its slug (part of the login URL `/k/{slug}/login`, see [AUTHENTICATION.md](AUTHENTICATION.md#accounts-and-sessions)) and the owner's email, and runs the `createcollector` use case, which also creates the owner's staff account, and the owner is invited by email once invites exist. `POST /collectors` is then removed from the API. The BFF only calls `GET /collectors/{id}`, so it is not affected.
+`POST /collectors` takes no credentials, so anything that can reach the backend can create tenants. Decision: there is no self-service signup. The operator creates a collector with a `docker create-collector` subcommand (next to `docker migrate`). It takes the collector's name, its slug (part of the login URL `/k/{slug}/login`, see [AUTHENTICATION.md](AUTHENTICATION.md#accounts-and-sessions)) and the owner's email, and runs the `createcollector` use case, which also creates the owner's staff account, and the owner is invited by email once invites exist. `POST /collectors` is then removed from the API. The BFF only calls `GET /collector`, so it is not affected.
 
 ## Medium
 
 ### 4. Drop the collector existence checks with authentication
 
-*Status: decided. When: auth step 3, when routes lose `{collectorId}`.*
+*Status: decided. When: auth step 3, with `ResolveSession`. Routes have lost `{collectorId}` already, but while the actor comes from the static e2e resolver its collector is not guaranteed to exist, so the checks stay until real sessions do.*
 
 Every tenant-scoped repository returns `domain.ErrCollectorNotFound` for an unknown collector (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Reads start `FROM collectors c LEFT JOIN ...`, `SavePersona` probes `collectors` in its batch to tell the two causes of an empty upsert apart, and `TestPersonaRepositoryUnknownCollector` pins it. It exists only because the collector id comes from the URL today. With authentication the actor is built from an account, which has a foreign key to its collector, and its sessions are deleted with it, so the collector of an actor always exists.
 
-Plan: when routes lose `{collectorId}`, remove the existence checks from the repositories and the contract tests. Reads query the resource table directly; a foreign key violation on a write is then a bug (500), not `ErrCollectorNotFound`. `GetCollector` keeps its not-found for the unscoped `CollectorRepository`.
+Plan: once actors come from real sessions, remove the existence checks from the repositories and the contract tests. Reads query the resource table directly; a foreign key violation on a write is then a bug (500), not `ErrCollectorNotFound`. `GetCollector` keeps its not-found for the unscoped `CollectorRepository`.
 
 ### 5. Repositories may make their own writes atomic
 

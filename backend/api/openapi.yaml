@@ -2,11 +2,17 @@ openapi: 3.0.3
 info:
   title: Tax Return Organizer API
   version: 0.1.0
-  description: REST API consumed by the SvelteKit BFF. Authentication is not implemented yet.
+  description: >
+    REST API consumed by the SvelteKit BFF. Every operation needs a bearer token unless it says `security: []`.
+    There is no login yet: the production binary accepts no token, so its protected operations always answer 401,
+    and the e2e binary (`cmd/e2e`) accepts one fixed token for an employee of its seeded collector.
+security:
+  - bearerAuth: []
 paths:
   /healthz:
     get:
       operationId: getHealth
+      security: []
       summary: Liveness probe
       description: Does not check dependencies such as the database.
       responses:
@@ -24,6 +30,7 @@ paths:
   /readyz:
     get:
       operationId: getReadiness
+      security: []
       summary: Readiness probe
       description: Checks that the database responds, with a 2 second limit. Use it to decide whether to route traffic here.
       responses:
@@ -59,6 +66,8 @@ paths:
     post:
       operationId: createCollector
       summary: Create a collector
+      description: Needs no session until the operator creates collectors instead.
+      security: []
       requestBody:
         required: true
         content:
@@ -69,11 +78,6 @@ paths:
         "201":
           description: The collector was created.
           headers:
-            Location:
-              description: Path of the new collector.
-              schema:
-                type: string
-                example: /collectors/5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
           content:
@@ -116,18 +120,10 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-  /collectors/{collectorId}:
+  /collector:
     get:
       operationId: getCollector
-      summary: Get a collector by id
-      parameters:
-        - name: collectorId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
+      summary: Get the collector of the caller
       responses:
         "200":
           description: The collector.
@@ -138,17 +134,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GetCollectorResponse"
-        "400":
-          description: The id is not a valid collector id.
-          headers:
-            X-Request-ID:
-              $ref: "#/components/headers/RequestID"
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
         "404":
-          description: No collector with this id exists.
+          description: The collector of the caller does not exist.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -165,19 +154,11 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-  /collectors/{collectorId}/personas:
+  /personas:
     get:
       operationId: listPersonas
-      summary: List all personas of a collector
+      summary: List all personas of the caller's collector
       description: The personas come with their items, the items in their stored order. The personas are in no particular order; clients sort them for display.
-      parameters:
-        - name: collectorId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
       responses:
         "200":
           description: The personas of the collector. Empty if it has none.
@@ -188,17 +169,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListPersonasResponse"
-        "400":
-          description: The collector id is invalid.
-          headers:
-            X-Request-ID:
-              $ref: "#/components/headers/RequestID"
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/Problem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: Only employees of the collector may read personas (`forbidden`). Not returned until authentication exists, because every caller is treated as an employee until then.
+          description: Only employees of the collector may read personas (`forbidden`). Not returned yet, because the only session there is belongs to an employee.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -207,7 +181,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
         "404":
-          description: No collector with this id exists.
+          description: The collector of the caller does not exist.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -224,19 +198,12 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
-  /collectors/{collectorId}/personas/{id}:
+  /personas/{id}:
     get:
       operationId: getPersona
-      summary: Get a persona of a collector by id
+      summary: Get a persona of the caller's collector by id
       description: A persona that belongs to another collector is reported as not found.
       parameters:
-        - name: collectorId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-            example: 5f0c8a3e-9b1d-4c2e-8f7a-6d4b3c2a1e0f
         - name: id
           in: path
           required: true
@@ -254,7 +221,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/GetPersonaResponse"
         "400":
-          description: The collector id or the persona id is invalid.
+          description: The persona id is invalid.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -262,8 +229,10 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
         "403":
-          description: Only employees of the collector may read personas (`forbidden`). Not returned until authentication exists, because every caller is treated as an employee until then.
+          description: Only employees of the collector may read personas (`forbidden`). Not returned yet, because the only session there is belongs to an employee.
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -272,7 +241,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
         "404":
-          description: The collector does not exist (`collector_not_found`) or has no persona with this id (`persona_not_found`).
+          description: The collector of the caller does not exist (`collector_not_found`) or has no persona with this id (`persona_not_found`).
           headers:
             X-Request-ID:
               $ref: "#/components/headers/RequestID"
@@ -290,6 +259,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: An opaque session token. There is no login yet; see the description of the API.
+  responses:
+    Unauthenticated:
+      description: The Authorization header is missing or malformed, or its token is unknown (`unauthenticated`).
+      headers:
+        WWW-Authenticate:
+          description: Always `Bearer`.
+          schema:
+            type: string
+            example: Bearer
+        X-Request-ID:
+          $ref: "#/components/headers/RequestID"
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
   headers:
     RequestID:
       description: Identifies the request in the server logs.
@@ -459,7 +448,7 @@ components:
         code:
           type: string
           description: Stable machine-readable identifier, the key for translations.
-          enum: [collector_not_found, forbidden, collector_name_required, collector_name_too_long, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, invalid_item_id, persona_not_found, persona_name_required, persona_name_too_long, persona_description_too_long, too_many_items, item_not_found, item_title_required, item_title_too_long, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, metadata_field_name_too_long, too_many_metadata_fields, unit_too_long, duplicate_metadata_field, instance_label_not_required, invalid_request_body, request_body_too_large, unsupported_media_type, internal_error]
+          enum: [collector_not_found, forbidden, collector_name_required, collector_name_too_long, invalid_collector_id, invalid_email, invalid_locale, invalid_persona_id, invalid_item_id, persona_not_found, persona_name_required, persona_name_too_long, persona_description_too_long, too_many_items, item_not_found, item_title_required, item_title_too_long, invalid_recurrence, item_spec_required, item_spec_mismatch, invalid_value_type, metadata_field_name_required, metadata_field_name_too_long, too_many_metadata_fields, unit_too_long, duplicate_metadata_field, instance_label_not_required, invalid_request_body, request_body_too_large, unsupported_media_type, unauthenticated, internal_error]
         requestId:
           type: string
           description: The X-Request-ID of the response.

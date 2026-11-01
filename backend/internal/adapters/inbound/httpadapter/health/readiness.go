@@ -26,6 +26,7 @@ type Pinger interface {
 func Readiness(dep Pinger) httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /readyz",
+		Public:  true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(r.Context(), readinessTimeout)
 			defer cancel()

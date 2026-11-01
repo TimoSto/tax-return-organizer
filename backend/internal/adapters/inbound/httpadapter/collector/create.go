@@ -23,6 +23,8 @@ type createResponse struct {
 func Create(creator inbound.CreateCollector) httpx.Route {
 	return httpx.Route{
 		Pattern: "POST /collectors",
+		// Public until the operator creates collectors (docs/AUTHENTICATION.md).
+		Public: true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req createRequest
 
@@ -37,7 +39,6 @@ func Create(creator inbound.CreateCollector) httpx.Route {
 				return
 			}
 
-			w.Header().Set("Location", "/collectors/"+id.String())
 			httpx.WriteJSON(w, http.StatusCreated, createResponse{ID: id.String()})
 		}),
 	}

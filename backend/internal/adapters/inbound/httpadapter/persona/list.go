@@ -11,10 +11,10 @@ type listResponse struct {
 	Personas []getResponse `json:"personas"`
 }
 
-// List is GET /collectors/{collectorId}/personas.
+// List is GET /personas.
 func List(lister inbound.ListPersonas) httpx.Route {
 	return httpx.Route{
-		Pattern: "GET /collectors/{collectorId}/personas",
+		Pattern: "GET /personas",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			actor, ok := httpx.Actor(w, r)
 			if !ok {

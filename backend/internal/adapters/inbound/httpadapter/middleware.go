@@ -65,19 +65,22 @@ func requestLog(next http.Handler) http.Handler {
 
 func recoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if v := recover(); v != nil {
-				if errors.Is(asError(v), http.ErrAbortHandler) {
-					panic(v)
-				}
-
-				slog.ErrorContext(r.Context(), "panic", "value", v)
-				httpx.WriteProblem(w, r, http.StatusInternalServerError, httpx.CodeInternal, "internal error")
-			}
-		}()
+		defer answerPanic(w, r)
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// answerPanic answers 500 if the handler panicked. It must be deferred directly, or recover returns nil.
+func answerPanic(w http.ResponseWriter, r *http.Request) {
+	if v := recover(); v != nil {
+		if errors.Is(asError(v), http.ErrAbortHandler) {
+			panic(v)
+		}
+
+		slog.ErrorContext(r.Context(), "panic", "value", v)
+		httpx.WriteProblem(w, r, http.StatusInternalServerError, httpx.CodeInternal, "internal error")
+	}
 }
 
 type statusWriter struct {

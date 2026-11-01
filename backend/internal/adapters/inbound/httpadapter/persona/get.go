@@ -47,10 +47,10 @@ type valueSpecResponse struct {
 	Required bool   `json:"required"`
 }
 
-// Get is GET /collectors/{collectorId}/personas/{id}.
+// Get is GET /personas/{id}.
 func Get(getter inbound.GetPersona) httpx.Route {
 	return httpx.Route{
-		Pattern: "GET /collectors/{collectorId}/personas/{" + idParam + "}",
+		Pattern: "GET /personas/{" + idParam + "}",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			actor, ok := httpx.Actor(w, r)
 			if !ok {

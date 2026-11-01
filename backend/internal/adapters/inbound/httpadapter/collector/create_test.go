@@ -59,10 +59,6 @@ func TestCreateCollector_Created(t *testing.T) {
 	if got := strings.TrimSpace(rec.Body.String()); got != `{"id":"`+testID.String()+`"}` {
 		t.Errorf("body = %s", got)
 	}
-
-	if loc := rec.Header().Get("Location"); loc != "/collectors/"+testID.String() {
-		t.Errorf("location = %q", loc)
-	}
 }
 
 func TestCreateCollector_Errors(t *testing.T) {

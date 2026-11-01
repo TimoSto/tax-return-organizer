@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"strconv"
 	"time"
+
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter"
 )
 
 const (
@@ -39,6 +41,9 @@ type Config struct {
 	MaxConns          int32
 	MaxConnLifetime   time.Duration
 	HealthCheckPeriod time.Duration
+	// Sessions resolves bearer tokens. It is not read from the environment: nil, as in production, accepts no
+	// token until there is login. Only cmd/e2e sets one.
+	Sessions httpadapter.SessionResolver
 
 	envErr error // unparsable environment values, reported by Validate
 }

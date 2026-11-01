@@ -51,7 +51,7 @@ func codeFor(err *domain.Error) (string, bool) {
 // ProblemCodes returns all codes a Problem can carry, sorted: the codes of the domain errors and the ones the
 // adapter produces itself.
 func ProblemCodes() []string {
-	codes := []string{CodeInternal, CodeInvalidBody, CodeBodyTooLarge, CodeUnsupportedMedia}
+	codes := []string{CodeInternal, CodeInvalidBody, CodeBodyTooLarge, CodeUnsupportedMedia, CodeUnauthenticated}
 
 	for _, code := range problemCodes {
 		codes = append(codes, code)

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
@@ -22,7 +23,8 @@ func (f getFunc) Execute(ctx context.Context, actor domain.Actor) (*domain.Colle
 func doGet(t *testing.T, get getFunc, method string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	req := httptest.NewRequest(method, "/collectors/"+testID.String(), nil)
+	req := httptest.NewRequest(method, "/collector", nil)
+	req = req.WithContext(httpx.WithActor(req.Context(), domaintest.Staff(testID)))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := collector.Get(get)

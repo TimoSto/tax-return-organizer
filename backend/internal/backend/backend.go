@@ -79,13 +79,17 @@ func NewCreateCollector(tx outbound.Transactor[Repositories], ids outbound.IDGen
 }
 
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
-// Reads use repos directly, writes that span several repositories go through tx. ready backs /readyz.
-func wire(repos Repositories, tx outbound.Transactor[Repositories], ready health.Pinger) (http.Handler, error) {
+// Reads use repos directly, writes that span several repositories go through tx. ready backs /readyz, sessions
+// resolves the bearer tokens.
+func wire(
+	repos Repositories, tx outbound.Transactor[Repositories], ready health.Pinger, sessions httpadapter.SessionResolver,
+) (http.Handler, error) {
 	return httpadapter.NewHandler(httpadapter.Deps{
 		CreateCollector: NewCreateCollector(tx, idgen.Random{}),
 		GetCollector:    getcollector.New(repos.Collectors),
 		GetPersona:      getpersona.New(repos.Personas),
 		ListPersonas:    listpersonas.New(repos.Personas),
+		Sessions:        sessions,
 		Readiness:       ready,
 	})
 }
@@ -110,7 +114,12 @@ func Run(ctx context.Context, cfg Config) error {
 
 	ready := &drainingPinger{inner: pool}
 
-	handler, err := wire(postgresRepositories(pool), NewTransactor(pool), ready)
+	sessions := cfg.Sessions
+	if sessions == nil {
+		sessions = httpadapter.RejectAllSessions{}
+	}
+
+	handler, err := wire(postgresRepositories(pool), NewTransactor(pool), ready, sessions)
 	if err != nil {
 		return fmt.Errorf("wire: %w", err)
 	}

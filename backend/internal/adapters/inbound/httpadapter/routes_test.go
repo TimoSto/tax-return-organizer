@@ -47,6 +47,7 @@ func fullDeps() httpadapter.Deps {
 		GetCollector:    stubGetCollector{},
 		GetPersona:      stubGetPersona{},
 		ListPersonas:    stubListPersonas{},
+		Sessions:        httpadapter.RejectAllSessions{},
 		Readiness:       stubPinger{},
 	}
 }
@@ -64,8 +65,8 @@ func newHandler(t *testing.T) http.Handler {
 
 func TestNewHandler_RejectsMissingDeps(t *testing.T) {
 	if _, err := httpadapter.NewHandler(httpadapter.Deps{}); err == nil ||
-		!strings.Contains(err.Error(), "CreateCollector, GetCollector, GetPersona, ListPersonas, Readiness") {
-		t.Errorf("err = %v, want all five fields named", err)
+		!strings.Contains(err.Error(), "CreateCollector, GetCollector, GetPersona, ListPersonas, Sessions, Readiness") {
+		t.Errorf("err = %v, want all six fields named", err)
 	}
 
 	d := fullDeps()
@@ -119,15 +120,23 @@ func TestNewHandler(t *testing.T) {
 	}
 }
 
-func TestNewHandler_InvalidCollectorID(t *testing.T) {
+// Every route that is not public needs a session; RejectAllSessions in fullDeps resolves none.
+func TestNewHandler_RequiresSession(t *testing.T) {
 	h := newHandler(t)
 
-	for _, path := range []string{"/collectors/!", "/collectors/!/personas", "/collectors/!/personas/3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b"} {
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+	for _, r := range httpadapter.Routes(fullDeps()) {
+		if r.Public {
+			continue
+		}
 
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("GET %s = %d, want 400", path, rec.Code)
+		method, path, _ := strings.Cut(r.Pattern, " ")
+		path = strings.ReplaceAll(path, "{id}", "3f2b8c1e-5d4a-4e6f-9a7b-1c2d3e4f5a6b")
+
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("%s = %d, want 401", r.Pattern, rec.Code)
 		}
 	}
 }
