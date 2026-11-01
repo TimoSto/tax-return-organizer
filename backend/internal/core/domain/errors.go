@@ -56,6 +56,5 @@ func Errors() []*Error {
 
 func invalid(msg string) *Error  { return NewError(ErrorInvalid, msg) }
 func notFound(msg string) *Error { return NewError(ErrorNotFound, msg) }
-func conflict(msg string) *Error { return NewError(ErrorConflict, msg) }
 
 func forbidden(msg string) *Error { return NewError(ErrorForbidden, msg) }
