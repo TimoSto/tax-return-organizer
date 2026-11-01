@@ -1,6 +1,7 @@
 package listpersonas_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -17,8 +18,7 @@ import (
 var testCollectorID = domaintest.CollectorID()
 
 // personaStub is a persona store whose repositories list the personas it holds, whatever collector they are bound
-// to: tenant isolation, ordering and the unknown collector are the store's job and covered by the repository
-// contract tests. It remembers the collector of the last For.
+// to: tenant isolation and the unknown collector are the store's job and covered by the repository contract tests. It remembers the collector of the last For.
 type personaStub struct {
 	personas    []*domain.Persona
 	collectorID domain.CollectorID
@@ -79,6 +79,32 @@ func TestExecute_Success(t *testing.T) {
 
 	if store.collectorID != testCollectorID {
 		t.Errorf("listed collector %s, want the actor's collector %s", store.collectorID, testCollectorID)
+	}
+}
+
+// Names sort for a reader, not bytewise: case and umlauts do not push a name to the end. Equal names keep the order
+// of their ids.
+func TestExecute_SortsByNameThenID(t *testing.T) {
+	alpha := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "alpha", "")
+	arger := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Ärger", "")
+	zeta := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Zeta", "")
+	sameA := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Same", "")
+	sameB := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Same", "")
+
+	if a, b := sameA.ID(), sameB.ID(); bytes.Compare(a[:], b[:]) > 0 {
+		sameA, sameB = sameB, sameA
+	}
+
+	store := &personaStub{personas: []*domain.Persona{zeta, sameB, arger, sameA, alpha}}
+
+	got, err := listpersonas.New(store).Execute(context.Background(), domaintest.Staff(testCollectorID))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := []*domain.Persona{alpha, arger, sameA, sameB, zeta}
+	if diff := cmp.Diff(want, got, domaintest.CmpOptions()); diff != "" {
+		t.Errorf("personas mismatch (-want +got):\n%s", diff)
 	}
 }
 
