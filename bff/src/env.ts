@@ -6,9 +6,10 @@ export const variables = defineEnvVars({
 		description: 'Base URL of the backend REST API.'
 	},
 	// TODO: replace with the session token from the user's cookie once there is login.
+	// No default: set it in .env.local (not committed) for local development.
 	BACKEND_TOKEN: {
-		schema: (value) => value ?? 'e2e-employee-a',
+		schema: (value) => value,
 		description:
-			'Bearer token sent to the backend on every request. Defaults to the session of employeeA in the e2e backend (backend/cmd/e2e).'
+			'Bearer token sent to the backend on every request. Unset sends none, so the backend answers 401.'
 	}
 });

@@ -21,7 +21,7 @@ export const handle: Handle = handleParaglide;
 // Authenticates every request to the backend, so no load function has to. The backend takes the tenant from the
 // session, so requests never name it.
 export const handleFetch: HandleFetch = ({ request, fetch }) => {
-	if (request.url.startsWith(`${BACKEND_URL}/`)) {
+	if (BACKEND_TOKEN && request.url.startsWith(`${BACKEND_URL}/`)) {
 		request.headers.set('Authorization', `Bearer ${BACKEND_TOKEN}`);
 	}
 
