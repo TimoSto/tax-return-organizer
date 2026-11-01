@@ -10,9 +10,9 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
-// Collector returns a valid collector.
-func Collector(id domain.CollectorID, name string, email domain.Email) *domain.Collector {
-	c, err := domain.RehydrateCollector(id, name, email)
+// TaxPractice returns a valid tax practice.
+func TaxPractice(id domain.TaxPracticeID, name string, email domain.Email) *domain.TaxPractice {
+	c, err := domain.RehydrateTaxPractice(id, name, email)
 	if err != nil {
 		panic(err)
 	}
@@ -35,9 +35,9 @@ func Item(
 
 // Persona returns a valid persona with the given items.
 func Persona(
-	id domain.PersonaID, collectorID domain.CollectorID, name, description string, items ...domain.ItemDefinition,
+	id domain.PersonaID, taxPracticeID domain.TaxPracticeID, name, description string, items ...domain.ItemDefinition,
 ) *domain.Persona {
-	p, err := domain.RehydratePersona(id, collectorID, name, description, items)
+	p, err := domain.RehydratePersona(id, taxPracticeID, name, description, items)
 	if err != nil {
 		panic(err)
 	}
@@ -45,9 +45,9 @@ func Persona(
 	return p
 }
 
-// CollectorID returns a random collector id.
-func CollectorID() domain.CollectorID {
-	return domain.CollectorID(uuid.New())
+// TaxPracticeID returns a random tax practice id.
+func TaxPracticeID() domain.TaxPracticeID {
+	return domain.TaxPracticeID(uuid.New())
 }
 
 // PersonaID returns a random persona id.
@@ -60,21 +60,21 @@ func ItemID() domain.ItemID {
 	return domain.ItemID(uuid.New())
 }
 
-// Staff returns an employee of the collector with a random user id.
-func Staff(collectorID domain.CollectorID) domain.Actor {
-	return domain.NewStaffActor(collectorID, domain.UserID(uuid.New()))
+// Staff returns an employee of the tax practice with a random user id.
+func Staff(taxPracticeID domain.TaxPracticeID) domain.Actor {
+	return domain.NewStaffActor(taxPracticeID, domain.UserID(uuid.New()))
 }
 
-// Client returns a client of the collector with a random user id.
-func Client(collectorID domain.CollectorID) domain.Actor {
-	return domain.NewClientActor(collectorID, domain.UserID(uuid.New()))
+// Client returns a client of the tax practice with a random user id.
+func Client(taxPracticeID domain.TaxPracticeID) domain.Actor {
+	return domain.NewClientActor(taxPracticeID, domain.UserID(uuid.New()))
 }
 
 // CmpOptions makes go-cmp compare entities, which have no exported fields, by their contents. A nil and an empty
 // slice are equal, because repositories may report either.
 func CmpOptions() cmp.Option {
 	return cmp.Options{
-		cmp.AllowUnexported(domain.Collector{}, domain.Persona{}, domain.ItemDefinition{}),
+		cmp.AllowUnexported(domain.TaxPractice{}, domain.Persona{}, domain.ItemDefinition{}),
 		cmpopts.EquateEmpty(),
 	}
 }

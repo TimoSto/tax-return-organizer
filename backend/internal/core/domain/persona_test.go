@@ -25,7 +25,7 @@ func TestNewPersona(t *testing.T) {
 		{name: "Blank name", pName: "  \t", expErr: domain.ErrPersonaNameRequired},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p, err := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, tc.pName, tc.description)
+			p, err := domain.NewPersona(domain.PersonaID(uuid.New()), testTaxPracticeID, tc.pName, tc.description)
 
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("err = %v, want %v", err, tc.expErr)
@@ -39,16 +39,16 @@ func TestNewPersona(t *testing.T) {
 				t.Errorf("persona = %q/%q, want %q/%q", p.Name(), p.Description(), tc.expName, tc.expDesc)
 			}
 
-			if p.CollectorID() != testCollectorID {
-				t.Errorf("collector id = %q, want %q", p.CollectorID(), testCollectorID)
+			if p.TaxPracticeID() != testTaxPracticeID {
+				t.Errorf("tax practice id = %q, want %q", p.TaxPracticeID(), testTaxPracticeID)
 			}
 		})
 	}
 }
 
 func TestNewPersona_GeneratesUniqueIDs(t *testing.T) {
-	a, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "A", "")
-	b, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "A", "")
+	a, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testTaxPracticeID, "A", "")
+	b, _ := domain.NewPersona(domain.PersonaID(uuid.New()), testTaxPracticeID, "A", "")
 
 	if a.ID() == b.ID() {
 		t.Error("two personas share an id")
@@ -58,7 +58,7 @@ func TestNewPersona_GeneratesUniqueIDs(t *testing.T) {
 func newPersonaWithItems(t *testing.T) (*domain.Persona, domain.ItemDefinition, domain.ItemDefinition) {
 	t.Helper()
 
-	p, err := domain.NewPersona(domain.PersonaID(uuid.New()), testCollectorID, "Employed", "")
+	p, err := domain.NewPersona(domain.PersonaID(uuid.New()), testTaxPracticeID, "Employed", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestPersona_UpdateItemInstanceFields(t *testing.T) {
 }
 
 func TestRehydratePersona(t *testing.T) {
-	id, collectorID := domain.PersonaID(uuid.New()), testCollectorID
+	id, taxPracticeID := domain.PersonaID(uuid.New()), testTaxPracticeID
 	item, err := domain.NewItemDefinition(domain.ItemID(uuid.New()), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -210,12 +210,12 @@ func TestRehydratePersona(t *testing.T) {
 
 	items := []domain.ItemDefinition{item}
 
-	p, err := domain.RehydratePersona(id, collectorID, "Employed", "", items)
+	p, err := domain.RehydratePersona(id, taxPracticeID, "Employed", "", items)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if p.ID() != id || p.CollectorID() != collectorID || len(p.Items()) != 1 {
+	if p.ID() != id || p.TaxPracticeID() != taxPracticeID || len(p.Items()) != 1 {
 		t.Errorf("unexpected persona %+v", p)
 	}
 
@@ -225,7 +225,7 @@ func TestRehydratePersona(t *testing.T) {
 		t.Error("the persona shares the caller's slice")
 	}
 
-	if _, err := domain.RehydratePersona(id, collectorID, " ", "", nil); !errors.Is(err, domain.ErrPersonaNameRequired) {
+	if _, err := domain.RehydratePersona(id, taxPracticeID, " ", "", nil); !errors.Is(err, domain.ErrPersonaNameRequired) {
 		t.Errorf("err = %v, want %v", err, domain.ErrPersonaNameRequired)
 	}
 }

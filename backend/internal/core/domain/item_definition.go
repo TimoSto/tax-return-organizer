@@ -69,7 +69,7 @@ func (r Recurrence) Periods() int {
 // NewItemDefinition or RehydrateItemDefinition.
 //
 // An item with instance fields is repeatable: the client provides it once per instance (e.g. a bank statement per
-// bank account). The instances are set per tax year by the collector, who fills the instance fields for each of
+// bank account). The instances are set per tax year by the tax practice, who fills the instance fields for each of
 // them. The first instance field labels the instance, so it must be required.
 type ItemDefinition struct {
 	id             ItemID
@@ -139,7 +139,7 @@ func (i ItemDefinition) Recurrence() Recurrence { return i.recurrence }
 // Spec returns what the item asks for. The result is a copy: changing it does not change the item.
 func (i ItemDefinition) Spec() ItemSpec { return cloneSpec(i.spec) }
 
-// InstanceFields returns the fields the collector fills per instance of a repeatable item, the label first. It is
+// InstanceFields returns the fields the tax practice fills per instance of a repeatable item, the label first. It is
 // nil for an item that is not repeatable. The result is a copy: changing it does not change the item.
 func (i ItemDefinition) InstanceFields() []MetadataField { return cloneFields(i.instanceFields) }
 

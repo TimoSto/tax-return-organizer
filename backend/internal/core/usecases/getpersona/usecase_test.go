@@ -14,19 +14,19 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-// testCollectorID is the collector the tests act for.
-var testCollectorID = domaintest.CollectorID()
+// testTaxPracticeID is the tax practice the tests act for.
+var testTaxPracticeID = domaintest.TaxPracticeID()
 
-// personaStub is a persona store whose repositories return the personas it holds, whatever collector they are
-// bound to: tenant isolation and the unknown collector are the store's job and covered by the repository contract
-// tests. It remembers the collector of the last For.
+// personaStub is a persona store whose repositories return the personas it holds, whatever tax practice they are
+// bound to: tenant isolation and the unknown tax practice are the store's job and covered by the repository contract
+// tests. It remembers the tax practice of the last For.
 type personaStub struct {
-	personas    []*domain.Persona
-	collectorID domain.CollectorID
+	personas      []*domain.Persona
+	taxPracticeID domain.TaxPracticeID
 }
 
-func (s *personaStub) For(id domain.CollectorID) outbound.PersonaRepository {
-	s.collectorID = id
+func (s *personaStub) For(id domain.TaxPracticeID) outbound.PersonaRepository {
+	s.taxPracticeID = id
 
 	return s
 }
@@ -54,7 +54,7 @@ type failingStore struct {
 	err error
 }
 
-func (s failingStore) For(domain.CollectorID) outbound.PersonaRepository { return failingRepo(s) }
+func (s failingStore) For(domain.TaxPracticeID) outbound.PersonaRepository { return failingRepo(s) }
 
 type failingRepo struct {
 	err error
@@ -69,11 +69,11 @@ func (failingRepo) ListPersonas(context.Context) ([]*domain.Persona, error) { re
 func (failingRepo) SavePersona(context.Context, *domain.Persona) error { return nil }
 
 func TestExecute_Success(t *testing.T) {
-	want := domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Employed", "Has a job",
+	want := domaintest.Persona(domaintest.PersonaID(), testTaxPracticeID, "Employed", "Has a job",
 		domaintest.Item(domaintest.ItemID(), "Payslip", domain.RecurrenceMonthly, domain.DocumentSpec{}))
 	store := &personaStub{personas: []*domain.Persona{want}}
 
-	got, err := getpersona.New(store).Execute(context.Background(), domaintest.Staff(want.CollectorID()), want.ID())
+	got, err := getpersona.New(store).Execute(context.Background(), domaintest.Staff(want.TaxPracticeID()), want.ID())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -82,13 +82,13 @@ func TestExecute_Success(t *testing.T) {
 		t.Errorf("persona mismatch (-want +got):\n%s", diff)
 	}
 
-	if store.collectorID != testCollectorID {
-		t.Errorf("read from collector %s, want the actor's collector %s", store.collectorID, testCollectorID)
+	if store.taxPracticeID != testTaxPracticeID {
+		t.Errorf("read from tax practice %s, want the actor's tax practice %s", store.taxPracticeID, testTaxPracticeID)
 	}
 }
 
 func TestExecute_NotFound(t *testing.T) {
-	got, err := getpersona.New(&personaStub{}).Execute(context.Background(), domaintest.Staff(testCollectorID), domain.PersonaID(uuid.New()))
+	got, err := getpersona.New(&personaStub{}).Execute(context.Background(), domaintest.Staff(testTaxPracticeID), domain.PersonaID(uuid.New()))
 	if !errors.Is(err, domain.ErrPersonaNotFound) {
 		t.Errorf("err = %v, want %v", err, domain.ErrPersonaNotFound)
 	}
@@ -101,7 +101,7 @@ func TestExecute_NotFound(t *testing.T) {
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := getpersona.New(failingStore{err: boom}).Execute(context.Background(), domaintest.Staff(testCollectorID), domain.PersonaID(uuid.New()))
+	_, err := getpersona.New(failingStore{err: boom}).Execute(context.Background(), domaintest.Staff(testTaxPracticeID), domain.PersonaID(uuid.New()))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want it to wrap %v", err, boom)
 	}
@@ -112,7 +112,7 @@ type untouchedStore struct {
 	t *testing.T
 }
 
-func (s untouchedStore) For(domain.CollectorID) outbound.PersonaRepository {
+func (s untouchedStore) For(domain.TaxPracticeID) outbound.PersonaRepository {
 	s.t.Helper()
 	s.t.Fatal("store was used, want the actor rejected before")
 
@@ -120,10 +120,10 @@ func (s untouchedStore) For(domain.CollectorID) outbound.PersonaRepository {
 }
 
 // Only staff may see personas. The actor is rejected before the store is asked, so a client does not even learn
-// whether its collector exists.
+// whether its tax practice exists.
 func TestExecute_Forbidden(t *testing.T) {
 	for name, actor := range map[string]domain.Actor{
-		"client": domaintest.Client(testCollectorID),
+		"client": domaintest.Client(testTaxPracticeID),
 		"zero":   {},
 	} {
 		t.Run(name, func(t *testing.T) {

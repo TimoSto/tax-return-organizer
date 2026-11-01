@@ -1,4 +1,4 @@
-package collector_test
+package taxpractice_test
 
 import (
 	"context"
@@ -8,39 +8,39 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/taxpractice"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-type getFunc func(context.Context, domain.Actor) (*domain.Collector, error)
+type getFunc func(context.Context, domain.Actor) (*domain.TaxPractice, error)
 
-func (f getFunc) Execute(ctx context.Context, actor domain.Actor) (*domain.Collector, error) {
+func (f getFunc) Execute(ctx context.Context, actor domain.Actor) (*domain.TaxPractice, error) {
 	return f(ctx, actor)
 }
 
 func doGet(t *testing.T, get getFunc, method string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	req := httptest.NewRequest(method, "/collector", nil)
+	req := httptest.NewRequest(method, "/tax-practice", nil)
 	req = req.WithContext(httpx.WithActor(req.Context(), domaintest.Staff(testID)))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
-	route := collector.Get(get)
+	route := taxpractice.Get(get)
 	mux.Handle(route.Pattern, route.Handler)
 	mux.ServeHTTP(rec, req)
 
 	return rec
 }
 
-func TestGetCollector_OK(t *testing.T) {
-	var gotID domain.CollectorID
+func TestGetTaxPractice_OK(t *testing.T) {
+	var gotID domain.TaxPracticeID
 
-	rec := doGet(t, func(_ context.Context, actor domain.Actor) (*domain.Collector, error) {
-		gotID = actor.CollectorID()
+	rec := doGet(t, func(_ context.Context, actor domain.Actor) (*domain.TaxPractice, error) {
+		gotID = actor.TaxPracticeID()
 
-		return domaintest.Collector(testID, "Jane", "jane@example.com"), nil
+		return domaintest.TaxPractice(testID, "Jane", "jane@example.com"), nil
 	}, http.MethodGet)
 
 	if rec.Code != http.StatusOK {
@@ -48,7 +48,7 @@ func TestGetCollector_OK(t *testing.T) {
 	}
 
 	if gotID != testID {
-		t.Errorf("use case got collector %v, want %v", gotID, testID)
+		t.Errorf("use case got tax practice %v, want %v", gotID, testID)
 	}
 
 	want := `{"id":"` + testID.String() + `","name":"Jane","email":"jane@example.com"}`
@@ -57,19 +57,19 @@ func TestGetCollector_OK(t *testing.T) {
 	}
 }
 
-func TestGetCollector_Errors(t *testing.T) {
+func TestGetTaxPractice_Errors(t *testing.T) {
 	tests := []struct {
 		name    string
 		portErr error
 		want    int
 	}{
-		{"not found", domain.ErrCollectorNotFound, http.StatusNotFound},
+		{"not found", domain.ErrTaxPracticeNotFound, http.StatusNotFound},
 		{"internal", errors.New("db down"), http.StatusInternalServerError},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := doGet(t, func(context.Context, domain.Actor) (*domain.Collector, error) {
+			rec := doGet(t, func(context.Context, domain.Actor) (*domain.TaxPractice, error) {
 				return nil, tt.portErr
 			}, http.MethodGet)
 
@@ -80,7 +80,7 @@ func TestGetCollector_Errors(t *testing.T) {
 	}
 }
 
-func TestGetCollector_MethodNotAllowed(t *testing.T) {
+func TestGetTaxPractice_MethodNotAllowed(t *testing.T) {
 	rec := doGet(t, nil, http.MethodPost)
 
 	if rec.Code != http.StatusMethodNotAllowed {

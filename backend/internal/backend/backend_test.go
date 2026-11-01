@@ -34,7 +34,7 @@ func TestRun(t *testing.T) {
 
 	waitForServer(t, addr)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://"+addr+"/collectors",
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://"+addr+"/tax-practices",
 		strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
 	if err != nil {
 		t.Fatal(err)

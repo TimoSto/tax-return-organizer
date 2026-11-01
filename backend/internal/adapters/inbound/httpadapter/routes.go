@@ -7,19 +7,19 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/collector"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/health"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/taxpractice"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/port/inbound"
 )
 
 // Deps are the use cases the endpoints call.
 type Deps struct {
-	CreateCollector inbound.CreateCollector
-	GetCollector    inbound.GetCollector
-	GetPersona      inbound.GetPersona
-	ListPersonas    inbound.ListPersonas
+	CreateTaxPractice inbound.CreateTaxPractice
+	GetTaxPractice    inbound.GetTaxPractice
+	GetPersona        inbound.GetPersona
+	ListPersonas      inbound.ListPersonas
 	// Sessions resolves the bearer token of every route that is not public.
 	// TODO(auth): make it an inbound.ResolveSession.
 	Sessions SessionResolver
@@ -52,8 +52,8 @@ func Routes(d Deps) []httpx.Route {
 	return []httpx.Route{
 		health.Liveness(),
 		health.Readiness(d.Readiness),
-		collector.Create(d.CreateCollector),
-		collector.Get(d.GetCollector),
+		taxpractice.Create(d.CreateTaxPractice),
+		taxpractice.Get(d.GetTaxPractice),
 		persona.Get(d.GetPersona),
 		persona.List(d.ListPersonas),
 	}

@@ -13,11 +13,11 @@ import (
 const idParam = "id"
 
 type getResponse struct {
-	ID          string         `json:"id"`
-	CollectorID string         `json:"collectorId"`
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Items       []itemResponse `json:"items"`
+	ID            string         `json:"id"`
+	TaxPracticeID string         `json:"taxPracticeId"`
+	Name          string         `json:"name"`
+	Description   string         `json:"description"`
+	Items         []itemResponse `json:"items"`
 }
 
 // itemResponse carries exactly the spec that matches kind, the other one is null. A non-empty instanceFields makes
@@ -84,11 +84,11 @@ func newGetResponse(p *domain.Persona) getResponse {
 	}
 
 	return getResponse{
-		ID:          p.ID().String(),
-		CollectorID: p.CollectorID().String(),
-		Name:        p.Name(),
-		Description: p.Description(),
-		Items:       items,
+		ID:            p.ID().String(),
+		TaxPracticeID: p.TaxPracticeID().String(),
+		Name:          p.Name(),
+		Description:   p.Description(),
+		Items:         items,
 	}
 }
 

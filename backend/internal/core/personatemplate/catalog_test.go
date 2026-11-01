@@ -63,12 +63,12 @@ func TestPredefined_InstantiateUsesLocale(t *testing.T) {
 	}
 }
 
-// instantiate copies tmpl to a collector with random ids.
+// instantiate copies tmpl to a tax practice with random ids.
 func instantiate(tmpl pt.PersonaTemplate, l locale.Locale) (*domain.Persona, error) {
 	itemIDs := make([]domain.ItemID, len(tmpl.Items))
 	for i := range itemIDs {
 		itemIDs[i] = domain.ItemID(uuid.New())
 	}
 
-	return tmpl.Instantiate(testCollectorID, l, domain.PersonaID(uuid.New()), itemIDs)
+	return tmpl.Instantiate(testTaxPracticeID, l, domain.PersonaID(uuid.New()), itemIDs)
 }

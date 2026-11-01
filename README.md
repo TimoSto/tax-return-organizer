@@ -4,16 +4,16 @@
 
 This repository hold services to help you organize documents for your tax return. It is used by two personas:
 
-1. The collector: defines which documents and information a client must provide
+1. The tax practice: defines which documents and information a client must provide
 2. The client: uploads the files and enters necessary data
 
 ### Personas & tenancy
 
-This is a multi-tenant (SaaS-style) system: there can be many Collectors (e.g. different tax advisories), each managing their own set of Clients. A Collector is a company: several of its employees work in the same tenant. Clients log in to their Collector's tenant as themselves (one login per Client) and only see their own data. A login belongs to exactly one Collector: a person who is a client of two Collectors has a separate login at each.
+This is a multi-tenant (SaaS-style) system: there can be many Tax Practices (e.g. different tax advisories), each managing their own set of Clients. A Tax Practice is a company: several of its employees work in the same tenant. Clients log in to their Tax Practice's tenant as themselves (one login per Client) and only see their own data. A login belongs to exactly one Tax Practice: a person who is a client of two Tax Practices has a separate login at each.
 
-## Usage by Collector
+## Usage by Tax Practice
 
-### Usecase *"Setup a Collector account"*:
+### Usecase *"Setup a Tax Practice account"*:
 
 Done by the operator of the system, there is no self-service signup:
 
@@ -25,8 +25,8 @@ Done by the operator of the system, there is no self-service signup:
 
 - Client Personas represent the documents and information a client has to provide, if they do things, that are tax relevant
 - Examples would be *Employed*, *Letting*, *Self-employed* or *ETF investing*
-- The collector defines which documents and data (in form of defined structural data) the Personas need to provide and if the data needs to be provided monthly, quarterly, semi-annualy or annualy
-- An item can be marked as repeatable when a client may have to provide it several times, e.g. a bank statement per bank account. For such an item the collector defines instance fields (e.g. *IBAN*); the first one labels the instance
+- The tax practice defines which documents and data (in form of defined structural data) the Personas need to provide and if the data needs to be provided monthly, quarterly, semi-annualy or annualy
+- An item can be marked as repeatable when a client may have to provide it several times, e.g. a bank statement per bank account. For such an item the tax practice defines instance fields (e.g. *IBAN*); the first one labels the instance
 - Some Client Personas should come preconfigured as templates
 
 ### Usecase *"Create a Client"*:
@@ -49,7 +49,7 @@ Done by the operator of the system, there is no self-service signup:
 
 ### Usecase *"Close Client Tax Year"*:
 
-- The Collector can only close the tax year once every item is satisfied; while items are outstanding, closing is rejected
+- The Tax Practice can only close the tax year once every item is satisfied; while items are outstanding, closing is rejected
 - After this the client cannot alter the files/data anymore
 
 ## Usage by Client
@@ -58,7 +58,7 @@ Done by the operator of the system, there is no self-service signup:
 
 - The Client needs to see all files and data they need to provide for a tax year
 - They should not see the *Persona* layer, only the documents and data
-- Each instance of a repeatable item is shown as a separate item, labeled with the value the collector entered (e.g. the bank account number)
+- Each instance of a repeatable item is shown as a separate item, labeled with the value the tax practice entered (e.g. the bank account number)
 - They need to see which items are still open and which are satisfied
 
 ### Usecase *"Upload files"*:

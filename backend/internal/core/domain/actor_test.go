@@ -13,22 +13,22 @@ func TestActor(t *testing.T) {
 	user := domain.UserID(uuid.New())
 
 	for _, tc := range []struct {
-		name      string
-		actor     domain.Actor
-		role      domain.Role
-		collector domain.CollectorID
-		user      domain.UserID
-		staffErr  error
+		name        string
+		actor       domain.Actor
+		role        domain.Role
+		taxPractice domain.TaxPracticeID
+		user        domain.UserID
+		staffErr    error
 	}{
-		{"staff", domain.NewStaffActor(testCollectorID, user), domain.RoleStaff, testCollectorID, user, nil},
-		{"client", domain.NewClientActor(testCollectorID, user), domain.RoleClient, testCollectorID, user, domain.ErrForbidden},
-		{"zero", domain.Actor{}, 0, domain.CollectorID{}, domain.UserID{}, domain.ErrForbidden},
+		{"staff", domain.NewStaffActor(testTaxPracticeID, user), domain.RoleStaff, testTaxPracticeID, user, nil},
+		{"client", domain.NewClientActor(testTaxPracticeID, user), domain.RoleClient, testTaxPracticeID, user, domain.ErrForbidden},
+		{"zero", domain.Actor{}, 0, domain.TaxPracticeID{}, domain.UserID{}, domain.ErrForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a := tc.actor
-			if a.Role() != tc.role || a.CollectorID() != tc.collector || a.UserID() != tc.user {
+			if a.Role() != tc.role || a.TaxPracticeID() != tc.taxPractice || a.UserID() != tc.user {
 				t.Errorf("actor = (%v, %v, %v), want (%v, %v, %v)",
-					a.Role(), a.CollectorID(), a.UserID(), tc.role, tc.collector, tc.user)
+					a.Role(), a.TaxPracticeID(), a.UserID(), tc.role, tc.taxPractice, tc.user)
 			}
 
 			if err := a.RequireStaff(); !errors.Is(err, tc.staffErr) {

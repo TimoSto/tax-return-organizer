@@ -1,3 +1,3 @@
 DROP TABLE item_definitions;
 DROP TABLE personas;
-DROP TABLE collectors;
+DROP TABLE tax_practices;

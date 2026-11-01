@@ -1,5 +1,5 @@
-// Package createcollector implements the use case of creating a new collector.
-package createcollector
+// Package createtaxpractice implements the use case of creating a new tax practice.
+package createtaxpractice
 
 import (
 	"context"
@@ -14,58 +14,58 @@ import (
 
 // Repositories are the repositories the use case writes through, inside one transaction.
 type Repositories struct {
-	Collectors outbound.CollectorRepository
-	Personas   outbound.PersonaStore
+	TaxPractices outbound.TaxPracticeRepository
+	Personas     outbound.PersonaStore
 }
 
-// Usecase is the createcollector use case.
+// Usecase is the createtaxpractice use case.
 type Usecase struct {
 	tx        outbound.Transactor[Repositories]
 	templates []personatemplate.PersonaTemplate
 	ids       outbound.IDGenerator
 }
 
-var _ inbound.CreateCollector = (*Usecase)(nil)
+var _ inbound.CreateTaxPractice = (*Usecase)(nil)
 
-// New returns a use case that stores collectors, together with a persona per template, through tx.
+// New returns a use case that stores tax practices, together with a persona per template, through tx.
 // ids creates the new ids.
 func New(tx outbound.Transactor[Repositories], templates []personatemplate.PersonaTemplate, ids outbound.IDGenerator) *Usecase {
 	return &Usecase{tx: tx, templates: templates, ids: ids}
 }
 
-// Execute creates and persists a collector with the predefined personas in the requested locale and returns its id.
-// The collector and its personas are saved in one transaction: on an error nothing is stored, so a retry is safe.
-func (u *Usecase) Execute(ctx context.Context, cmd inbound.CreateCollectorCommand) (domain.CollectorID, error) {
+// Execute creates and persists a tax practice with the predefined personas in the requested locale and returns its id.
+// The tax practice and its personas are saved in one transaction: on an error nothing is stored, so a retry is safe.
+func (u *Usecase) Execute(ctx context.Context, cmd inbound.CreateTaxPracticeCommand) (domain.TaxPracticeID, error) {
 	l, err := locale.ParseLocale(cmd.Locale)
 	if err != nil {
-		return domain.CollectorID{}, err
+		return domain.TaxPracticeID{}, err
 	}
 
-	id, err := u.ids.NewCollectorID()
+	id, err := u.ids.NewTaxPracticeID()
 	if err != nil {
-		return domain.CollectorID{}, err
+		return domain.TaxPracticeID{}, err
 	}
 
 	ids, err := u.newPersonaIDs()
 	if err != nil {
-		return domain.CollectorID{}, err
+		return domain.TaxPracticeID{}, err
 	}
 
-	c, err := domain.NewCollector(id, cmd.Name, cmd.Email)
+	c, err := domain.NewTaxPractice(id, cmd.Name, cmd.Email)
 	if err != nil {
-		return domain.CollectorID{}, err
+		return domain.TaxPracticeID{}, err
 	}
 
 	personas, err := u.personas(id, l, ids)
 	if err != nil {
-		return domain.CollectorID{}, err
+		return domain.TaxPracticeID{}, err
 	}
 
 	err = u.tx.InTx(ctx, func(ctx context.Context, repos Repositories) error {
 		return save(ctx, repos, c, personas)
 	})
 	if err != nil {
-		return domain.CollectorID{}, err
+		return domain.TaxPracticeID{}, err
 	}
 
 	return id, nil
@@ -99,8 +99,8 @@ func (u *Usecase) newPersonaIDs() ([]personaIDs, error) {
 	return all, nil
 }
 
-// personas instantiates a persona per template for the collector.
-func (u *Usecase) personas(id domain.CollectorID, l locale.Locale, ids []personaIDs) ([]*domain.Persona, error) {
+// personas instantiates a persona per template for the tax practice.
+func (u *Usecase) personas(id domain.TaxPracticeID, l locale.Locale, ids []personaIDs) ([]*domain.Persona, error) {
 	personas := make([]*domain.Persona, 0, len(u.templates))
 
 	for i, tmpl := range u.templates {
@@ -115,9 +115,9 @@ func (u *Usecase) personas(id domain.CollectorID, l locale.Locale, ids []persona
 	return personas, nil
 }
 
-func save(ctx context.Context, repos Repositories, c *domain.Collector, personas []*domain.Persona) error {
-	if err := repos.Collectors.SaveCollector(ctx, c); err != nil {
-		return fmt.Errorf("save collector: %w", err)
+func save(ctx context.Context, repos Repositories, c *domain.TaxPractice, personas []*domain.Persona) error {
+	if err := repos.TaxPractices.SaveTaxPractice(ctx, c); err != nil {
+		return fmt.Errorf("save tax practice: %w", err)
 	}
 
 	for _, p := range personas {

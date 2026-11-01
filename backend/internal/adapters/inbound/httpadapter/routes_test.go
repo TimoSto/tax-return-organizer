@@ -15,13 +15,13 @@ import (
 
 type stubDeps struct{}
 
-func (stubDeps) Execute(context.Context, inbound.CreateCollectorCommand) (domain.CollectorID, error) {
-	return domain.CollectorID{}, nil
+func (stubDeps) Execute(context.Context, inbound.CreateTaxPracticeCommand) (domain.TaxPracticeID, error) {
+	return domain.TaxPracticeID{}, nil
 }
 
-type stubGetCollector struct{}
+type stubGetTaxPractice struct{}
 
-func (stubGetCollector) Execute(context.Context, domain.Actor) (*domain.Collector, error) {
+func (stubGetTaxPractice) Execute(context.Context, domain.Actor) (*domain.TaxPractice, error) {
 	return nil, nil
 }
 
@@ -43,12 +43,12 @@ func (stubPinger) Ping(context.Context) error { return nil }
 
 func fullDeps() httpadapter.Deps {
 	return httpadapter.Deps{
-		CreateCollector: stubDeps{},
-		GetCollector:    stubGetCollector{},
-		GetPersona:      stubGetPersona{},
-		ListPersonas:    stubListPersonas{},
-		Sessions:        httpadapter.RejectAllSessions{}, // TODO(auth): a stub of inbound.ResolveSession
-		Readiness:       stubPinger{},
+		CreateTaxPractice: stubDeps{},
+		GetTaxPractice:    stubGetTaxPractice{},
+		GetPersona:        stubGetPersona{},
+		ListPersonas:      stubListPersonas{},
+		Sessions:          httpadapter.RejectAllSessions{}, // TODO(auth): a stub of inbound.ResolveSession
+		Readiness:         stubPinger{},
 	}
 }
 
@@ -65,7 +65,7 @@ func newHandler(t *testing.T) http.Handler {
 
 func TestNewHandler_RejectsMissingDeps(t *testing.T) {
 	if _, err := httpadapter.NewHandler(httpadapter.Deps{}); err == nil ||
-		!strings.Contains(err.Error(), "CreateCollector, GetCollector, GetPersona, ListPersonas, Sessions, Readiness") {
+		!strings.Contains(err.Error(), "CreateTaxPractice, GetTaxPractice, GetPersona, ListPersonas, Sessions, Readiness") {
 		t.Errorf("err = %v, want all six fields named", err)
 	}
 
@@ -104,7 +104,7 @@ func TestNewHandler(t *testing.T) {
 	}{
 		{http.MethodGet, "/healthz", http.StatusOK},
 		{http.MethodGet, "/readyz", http.StatusOK},
-		{http.MethodGet, "/collectors", http.StatusMethodNotAllowed},
+		{http.MethodGet, "/tax-practices", http.StatusMethodNotAllowed},
 		{http.MethodGet, "/nope", http.StatusNotFound},
 	} {
 		rec := httptest.NewRecorder()

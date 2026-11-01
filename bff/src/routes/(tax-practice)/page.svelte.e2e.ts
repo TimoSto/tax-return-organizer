@@ -20,11 +20,11 @@ test.beforeAll(async () => {
 			return;
 		}
 
-		if (req.method === 'GET' && req.url === '/collector') {
+		if (req.method === 'GET' && req.url === '/tax-practice') {
 			res.end(
 				JSON.stringify({
 					id: '00000000-0000-4000-8000-00000000aaaa',
-					name: 'Mock Collector',
+					name: 'Mock Tax Practice',
 					email: 'mock@example.com'
 				})
 			);
@@ -33,7 +33,7 @@ test.beforeAll(async () => {
 		}
 
 		res.statusCode = 404;
-		res.end(JSON.stringify({ error: 'collector not found' }));
+		res.end(JSON.stringify({ error: 'tax practice not found' }));
 	});
 
 	await new Promise<void>((resolve) => backend.listen(MOCK_BACKEND_PORT, resolve));
@@ -43,7 +43,7 @@ test.afterAll(async () => {
 	await new Promise((resolve) => backend.close(resolve));
 });
 
-test('shows the collector name', async ({ page }) => {
-	await page.goto('/advisor');
-	await expect(page.locator('h1')).toHaveText('Mock Collector');
+test('shows the tax practice name', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.locator('h1')).toHaveText('Mock Tax Practice');
 });

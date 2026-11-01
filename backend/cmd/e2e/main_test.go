@@ -16,7 +16,7 @@ func TestStaticSessions(t *testing.T) {
 		t.Fatalf("sessionToken: ok = %v, err = %v, want resolved", ok, err)
 	}
 
-	if want := domain.NewStaffActor(defaultCollectorID, employeeAID); actor != want {
+	if want := domain.NewStaffActor(defaultTaxPracticeID, employeeAID); actor != want {
 		t.Errorf("actor = %+v, want employeeA %+v", actor, want)
 	}
 

@@ -18,24 +18,24 @@ import (
 )
 
 var (
-	// testCollectorID is the collector the tests act for.
-	testCollectorID = domaintest.CollectorID()
+	// testTaxPracticeID is the tax practice the tests act for.
+	testTaxPracticeID = domaintest.TaxPracticeID()
 )
 
 func newStore(pool *pgxpool.Pool) porttest.PersonaStoreFactory {
-	return func(t *testing.T, collectors ...domain.CollectorID) outbound.PersonaStore {
+	return func(t *testing.T, taxPractices ...domain.TaxPracticeID) outbound.PersonaStore {
 		ctx := context.Background()
 
-		// personas reference collectors, so both tables are reset and the collectors re-seeded.
-		if _, err := pool.Exec(ctx, `TRUNCATE personas, collectors CASCADE`); err != nil {
+		// personas reference tax practices, so both tables are reset and the tax practices re-seeded.
+		if _, err := pool.Exec(ctx, `TRUNCATE personas, tax_practices CASCADE`); err != nil {
 			t.Fatalf("truncate: %v", err)
 		}
 
-		for _, id := range collectors {
+		for _, id := range taxPractices {
 			if _, err := pool.Exec(ctx,
-				`INSERT INTO collectors (id, name, email) VALUES ($1, $2, $3)`,
-				uuid.UUID(id), "Collector "+id.String(), id.String()+"@example.com"); err != nil {
-				t.Fatalf("seed collector %s: %v", id, err)
+				`INSERT INTO tax_practices (id, name, email) VALUES ($1, $2, $3)`,
+				uuid.UUID(id), "TaxPractice "+id.String(), id.String()+"@example.com"); err != nil {
+				t.Fatalf("seed tax practice %s: %v", id, err)
 			}
 		}
 
@@ -55,8 +55,8 @@ func TestPersonaRepositoryIsolation(t *testing.T) {
 	porttest.TestPersonaRepositoryIsolation(t, newStore(postgrestest.RequirePool(t)))
 }
 
-func TestPersonaRepositoryUnknownCollector(t *testing.T) {
-	porttest.TestPersonaRepositoryUnknownCollector(t, newStore(postgrestest.RequirePool(t)))
+func TestPersonaRepositoryUnknownTaxPractice(t *testing.T) {
+	porttest.TestPersonaRepositoryUnknownTaxPractice(t, newStore(postgrestest.RequirePool(t)))
 }
 
 // A JSON null literal passes the "spec matches kind" check, so only the object check can reject it.
@@ -64,17 +64,17 @@ func TestItemDefinitions_SpecsMustBeJSONObjects(t *testing.T) {
 	pool := postgrestest.RequirePool(t)
 	ctx := context.Background()
 
-	if _, err := pool.Exec(ctx, `TRUNCATE personas, collectors CASCADE`); err != nil {
+	if _, err := pool.Exec(ctx, `TRUNCATE personas, tax_practices CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 
 	personaID := uuid.New()
 
-	if _, err := pool.Exec(ctx, `INSERT INTO collectors (id, name, email) VALUES ($1, 'A', 'a@example.com')`, uuid.UUID(testCollectorID)); err != nil {
-		t.Fatalf("seed collector: %v", err)
+	if _, err := pool.Exec(ctx, `INSERT INTO tax_practices (id, name, email) VALUES ($1, 'A', 'a@example.com')`, uuid.UUID(testTaxPracticeID)); err != nil {
+		t.Fatalf("seed tax practice: %v", err)
 	}
 
-	if _, err := pool.Exec(ctx, `INSERT INTO personas (id, collector_id, name) VALUES ($1, $2, 'Employed')`, personaID, uuid.UUID(testCollectorID)); err != nil {
+	if _, err := pool.Exec(ctx, `INSERT INTO personas (id, tax_practice_id, name) VALUES ($1, $2, 'Employed')`, personaID, uuid.UUID(testTaxPracticeID)); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
@@ -90,9 +90,9 @@ func TestItemDefinitions_SpecsMustBeJSONObjects(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := pool.Exec(ctx,
-				`INSERT INTO item_definitions (id, persona_id, collector_id, position, title, kind, recurrence, `+tc.column+`)
+				`INSERT INTO item_definitions (id, persona_id, tax_practice_id, position, title, kind, recurrence, `+tc.column+`)
 				 VALUES ($1, $2, $3, 0, 'Item', $4, 'monthly', $5::jsonb)`,
-				uuid.New(), personaID, uuid.UUID(testCollectorID), tc.kind, tc.value)
+				uuid.New(), personaID, uuid.UUID(testTaxPracticeID), tc.kind, tc.value)
 
 			if (err != nil) != tc.wantErr {
 				t.Errorf("insert error = %v, wantErr %v", err, tc.wantErr)
@@ -101,40 +101,40 @@ func TestItemDefinitions_SpecsMustBeJSONObjects(t *testing.T) {
 	}
 }
 
-// The composite foreign key ties an item to the collector of its persona, independent of the repository's SQL.
-func TestItemDefinitions_CollectorMustMatchPersona(t *testing.T) {
+// The composite foreign key ties an item to the tax practice of its persona, independent of the repository's SQL.
+func TestItemDefinitions_TaxPracticeMustMatchPersona(t *testing.T) {
 	pool := postgrestest.RequirePool(t)
 	ctx := context.Background()
 
-	if _, err := pool.Exec(ctx, `TRUNCATE personas, collectors CASCADE`); err != nil {
+	if _, err := pool.Exec(ctx, `TRUNCATE personas, tax_practices CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
 
 	alice, bob, personaID := uuid.New(), uuid.New(), uuid.New()
 
 	for _, id := range []uuid.UUID{alice, bob} {
-		if _, err := pool.Exec(ctx, `INSERT INTO collectors (id, name, email) VALUES ($1, 'C', 'c@example.com')`, id); err != nil {
-			t.Fatalf("seed collector: %v", err)
+		if _, err := pool.Exec(ctx, `INSERT INTO tax_practices (id, name, email) VALUES ($1, 'C', 'c@example.com')`, id); err != nil {
+			t.Fatalf("seed tax practice: %v", err)
 		}
 	}
 
-	if _, err := pool.Exec(ctx, `INSERT INTO personas (id, collector_id, name) VALUES ($1, $2, 'Employed')`, personaID, alice); err != nil {
+	if _, err := pool.Exec(ctx, `INSERT INTO personas (id, tax_practice_id, name) VALUES ($1, $2, 'Employed')`, personaID, alice); err != nil {
 		t.Fatalf("seed persona: %v", err)
 	}
 
 	for _, tc := range []struct {
-		name      string
-		collector uuid.UUID
-		wantErr   bool
+		name        string
+		taxPractice uuid.UUID
+		wantErr     bool
 	}{
-		{"collector of the persona", alice, false},
-		{"another collector", bob, true},
+		{"tax practice of the persona", alice, false},
+		{"another tax practice", bob, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := pool.Exec(ctx,
-				`INSERT INTO item_definitions (id, persona_id, collector_id, position, title, kind, recurrence, document_spec)
+				`INSERT INTO item_definitions (id, persona_id, tax_practice_id, position, title, kind, recurrence, document_spec)
 				 VALUES ($1, $2, $3, 0, 'Item', 'document', 'monthly', '{}')`,
-				uuid.New(), personaID, tc.collector)
+				uuid.New(), personaID, tc.taxPractice)
 
 			if !tc.wantErr {
 				if err != nil {

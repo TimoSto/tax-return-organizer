@@ -1,4 +1,4 @@
-CREATE TABLE collectors (
+CREATE TABLE tax_practices (
     id    uuid PRIMARY KEY,
     name  text NOT NULL,
     email text NOT NULL
@@ -6,23 +6,23 @@ CREATE TABLE collectors (
 
 CREATE TABLE personas (
     id           uuid PRIMARY KEY,
-    collector_id uuid NOT NULL REFERENCES collectors (id),
+    tax_practice_id uuid NOT NULL REFERENCES tax_practices (id),
     name         text NOT NULL,
     description  text NOT NULL DEFAULT '',
     -- The id alone is unique already. This is the target of the composite foreign keys of child tables, which tie
-    -- a child to the collector of its persona.
-    CONSTRAINT personas_id_collector_id_key UNIQUE (id, collector_id)
+    -- a child to the tax practice of its persona.
+    CONSTRAINT personas_id_tax_practice_id_key UNIQUE (id, tax_practice_id)
 );
 
-CREATE INDEX personas_collector_id_idx ON personas (collector_id);
+CREATE INDEX personas_tax_practice_id_idx ON personas (tax_practice_id);
 
 -- Item ids are unique per persona, not globally, so an id of another persona (or tenant) can never clash.
 CREATE TABLE item_definitions (
     id            uuid NOT NULL,
     persona_id    uuid NOT NULL,
-    -- Every tenant table carries its collector. The foreign key below makes it the collector of the persona, so the
-    -- database refuses an item under a persona of another collector, whatever the statement says.
-    collector_id  uuid NOT NULL,
+    -- Every tenant table carries its tax practice. The foreign key below makes it the tax practice of the persona,
+    -- so the database refuses an item under a persona of another tax practice, whatever the statement says.
+    tax_practice_id uuid NOT NULL,
     position      int  NOT NULL,
     title         text NOT NULL,
     -- Which kinds and recurrences exist is domain logic: the repository validates them when it reads a row.
@@ -44,8 +44,8 @@ CREATE TABLE item_definitions (
         CHECK (value_spec IS NULL OR jsonb_typeof(value_spec) = 'object'),
     CONSTRAINT item_definitions_instance_fields_array
         CHECK (jsonb_typeof(instance_fields) = 'array'),
-    CONSTRAINT item_definitions_persona_fkey FOREIGN KEY (persona_id, collector_id)
-        REFERENCES personas (id, collector_id) ON DELETE CASCADE,
+    CONSTRAINT item_definitions_persona_fkey FOREIGN KEY (persona_id, tax_practice_id)
+        REFERENCES personas (id, tax_practice_id) ON DELETE CASCADE,
     PRIMARY KEY (persona_id, id)
 );
 

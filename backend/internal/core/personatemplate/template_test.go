@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	// testCollectorID is the collector the tests act for.
-	testCollectorID = domaintest.CollectorID()
+	// testTaxPracticeID is the tax practice the tests act for.
+	testTaxPracticeID = domaintest.TaxPracticeID()
 )
 
 func TestInstantiate_RejectsItemWithoutSpec(t *testing.T) {
@@ -108,7 +108,7 @@ func TestInstantiate_UsesTheGivenIDs(t *testing.T) {
 		},
 	}
 
-	p, err := tmpl.Instantiate(testCollectorID, locale.LocaleEN, personaID, itemIDs)
+	p, err := tmpl.Instantiate(testTaxPracticeID, locale.LocaleEN, personaID, itemIDs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestInstantiate_UsesTheGivenIDs(t *testing.T) {
 func TestInstantiate_RejectsWrongNumberOfItemIDs(t *testing.T) {
 	tmpl := pt.Predefined()[0]
 
-	if _, err := tmpl.Instantiate(testCollectorID, locale.LocaleEN, domain.PersonaID{1}, nil); err == nil {
+	if _, err := tmpl.Instantiate(testTaxPracticeID, locale.LocaleEN, domain.PersonaID{1}, nil); err == nil {
 		t.Error("expected an error")
 	}
 }

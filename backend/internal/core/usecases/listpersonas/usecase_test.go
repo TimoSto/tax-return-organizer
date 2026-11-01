@@ -13,19 +13,19 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
 )
 
-// testCollectorID is the collector the tests act for.
-var testCollectorID = domaintest.CollectorID()
+// testTaxPracticeID is the tax practice the tests act for.
+var testTaxPracticeID = domaintest.TaxPracticeID()
 
-// personaStub is a persona store whose repositories list the personas it holds, whatever collector they are bound
-// to: tenant isolation and the unknown collector are the store's job and covered by the repository contract tests.
-// It remembers the collector of the last For.
+// personaStub is a persona store whose repositories list the personas it holds, whatever tax practice they are bound
+// to: tenant isolation and the unknown tax practice are the store's job and covered by the repository contract tests.
+// It remembers the tax practice of the last For.
 type personaStub struct {
-	personas    []*domain.Persona
-	collectorID domain.CollectorID
+	personas      []*domain.Persona
+	taxPracticeID domain.TaxPracticeID
 }
 
-func (s *personaStub) For(id domain.CollectorID) outbound.PersonaRepository {
-	s.collectorID = id
+func (s *personaStub) For(id domain.TaxPracticeID) outbound.PersonaRepository {
+	s.taxPracticeID = id
 
 	return s
 }
@@ -47,7 +47,7 @@ type failingStore struct {
 	err error
 }
 
-func (s failingStore) For(domain.CollectorID) outbound.PersonaRepository { return failingRepo(s) }
+func (s failingStore) For(domain.TaxPracticeID) outbound.PersonaRepository { return failingRepo(s) }
 
 type failingRepo struct {
 	err error
@@ -63,12 +63,12 @@ func (failingRepo) SavePersona(context.Context, *domain.Persona) error { return 
 
 func TestExecute_Success(t *testing.T) {
 	want := []*domain.Persona{
-		domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Employed", "Has a job"),
-		domaintest.Persona(domaintest.PersonaID(), testCollectorID, "Letting", ""),
+		domaintest.Persona(domaintest.PersonaID(), testTaxPracticeID, "Employed", "Has a job"),
+		domaintest.Persona(domaintest.PersonaID(), testTaxPracticeID, "Letting", ""),
 	}
 	store := &personaStub{personas: want}
 
-	got, err := listpersonas.New(store).Execute(context.Background(), domaintest.Staff(testCollectorID))
+	got, err := listpersonas.New(store).Execute(context.Background(), domaintest.Staff(testTaxPracticeID))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -77,15 +77,15 @@ func TestExecute_Success(t *testing.T) {
 		t.Errorf("personas mismatch (-want +got):\n%s", diff)
 	}
 
-	if store.collectorID != testCollectorID {
-		t.Errorf("listed collector %s, want the actor's collector %s", store.collectorID, testCollectorID)
+	if store.taxPracticeID != testTaxPracticeID {
+		t.Errorf("listed tax practice %s, want the actor's tax practice %s", store.taxPracticeID, testTaxPracticeID)
 	}
 }
 
 func TestExecute_RepositoryError(t *testing.T) {
 	boom := errors.New("boom")
 
-	_, err := listpersonas.New(failingStore{err: boom}).Execute(context.Background(), domaintest.Staff(testCollectorID))
+	_, err := listpersonas.New(failingStore{err: boom}).Execute(context.Background(), domaintest.Staff(testTaxPracticeID))
 	if !errors.Is(err, boom) {
 		t.Errorf("err = %v, want wrapped %v", err, boom)
 	}
@@ -96,7 +96,7 @@ type untouchedStore struct {
 	t *testing.T
 }
 
-func (s untouchedStore) For(domain.CollectorID) outbound.PersonaRepository {
+func (s untouchedStore) For(domain.TaxPracticeID) outbound.PersonaRepository {
 	s.t.Helper()
 	s.t.Fatal("store was used, want the actor rejected before")
 
@@ -104,10 +104,10 @@ func (s untouchedStore) For(domain.CollectorID) outbound.PersonaRepository {
 }
 
 // Only staff may see personas. The actor is rejected before the store is asked, so a client does not even learn
-// whether its collector exists.
+// whether its tax practice exists.
 func TestExecute_Forbidden(t *testing.T) {
 	for name, actor := range map[string]domain.Actor{
-		"client": domaintest.Client(testCollectorID),
+		"client": domaintest.Client(testTaxPracticeID),
 		"zero":   {},
 	} {
 		t.Run(name, func(t *testing.T) {
