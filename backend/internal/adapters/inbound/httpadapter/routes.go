@@ -21,6 +21,7 @@ type Deps struct {
 	GetPersona      inbound.GetPersona
 	ListPersonas    inbound.ListPersonas
 	// Sessions resolves the bearer token of every route that is not public.
+	// TODO(auth): make it an inbound.ResolveSession.
 	Sessions SessionResolver
 	// Readiness is checked by GET /readyz, normally the database pool.
 	Readiness health.Pinger

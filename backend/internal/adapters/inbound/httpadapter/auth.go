@@ -12,12 +12,16 @@ import (
 // SessionResolver resolves a bearer token to the actor it belongs to. ok is false for an unknown or expired token.
 // It stands in for the inbound port inbound.ResolveSession of docs/AUTHENTICATION.md until there are login and
 // server-side sessions; then that use case takes its place.
+//
+// TODO(auth): delete once inbound.ResolveSession exists; Deps.Sessions and authenticate take that port instead.
 type SessionResolver interface {
 	ResolveSession(ctx context.Context, token string) (actor domain.Actor, ok bool, err error)
 }
 
 // RejectAllSessions resolves no token, so every route that needs a session answers 401. It is the resolver of the
 // production binary until there is login.
+//
+// TODO(auth): delete with SessionResolver; production then resolves through the ResolveSession use case.
 type RejectAllSessions struct{}
 
 // ResolveSession implements SessionResolver.

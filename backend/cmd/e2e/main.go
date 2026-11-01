@@ -33,10 +33,14 @@ var defaultCollectorID = domain.CollectorID(uuid.MustParse("00000000-0000-4000-8
 
 // employeeAID is the user id of employeeA, the employee of the default collector that sessionToken logs in as.
 // There are no accounts yet, so it exists only in the actor.
+//
+// TODO(auth): delete with staticSessions; seed employeeA as a real staff account instead.
 var employeeAID = domain.UserID(uuid.MustParse("00000000-0000-4000-8000-0000000000a1"))
 
 // sessionToken is the bearer token of employeeA's session. It never expires. It stands in for a login until
 // cmd/e2e seeds real accounts (docs/AUTHENTICATION.md).
+//
+// TODO(auth): delete with staticSessions; e2e tests then log in with a seeded account's known password.
 const sessionToken = "e2e-employee-a" //nolint:gosec // a public test token, compiled only with the e2e tag
 
 func main() {
@@ -85,7 +89,7 @@ func runWithContext(ctx context.Context, getenv func(string) string) error {
 
 	cfg := backend.ConfigFromEnv(getenv)
 	cfg.DatabaseURL = dsn
-	cfg.Sessions = staticSessions{}
+	cfg.Sessions = staticSessions{} // TODO(auth): delete with Config.Sessions.
 
 	return backend.Run(ctx, cfg)
 }
@@ -119,6 +123,8 @@ type seedIDs struct{ idgen.Random }
 func (seedIDs) NewCollectorID() (domain.CollectorID, error) { return defaultCollectorID, nil }
 
 // staticSessions resolves sessionToken to employeeA and no other token.
+//
+// TODO(auth): delete, together with TestStaticSessions, once there is login and seed() creates real accounts.
 type staticSessions struct{}
 
 func (staticSessions) ResolveSession(_ context.Context, token string) (domain.Actor, bool, error) {

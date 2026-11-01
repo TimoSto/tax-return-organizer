@@ -47,7 +47,7 @@ func fullDeps() httpadapter.Deps {
 		GetCollector:    stubGetCollector{},
 		GetPersona:      stubGetPersona{},
 		ListPersonas:    stubListPersonas{},
-		Sessions:        httpadapter.RejectAllSessions{},
+		Sessions:        httpadapter.RejectAllSessions{}, // TODO(auth): a stub of inbound.ResolveSession
 		Readiness:       stubPinger{},
 	}
 }

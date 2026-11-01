@@ -43,6 +43,7 @@ type Config struct {
 	HealthCheckPeriod time.Duration
 	// Sessions resolves bearer tokens. It is not read from the environment: nil, as in production, accepts no
 	// token until there is login. Only cmd/e2e sets one.
+	// TODO(auth): delete. wire builds the ResolveSession use case itself, so no binary can inject a resolver.
 	Sessions httpadapter.SessionResolver
 
 	envErr error // unparsable environment values, reported by Validate

@@ -81,6 +81,9 @@ func NewCreateCollector(tx outbound.Transactor[Repositories], ids outbound.IDGen
 // wire builds the use cases on top of the given repositories and returns the HTTP handler exposing them.
 // Reads use repos directly, writes that span several repositories go through tx. ready backs /readyz, sessions
 // resolves the bearer tokens.
+//
+// TODO(auth): drop the sessions parameter and wire Sessions to the ResolveSession use case on repos, like the
+// other use cases.
 func wire(
 	repos Repositories, tx outbound.Transactor[Repositories], ready health.Pinger, sessions httpadapter.SessionResolver,
 ) (http.Handler, error) {
@@ -114,6 +117,7 @@ func Run(ctx context.Context, cfg Config) error {
 
 	ready := &drainingPinger{inner: pool}
 
+	// TODO(auth): delete with Config.Sessions.
 	sessions := cfg.Sessions
 	if sessions == nil {
 		sessions = httpadapter.RejectAllSessions{}

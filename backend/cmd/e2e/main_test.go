@@ -9,6 +9,7 @@ import (
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
+// TODO(auth): delete with staticSessions.
 func TestStaticSessions(t *testing.T) {
 	actor, ok, err := staticSessions{}.ResolveSession(context.Background(), sessionToken)
 	if err != nil || !ok {

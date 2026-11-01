@@ -25,6 +25,8 @@ var unknownCollectorID = domaintest.CollectorID()
 
 // collectorSessions takes the token as a collector id and resolves it to an employee of that collector, so a test
 // can act for any collector.
+//
+// TODO(auth): delete once wire builds ResolveSession; the tests then log in, or seed a session, per collector.
 type collectorSessions struct{}
 
 func (collectorSessions) ResolveSession(_ context.Context, token string) (domain.Actor, bool, error) {
