@@ -12,6 +12,7 @@
 	import Pane from '#lib/components/Pane/Pane.svelte';
 	import { navFor, type Role } from '#lib/nav.js';
 	import favicon from '#lib/assets/favicon.svg';
+	import appleTouchIcon from '#lib/assets/apple-touch-icon.png';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -24,7 +25,8 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href={favicon} type="image/svg+xml" />
+	<link rel="apple-touch-icon" href={appleTouchIcon} />
 </svelte:head>
 
 <div class="md-app shell">
