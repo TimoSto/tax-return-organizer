@@ -48,6 +48,9 @@ func TestPredefined_AllTextsTranslated(t *testing.T) {
 					check("metadata field of "+it.Title.For(locale.DefaultLocale), f.Name)
 				}
 			}
+			for _, f := range it.InstanceFields {
+				check("instance field of "+it.Title.For(locale.DefaultLocale), f.Name)
+			}
 		}
 	}
 }
