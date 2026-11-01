@@ -99,7 +99,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `locale` ← `pers
 
 ### Actors and authorization
 
-Use cases that act within a collector take the caller as a `domain.Actor`: the user (`UserID`), its `Role` and the collector it belongs to. The tenant of the use case is always `actor.CollectorID()`, so a handler cannot pass a tenant that does not belong to the caller. A collector is a company with several employees (`RoleStaff`), and its clients (`RoleClient`) log in to the same tenant. There is one staff role for now. Today a client's user id is its client id. With authentication a person becomes one identity with several memberships (collector + role), the actor is built from one membership and gets its own client id (see [AUTHENTICATION.md](AUTHENTICATION.md)).
+Use cases that act within a collector take the caller as a `domain.Actor`: the user (`UserID`), its `Role` and the collector it belongs to. The tenant of the use case is always `actor.CollectorID()`, so a handler cannot pass a tenant that does not belong to the caller. A collector is a company with several employees (`RoleStaff`), and its clients (`RoleClient`) log in to the same tenant. There is one staff role for now. Today a client's user id is its client id. With authentication an account is either staff of one collector or a client of one or more collectors, never both. The actor is built from one membership and gets its own client id (see [AUTHENTICATION.md](AUTHENTICATION.md)).
 
 **The core decides what an actor may do**, in the use case or in a policy method on `Actor` (`RequireStaff`), so the use case tests cover the rules. Two kinds of refusal:
 

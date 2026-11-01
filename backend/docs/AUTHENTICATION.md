@@ -9,11 +9,11 @@ How users log in, how credentials and sessions are stored, and how a request lik
 | Question | Decision |
 | --- | --- |
 | Separate auth service or part of the backend? | Part of the backend, behind ports. An external OIDC provider can replace it later without touching the use cases. |
-| How are users modelled? | One **identity** (email, credentials) with any number of **memberships** (collector + role, plus the client for clients). A person can be a client of several collectors, and an employee and a client of the same one. |
+| How are users modelled? | One **identity** (email, credentials) of a fixed kind with **memberships** (collector + role, plus the client for clients). An account is either a staff account (employee of exactly one collector) or a client account (client of one or more collectors), never both. |
 | How are passwords stored? | Hashed with argon2id (never encrypted), salted, as a PHC string. Session tokens are stored only as SHA-256 hashes. |
 | Is authentication an outbound port? | Partly. Login is something the core *offers* (inbound port). Hashing, user/membership/session storage are what it *needs* (outbound ports). The HTTP middleware is an inbound adapter. |
 | Basic auth now, 2FA later? | Email and password now. Login is a small state machine with an assurance level on the session, so a second factor plugs in without a redesign. |
-| Collector vs client? | The role sits on the membership. The session is bound to one membership, so every request runs as exactly one `domain.Actor` with one role. |
+| Collector vs client? | The kind is fixed per account and repeated as the role on each membership. The session is bound to one membership, so every request runs as exactly one `domain.Actor` with one role. |
 | How does a request know who is logged in? | The BFF holds the session in an HttpOnly cookie and sends it as a bearer token. A backend middleware resolves it to a `domain.Actor` through the core, and the handler passes the actor to the use case as an argument, as today. |
 | Mock authenticator for e2e? | No auth bypass in any binary. `cmd/e2e` seeds real accounts with known passwords. Unit tests use stubs and a fake hasher, and BFF Playwright tests mock the auth endpoints. |
 
@@ -41,6 +41,7 @@ erDiagram
     users {
         uuid id PK
         text email UK "lower-case"
+        text kind "staff | client, immutable"
         timestamptz created_at
         timestamptz disabled_at "nullable"
     }
@@ -53,7 +54,7 @@ erDiagram
         uuid id PK
         uuid user_id FK
         uuid collector_id FK "ON DELETE CASCADE"
-        text role "staff | client"
+        text role "= users.kind"
         uuid client_id FK "set iff role = client"
     }
     sessions {
@@ -68,14 +69,15 @@ erDiagram
     }
 ```
 
-- **Identity.** A `users` row is a person: an email (unique, stored lower-case) and nothing else. Credentials are in their own tables (`password_credentials` now, `totp_credentials`/`webauthn_credentials` later), so adding a factor adds a table and does not change `users`.
-- **Membership.** What the person is to a collector: `staff` (an employee) or `client` (then `client_id` points at the `Client` record of that collector). The unique key is (`user_id`, `collector_id`, `role`). So one person can
-  - be a client of several collectors (one membership each), and
-  - be an employee **and** a client of the same collector, e.g. an employee who files their own return with the firm.
-- **Session.** It is bound to the identity first and to one membership once a tenant is picked. A request never runs "as a person", always as one membership, so the `Actor` is never ambiguous. With more than one membership the user picks one after login. The picker lists memberships, not collectors ("Kanzlei X – Mitarbeiter", "Kanzlei X – Mandant"), and switching role works the same way as switching tenant.
-  An employee who is also a client sees their own client record in the staff role, like every other client. That is accepted for now and visible in the audit log. Whether they may edit their own tax year as staff is an open question.
+- **Identity.** A `users` row is an account: an email (unique, stored lower-case) and its `kind`, `staff` or `client`. The kind is set when the account is created and never changes. Credentials are in their own tables (`password_credentials` now, `totp_credentials`/`webauthn_credentials` later), so adding a factor adds a table and does not change `users`.
+- **Membership.** What the account is to a collector: `staff` (an employee) or `client` (then `client_id` points at the `Client` record of that collector). An account is **either staff or client, never both**:
+  - a staff account is an employee of **exactly one** collector,
+  - a client account is a client of one or more collectors (one membership each).
+
+  The database enforces this. `memberships.role` must equal the account's kind: a composite foreign key `(user_id, role) → users(id, kind)`, with a unique `(id, kind)` on `users`. The unique key of memberships is (`user_id`, `collector_id`). A partial unique index on `memberships(user_id) WHERE role = 'staff'` limits a staff account to one membership. An employee who files their own return with the firm, or who works for a second firm, uses a separate account with another email.
+- **Session.** It is bound to the identity first and to one membership once a tenant is picked. A request never runs "as a person", always as one membership, so the `Actor` is never ambiguous. Staff accounts and clients of a single collector have exactly one membership, which is bound at login. Only a client of several collectors picks one after login. The picker lists those collectors, and switching collector works the same way.
 - **A collector is not a user.** Its employees are. There is no self-service signup: the operator creates a collector with the `docker create-collector` subcommand, and `createcollector` creates it together with its first staff identity (the owner), who is invited by email. `POST /collectors` is removed from the API then. Further employees and all clients are invited. Clients never register themselves. See [roadmap #3](ARCHITECTURE_ROADMAP.md#3-collectors-are-created-by-the-operator).
-- **Invites.** A collector invites a client by email. If the email has no identity yet, the invite link lets the person set a password. If it already has one, accepting the invite only adds the membership. The collector gets the same answer in both cases, so it cannot find out that the person is known to another collector.
+- **Invites.** A collector invites a client by email. If the email has no identity yet, the invite link lets the person set a password and creates a client account. If it already belongs to a client account, accepting the invite only adds the membership. If it belongs to a staff account, the invite cannot be accepted, and the person is asked at accept time to use another email. A staff invite always creates a new staff account, so it cannot be accepted for an email that is already in use. The collector gets the same answer in every case, so it cannot find out that the email is known elsewhere.
 - **`domain.Actor` changes.** It is built from a membership: role, collector, the user id of the identity, and for clients the client id. The current rule "a client's user id is its client id" is dropped, because one identity can be several clients (one per collector).
 - **Unscoped repositories.** At login no tenant is known yet, so `UserRepository`, `MembershipRepository` and `SessionStore` are not tenant-scoped, like `CollectorRepository`. This is a deliberate exception to [tenant-scoped-stores.md](tenant-scoped-stores.md). Only the auth use cases take these repositories, and review checks that, as it does for `Transactor`. Everything a membership leads to (clients, tax years) stays tenant-scoped.
 
@@ -100,8 +102,8 @@ Tax documents are not a special category under Art. 9 DSGVO, but they are highly
 
 - **Art. 32 (security of processing).** Salted argon2id hashes, hashed session tokens, TLS everywhere, the backend not reachable from the internet. **2FA for staff** should be offered early and probably required, because staff accounts see all clients of a collector.
 - **Art. 5(1)(c) (data minimisation).** An identity holds an email and a password hash. No name, phone number or birth date for authentication. Names belong to the `Client` record of the collector that needs them.
-- **Art. 17 (erasure).** Removing a membership (a collector deletes a client, an employee leaves) deletes the membership and its sessions, not the identity. The identity is deleted with its last membership or when the person asks for it. Its credentials and sessions are deleted with it (`ON DELETE CASCADE`).
-- **Logs.** Never log passwords, tokens or token hashes. Emails and IP addresses are personal data: log the user id instead of the email. Keep security events (logins, failed logins, role switches) in an audit log with a fixed retention (e.g. 90 days), and record that in the record of processing activities (Verzeichnis von Verarbeitungstätigkeiten, Art. 30).
+- **Art. 17 (erasure).** Removing a membership (a collector deletes a client, an employee leaves) deletes the membership and its sessions. The identity is deleted with its last membership or when the person asks for it. A staff account has only one membership, so an employee leaving deletes the account. Its credentials and sessions are deleted with it (`ON DELETE CASCADE`).
+- **Logs.** Never log passwords, tokens or token hashes. Emails and IP addresses are personal data: log the user id instead of the email. Keep security events (logins, failed logins, tenant switches) in an audit log with a fixed retention (e.g. 90 days), and record that in the record of processing activities (Verzeichnis von Verarbeitungstätigkeiten, Art. 30).
 - **Who is responsible.** Each collector is the controller for its clients' data, and the operator of this system is its processor (data processing agreement, AVV, Art. 28). A shared identity across collectors is data that belongs to no single collector, so the operator is likely its controller. This needs legal review and a section in the privacy policy.
 - **Isolation between tenants.** No API answer may let collector A learn that a person also has a membership at collector B (see Invites above). Only the person sees their own list of memberships.
 - **Hosting** of the database, backups and the email provider (invites, password reset) in the EU.
@@ -113,7 +115,7 @@ Tax documents are not a special category under Art. 9 DSGVO, but they are highly
 | Kind | Port | Responsibility |
 | --- | --- | --- |
 | inbound | `Login` | email and password → `LoginResult`: a session token plus the memberships to choose from (later: `SecondFactorRequired` instead) |
-| inbound | `SelectTenant` | binds the session to one of the user's memberships and rotates the token |
+| inbound | `SelectTenant` | binds the session to one of the user's memberships and rotates the token. Only needed by a client of several collectors |
 | inbound | `Logout` | deletes the session |
 | inbound | `ResolveSession` | token → `domain.Actor` (or `unauthenticated`), extends the idle timeout. Replaces the `ResolveActor` planned in ARCHITECTURE.md |
 | outbound | `UserRepository` | identity by email or id, its password credential |
@@ -153,7 +155,7 @@ sequenceDiagram
     M->>UC: Login
     UC-->>F: token + memberships
     F-->>B: Set-Cookie __Host-session=token (HttpOnly, Secure, SameSite=Lax)
-    opt more than one membership
+    opt client of several collectors
         B->>F: POST /select-tenant (membership)
         F->>UC: POST /auth/session/tenant (Bearer token)
         UC-->>F: new token
@@ -171,7 +173,7 @@ sequenceDiagram
 
 ### BFF
 
-- **Login page** `/login` with a SvelteKit form action. On success it sets the cookie `__Host-session` (HttpOnly, Secure, SameSite=Lax, Path=/; the `__Host-` prefix forbids a Domain attribute). With several memberships it redirects to `/select-tenant`, otherwise by role to the staff area (`/advisor/...`) or the client area (`/client/...`).
+- **Login page** `/login` with a SvelteKit form action. On success it sets the cookie `__Host-session` (HttpOnly, Secure, SameSite=Lax, Path=/; the `__Host-` prefix forbids a Domain attribute). Staff go straight to the staff area (`/advisor/...`). A client of several collectors goes to `/select-tenant` first, then to the client area (`/client/...`).
 - **`handleAuth`** in `hooks.server.ts` replaces `handleTenant`. It reads the cookie, asks the backend `GET /auth/session` and sets `event.locals.actor` (role, collector id, display data) instead of `locals.tenantID`. The `TENANT_ID` variable in `env.ts` is removed.
 - **Route groups** `(staff)` and `(client)` check the role in their `+layout.server.ts`. A 401 from the backend anywhere redirects to `/login` and deletes the cookie.
 - **CSRF:** SameSite=Lax plus SvelteKit's built-in origin check on form actions cover the BFF. The backend takes a bearer header, not a cookie, so it is not exposed to CSRF.
@@ -221,13 +223,12 @@ Goes into `api/openapi.yaml` when it is built (with the `sync-openapi` skill).
 - **`cmd/e2e`** seeds real accounts through the real use cases, with fixed ids and passwords as documented constants (like today's collector `00000000-0000-4000-8000-00000000aaaa`):
   - `staff@e2e.test`: staff of the seeded collector,
   - `client@e2e.test`: client of the seeded collector,
-  - `multi@e2e.test`: memberships at two collectors (tenant picker),
-  - `staff-client@e2e.test`: staff and client of the seeded collector (role switch).
+  - `multi@e2e.test`: client of two collectors (tenant picker).
 
   The argon2 parameters can be lowered by configuration in e2e only, to keep logins fast.
 - **Use case tests** use stub repositories defined in the test file, the fake hasher, a fixed `Clock` and a predictable `TokenGenerator`.
-- **Repository tests:** the new Postgres repositories run the `porttest` contract tests. These include: a session of membership A never resolves to membership B, and an expired session never resolves.
-- **BFF Playwright tests** keep mocking the backend inside the test files. They get fixtures for `POST /auth/login` and `GET /auth/session` (staff, client, several memberships, 401), and a helper that logs a test in by setting the session cookie directly.
+- **Repository tests:** the new Postgres repositories run the `porttest` contract tests. These include: a session of membership A never resolves to membership B, an expired session never resolves, a membership whose role differs from the account's kind is rejected, and a second membership of a staff account is rejected.
+- **BFF Playwright tests** keep mocking the backend inside the test files. They get fixtures for `POST /auth/login` and `GET /auth/session` (staff, client, client of several collectors, 401), and a helper that logs a test in by setting the session cookie directly.
 
 ## Implementation order
 
@@ -245,4 +246,3 @@ Seeding clients needs the `Client` entity and a create-client use case, which do
 - Who is the controller of the identity shared across collectors? Needs legal review.
 - Which EU email provider sends invites and password resets?
 - Is 2FA required for staff from the first release?
-- May an employee who is also a client edit their own tax year in the staff role?
