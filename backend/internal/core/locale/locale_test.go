@@ -1,7 +1,6 @@
 package locale_test
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/locale"
@@ -22,18 +21,5 @@ func TestParseLocale(t *testing.T) {
 func TestLocalized_FallsBackToDefault(t *testing.T) {
 	if got := (locale.Localized{locale.LocaleEN: "x"}).For(locale.LocaleDE); got != "x" {
 		t.Errorf("got %q, want x", got)
-	}
-}
-
-func TestLocale_Comparer(t *testing.T) {
-	want := []string{"alpha", "Alpha", "Ärger", "beta", "Zeta", "zz"}
-
-	for _, l := range locale.Locales() {
-		got := []string{"zz", "Zeta", "beta", "Ärger", "Alpha", "alpha"}
-		slices.SortStableFunc(got, l.Comparer())
-
-		if !slices.Equal(got, want) {
-			t.Errorf("%s: got %q, want %q", l, got, want)
-		}
 	}
 }

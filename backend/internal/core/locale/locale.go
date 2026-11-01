@@ -4,9 +4,6 @@ package locale
 import (
 	"fmt"
 
-	"golang.org/x/text/collate"
-	"golang.org/x/text/language"
-
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 )
 
@@ -53,11 +50,4 @@ func (t Localized) For(l Locale) string {
 	}
 
 	return t[DefaultLocale]
-}
-
-// Comparer returns a function that compares two texts the way a reader of locale l sorts them: letters by their
-// alphabet order, case and accents only breaking ties, so "alpha" < "Ärger" < "beta" < "Zeta". The function is not
-// safe for concurrent use; get one per sort.
-func (l Locale) Comparer() func(a, b string) int {
-	return collate.New(language.Make(string(l))).CompareString
 }

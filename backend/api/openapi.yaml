@@ -169,7 +169,7 @@ paths:
     get:
       operationId: listPersonas
       summary: List all personas of a collector
-      description: The personas come with their items, ordered by name and then id.
+      description: The personas come with their items, the items in their stored order. The personas are in no particular order; clients sort them for display.
       parameters:
         - name: collectorId
           in: path
