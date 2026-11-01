@@ -228,14 +228,10 @@ func TestPersonaRepositoryList(t *testing.T, newStore PersonaStoreFactory) {
 		domain.ValueSpec{Type: domain.ValueTypeNumber, Unit: "days", Required: true})
 	bobsDays := domaintest.Item(domaintest.ItemID(), "Commuting days", domain.RecurrenceQuarterly, days.Spec())
 
-	// Names are compared bytewise, so "Zeta" sorts before "alpha". Equal names fall back to the id.
 	zeta := personaWithItems(aliceID, "Zeta", "Last", payslip, days)
 	alpha1 := personaWithItems(aliceID, "alpha", "")
 	alpha2 := personaWithItems(aliceID, "alpha", "")
 	bobs := personaWithItems(bobID, "Self-employed", "Freelancer", bobsDays)
-
-	alphas := []*domain.Persona{alpha1, alpha2}
-	slices.SortFunc(alphas, func(a, b *domain.Persona) int { return compareIDs(a.ID(), b.ID()) })
 
 	for _, tc := range []struct {
 		name        string
@@ -245,10 +241,10 @@ func TestPersonaRepositoryList(t *testing.T, newStore PersonaStoreFactory) {
 		expErr      error
 	}{
 		{
-			name:        "Lists personas with their items ordered by name and id",
+			name:        "Lists all personas with their items in order",
 			saves:       []*domain.Persona{alpha1, zeta, alpha2},
 			collectorID: aliceID,
-			exp:         []*domain.Persona{zeta, alphas[0], alphas[1]},
+			exp:         []*domain.Persona{alpha1, zeta, alpha2},
 		},
 		{
 			name:        "Personas of other collectors are not listed",
@@ -277,6 +273,11 @@ func TestPersonaRepositoryList(t *testing.T, newStore PersonaStoreFactory) {
 			if !errors.Is(err, tc.expErr) {
 				t.Fatalf("ListPersonas() error = %v, wantErr %v", err, tc.expErr)
 			}
+
+			// The order of the personas is not part of the contract, only that of their items.
+			byID := func(a, b *domain.Persona) int { return compareIDs(a.ID(), b.ID()) }
+			slices.SortFunc(tc.exp, byID)
+			slices.SortFunc(got, byID)
 
 			if diff := cmp.Diff(tc.exp, got, domaintest.CmpOptions()); diff != "" {
 				t.Errorf("ListPersonas() mismatch (-want +got):\n%s", diff)

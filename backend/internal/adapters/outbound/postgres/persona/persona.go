@@ -78,8 +78,8 @@ func (r *Repository) GetPersona(ctx context.Context, id domain.PersonaID) (*doma
 }
 
 // ListPersonas implements outbound.PersonaRepository.
-// Names sort bytewise (collation C), independent of the database locale. The query starts from the collector, so a
-// collector without personas yields one row with NULL persona columns and an unknown collector no row.
+// The query starts from the collector, so a collector without personas yields one row with NULL persona columns and an
+// unknown collector no row. Rows are ordered by persona, to group them, and then by item position.
 func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT p.id, p.collector_id, p.name, p.description,
@@ -88,7 +88,7 @@ func (r *Repository) ListPersonas(ctx context.Context) ([]*domain.Persona, error
 		LEFT JOIN personas p ON p.collector_id = c.id
 		LEFT JOIN item_definitions i ON i.persona_id = p.id AND i.collector_id = p.collector_id
 		WHERE c.id = $1
-		ORDER BY p.name COLLATE "C", p.id, i.position`, uuid.UUID(r.collectorID))
+		ORDER BY p.id, i.position`, uuid.UUID(r.collectorID))
 	if err != nil {
 		return nil, fmt.Errorf("query personas: %w", err)
 	}

@@ -137,6 +137,10 @@ Grouping was considered and rejected:
 
 Some use cases (`getcollector`, `getpersona`) do little more than call a repository with the tenant they are given. They stay. Handlers talk only to use cases and never to `port` (enforced by depguard), so every endpoint goes through the same seam, where authorization, auditing or extra rules can be added later without touching the handlers. Dropping the thin ones would give the HTTP layer two ways to reach the core and would blur the rule that handlers do not know repositories.
 
+### Lists are sorted for display by the BFF
+
+How a list is ordered for a reader depends on the reader's language, and the BFF knows it (Paraglide) while the backend does not. So the backend returns small, unpaginated lists such as `ListPersonas` in no particular order, though in a fixed one (by id) so responses are deterministic, and the BFF sorts them with `Intl.Collator` for the user's locale. Order that is data stays in the backend: the items of a persona keep their stored position. A paginated list (clients, the read models in [ARCHITECTURE_ROADMAP.md](ARCHITECTURE_ROADMAP.md)) cannot be sorted by the BFF, which only sees one page; there the database sorts, with an ICU collation and a sort parameter on the endpoint. If a second client besides the BFF appears, move the sorting of small lists back into the backend, with a locale parameter, rather than repeat it in every client.
+
 ### Ids are created outside the domain
 
 The domain does not generate ids. `outbound.IDGenerator` creates the ids of new collectors, personas and items, and `adapters/outbound/idgen` implements it with `crypto/rand`. This keeps the domain deterministic. All ids are random (version 4) UUIDs, so they cannot be guessed and a clash is a bug: `ErrCollectorIDTaken` is a plain error (500), not a client conflict, and `createcollector` does not retry. Item ids are unique per persona only (primary key `(persona_id, id)`), so another persona or tenant may use the same id, and `ErrItemIDTaken` is a plain error as well.

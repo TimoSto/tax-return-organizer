@@ -17,8 +17,8 @@ import (
 var testCollectorID = domaintest.CollectorID()
 
 // personaStub is a persona store whose repositories list the personas it holds, whatever collector they are bound
-// to: tenant isolation, ordering and the unknown collector are the store's job and covered by the repository
-// contract tests. It remembers the collector of the last For.
+// to: tenant isolation and the unknown collector are the store's job and covered by the repository contract tests.
+// It remembers the collector of the last For.
 type personaStub struct {
 	personas    []*domain.Persona
 	collectorID domain.CollectorID
