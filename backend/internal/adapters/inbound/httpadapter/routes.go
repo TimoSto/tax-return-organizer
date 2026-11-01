@@ -20,6 +20,9 @@ type Deps struct {
 	GetCollector    inbound.GetCollector
 	GetPersona      inbound.GetPersona
 	ListPersonas    inbound.ListPersonas
+	// Sessions resolves the bearer token of every route that is not public.
+	// TODO(auth): make it an inbound.ResolveSession.
+	Sessions SessionResolver
 	// Readiness is checked by GET /readyz, normally the database pool.
 	Readiness health.Pinger
 }
@@ -66,7 +69,12 @@ func NewHandler(d Deps) (http.Handler, error) {
 	mux := http.NewServeMux()
 
 	for _, r := range Routes(d) {
-		mux.Handle(r.Pattern, r.Handler)
+		h := r.Handler
+		if !r.Public {
+			h = authenticate(d.Sessions, h)
+		}
+
+		mux.Handle(r.Pattern, h)
 	}
 
 	return Middleware(mux), nil

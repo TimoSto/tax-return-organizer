@@ -1,6 +1,5 @@
-import type { Handle } from '@sveltejs/kit/hooks';
-import { sequence } from '@sveltejs/kit/hooks';
-import { TENANT_ID } from '$app/env/private';
+import type { Handle, HandleFetch } from '@sveltejs/kit/hooks';
+import { BACKEND_TOKEN, BACKEND_URL } from '$app/env/private';
 import { getTextDirection } from '#lib/paraglide/runtime.js';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
 
@@ -17,11 +16,14 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 		);
 	});
 
-// TODO: derive the tenant from the authenticated user once authentication exists.
-const handleTenant: Handle = ({ event, resolve }) => {
-	event.locals.tenantID = TENANT_ID;
+export const handle: Handle = handleParaglide;
 
-	return resolve(event);
+// Authenticates every request to the backend, so no load function has to. The backend takes the tenant from the
+// session, so requests never name it.
+export const handleFetch: HandleFetch = ({ request, fetch }) => {
+	if (BACKEND_TOKEN && request.url.startsWith(`${BACKEND_URL}/`)) {
+		request.headers.set('Authorization', `Bearer ${BACKEND_TOKEN}`);
+	}
+
+	return fetch(request);
 };
-
-export const handle: Handle = sequence(handleTenant, handleParaglide);

@@ -67,7 +67,7 @@ Arrows show imports. Dependencies point inwards: `domain` ← `locale` ← `pers
 
 ## Request flow
 
-1. A handler in `httpadapter/<resource>` decodes the request and gets the caller with `httpx.Actor` (today an employee of the collector in the URL, later the authenticated user, see [Actors and authorization](#actors-and-authorization)).
+1. A handler in `httpadapter/<resource>` decodes the request and gets the caller with `httpx.Actor` (the actor the authentication middleware resolved from the bearer token, see [Actors and authorization](#actors-and-authorization)).
 2. The handler calls a use case through its inbound port (for example `inbound.GetPersona`), passing the `domain.Actor` as an explicit argument.
 3. The use case decides whether the actor may do this (`actor.RequireStaff()`, ...), asks the store for a repository bound to the actor's collector (`personas.For(actor.CollectorID())`) and works with domain entities. It does not check that the collector exists, the repository does (see [tenant-scoped-stores.md](tenant-scoped-stores.md)). Writes that span several repositories run inside `Transactor.InTx`.
 4. The Postgres repository executes the query, always filtered by the bound collector.
@@ -108,7 +108,7 @@ Use cases that act within a collector take the caller as a `domain.Actor`: the u
 
 `Actor` has unexported fields and is made with `NewStaffActor` or `NewClientActor`. The zero `Actor` has no role and no collector, so it is denied everything.
 
-**Who resolves the actor.** The inbound adapter only extracts the credential (the bearer token) from the request. Checking it and resolving it to an actor happen in the core: the sessions are server-side, so checking a token means a lookup in the `SessionStore`, and which collector a user belongs to, its role and which client it is are business data in the database. The HTTP adapter cannot reach them (handlers must not import `port/outbound`), and it must not decide them, or authorization would again live outside the core. With authentication, the auth middleware will call an inbound port `inbound.ResolveSession` (a use case on the session and account repositories, see [AUTHENTICATION.md](AUTHENTICATION.md)), which checks the token and returns the actor, and put that actor on the request context. With an external identity provider that issues self-contained tokens (OIDC), checking the token could move into the adapter, and the core would then only resolve "subject S of issuer I" to an actor. `httpx.Actor` takes it from there and the handler passes it as an argument. The core never reads the actor from the context. Until then `httpx.Actor` builds an employee of the `{collectorId}` collector without a user id.
+**Who resolves the actor.** The inbound adapter only extracts the credential (the bearer token) from the request. Checking it and resolving it to an actor happen in the core: the sessions are server-side, so checking a token means a lookup in the `SessionStore`, and which collector a user belongs to, its role and which client it is are business data in the database. The HTTP adapter cannot reach them (handlers must not import `port/outbound`), and it must not decide them, or authorization would again live outside the core. The `authenticate` middleware in `httpadapter` takes the bearer token, resolves it and puts the actor on the request context; routes that are not `Public` never run without one. With login it will call an inbound port `inbound.ResolveSession` (a use case on the session and account repositories, see [AUTHENTICATION.md](AUTHENTICATION.md)) that checks the token and returns the actor. Until then it calls `httpadapter.SessionResolver`, which the production binary implements by rejecting every token and `cmd/e2e` by a fixed token for one employee. With an external identity provider that issues self-contained tokens (OIDC), checking the token could move into the adapter, and the core would then only resolve "subject S of issuer I" to an actor. `httpx.Actor` takes it from there and the handler passes it as an argument. The core never reads the actor from the context.
 
 ### Tenant-scoped stores
 
@@ -172,9 +172,9 @@ There are no in-memory repositories. Foreign keys, cascades and tenant isolation
 - `api/openapi.yaml` is maintained by hand. `TestOpenAPI_Routes` fails when routes and spec diverge, and the `sync-openapi` skill updates the spec after handler changes.
 - Migrations are embedded SQL (`postgres/migrations/NNNN_name.up|down.sql`) applied by `postgres.Migrate` on startup.
 
-### No authentication yet
+### No login yet
 
-Every caller is treated as an employee of the collector in the URL today. The seam is already in place: use cases receive a `domain.Actor` and enforce the rules themselves, and only `httpx.Actor` builds it. Authentication changes that function and adds the auth middleware with `ResolveSession` (see [Actors and authorization](#actors-and-authorization)), not the use cases. The design is in [AUTHENTICATION.md](AUTHENTICATION.md).
+Every route except the probes and `POST /collectors` needs a bearer token, and routes carry no `{collectorId}`: the tenant is the actor's collector. There is no login, so the production binary accepts no token, and only `cmd/e2e` resolves a fixed one (employeeA of its seeded collector). Login replaces `httpadapter.SessionResolver` with `inbound.ResolveSession` and changes neither the handlers nor the use cases (see [Actors and authorization](#actors-and-authorization)). The design is in [AUTHENTICATION.md](AUTHENTICATION.md).
 
 ## Adding things
 

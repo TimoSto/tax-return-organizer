@@ -108,32 +108,33 @@ func TestWriteError_InternalErrorIsGeneric(t *testing.T) {
 	}
 }
 
-// Until there is authentication, the actor is an employee of the collector in the path.
 func TestActor(t *testing.T) {
+	want := domain.NewStaffActor(testCollectorID, domain.UserID{})
+
 	var got domain.Actor
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /collectors/{"+httpx.CollectorIDParam+"}", func(w http.ResponseWriter, r *http.Request) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if a, ok := httpx.Actor(w, r); ok {
 			got = a
 		}
 	})
 
 	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/"+testCollectorID.String(), nil))
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	h.ServeHTTP(rec, req.WithContext(httpx.WithActor(req.Context(), want)))
 
-	if want := domain.NewStaffActor(testCollectorID, domain.UserID{}); rec.Code != http.StatusOK || got != want {
-		t.Errorf("valid id: status = %d, actor = %+v, want 200 and %+v", rec.Code, got, want)
+	if rec.Code != http.StatusOK || got != want {
+		t.Errorf("with actor: status = %d, actor = %+v, want 200 and %+v", rec.Code, got, want)
 	}
 
 	rec = httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/!", nil))
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 
 	var p httpx.Problem
 	_ = json.NewDecoder(rec.Body).Decode(&p)
 
-	if rec.Code != http.StatusBadRequest || p.Code != "invalid_collector_id" {
-		t.Errorf("invalid id: status = %d, code = %q, want 400 invalid_collector_id", rec.Code, p.Code)
+	if rec.Code != http.StatusUnauthorized || p.Code != httpx.CodeUnauthenticated || rec.Header().Get("WWW-Authenticate") != "Bearer" {
+		t.Errorf("without actor: status = %d, code = %q, want 401 unauthenticated with a bearer challenge", rec.Code, p.Code)
 	}
 }
 

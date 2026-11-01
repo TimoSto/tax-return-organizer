@@ -3,8 +3,12 @@ import { BACKEND_URL } from '$app/env/private';
 import type { GetCollectorResponse } from '#lib/api/types.js';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals, fetch }) => {
-	const res = await fetch(`${BACKEND_URL}/collectors/${encodeURIComponent(locals.tenantID)}`);
+export const load: PageServerLoad = async ({ fetch }) => {
+	const res = await fetch(`${BACKEND_URL}/collector`);
+
+	if (res.status === 401) {
+		error(401, 'Not logged in');
+	}
 
 	if (res.status === 404) {
 		error(404, 'Collector not found');

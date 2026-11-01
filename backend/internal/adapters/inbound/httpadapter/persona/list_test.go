@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
@@ -22,7 +23,8 @@ func (f listFunc) Execute(ctx context.Context, actor domain.Actor) ([]*domain.Pe
 func doList(t *testing.T, list listFunc, method string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	req := httptest.NewRequest(method, "/collectors/"+testCollectorID.String()+"/personas", nil)
+	req := httptest.NewRequest(method, "/personas", nil)
+	req = req.WithContext(httpx.WithActor(req.Context(), domaintest.Staff(testCollectorID)))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := persona.List(list)

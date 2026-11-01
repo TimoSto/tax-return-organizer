@@ -3,10 +3,7 @@
 declare global {
 	namespace App {
 		// interface Error {}
-		interface Locals {
-			/** Id of the collector (tenant) the request belongs to. */
-			tenantID: string;
-		}
+		// interface Locals {}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}

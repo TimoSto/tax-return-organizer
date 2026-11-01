@@ -2,6 +2,7 @@
 package httpx
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -21,13 +22,13 @@ const (
 	MaxBodyBytes = 1 << 20
 )
 
-// CollectorIDParam is the path parameter that carries the collector id in tenant-scoped patterns.
-const CollectorIDParam = "collectorId"
-
 // Route is an endpoint: a ServeMux pattern ("POST /collectors") and its handler.
 type Route struct {
 	Pattern string
 	Handler http.Handler
+	// Public routes are served without a session. All others go through the authentication middleware, which
+	// answers 401 unless the request carries a valid bearer token.
+	Public bool
 }
 
 // ProblemContentType is the media type of every error answer (RFC 9457).
@@ -54,6 +55,7 @@ const (
 	CodeInvalidBody         = "invalid_request_body"
 	CodeBodyTooLarge        = "request_body_too_large"
 	CodeUnsupportedMedia    = "unsupported_media_type"
+	CodeUnauthenticated     = "unauthenticated"
 	problemTypePrefix       = "/problems/"
 	internalErrorDetailText = "internal error"
 )
@@ -87,18 +89,31 @@ func WriteProblem(w http.ResponseWriter, r *http.Request, status int, code, deta
 	}
 }
 
+type actorKey struct{}
+
+// WithActor returns ctx carrying the authenticated actor. The authentication middleware calls it.
+func WithActor(ctx context.Context, a domain.Actor) context.Context {
+	return context.WithValue(ctx, actorKey{}, a)
+}
+
 // Actor returns the caller of the request, which handlers pass to the use cases; the use cases decide what it may
-// do. There is no authentication yet, so it is an employee (with no user id) of the {collectorId} collector.
-// Once there is authentication, only this function changes: the auth middleware authenticates the request, has the
-// core resolve the user to an actor, and puts it on the request context, from where this function takes it.
-// On failure it answers (normally 400) and returns false.
+// do. The authentication middleware has put it on the request context. The core never reads it from there.
+// Without an actor (a route that is public by mistake) it answers 401 and returns false.
 func Actor(w http.ResponseWriter, r *http.Request) (domain.Actor, bool) {
-	collectorID, ok := ParsePathID(w, r, CollectorIDParam, domain.ParseCollectorID)
+	a, ok := r.Context().Value(actorKey{}).(domain.Actor)
 	if !ok {
+		WriteUnauthenticated(w, r)
+
 		return domain.Actor{}, false
 	}
 
-	return domain.NewStaffActor(collectorID, domain.UserID{}), true
+	return a, true
+}
+
+// WriteUnauthenticated answers 401 with a bearer challenge.
+func WriteUnauthenticated(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("WWW-Authenticate", "Bearer")
+	WriteProblem(w, r, http.StatusUnauthorized, CodeUnauthenticated, "missing or invalid session")
 }
 
 // ParsePathID parses the path value param with parse. On failure it answers with the (domain) error parse

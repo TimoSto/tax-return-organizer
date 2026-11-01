@@ -11,6 +11,7 @@ import (
 func Liveness() httpx.Route {
 	return httpx.Route{
 		Pattern: "GET /healthz",
+		Public:  true,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		}),

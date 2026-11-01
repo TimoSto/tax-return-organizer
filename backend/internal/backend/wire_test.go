@@ -2,7 +2,6 @@ package backend
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +23,32 @@ func TestMain(m *testing.M) {
 // unknownCollectorID is a collector that is never stored.
 var unknownCollectorID = domaintest.CollectorID()
 
+// collectorSessions takes the token as a collector id and resolves it to an employee of that collector, so a test
+// can act for any collector.
+//
+// TODO(auth): delete once wire builds ResolveSession; the tests then log in, or seed a session, per collector.
+type collectorSessions struct{}
+
+func (collectorSessions) ResolveSession(_ context.Context, token string) (domain.Actor, bool, error) {
+	id, err := domain.ParseCollectorID(token)
+	if err != nil {
+		return domain.Actor{}, false, nil //nolint:nilerr // an unparsable token is unknown, not a failure
+	}
+
+	return domain.NewStaffActor(id, domain.UserID{}), true, nil
+}
+
+// get sends a GET request with a session for collectorID.
+func get(h http.Handler, path string, collectorID domain.CollectorID) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.Header.Set("Authorization", "Bearer "+collectorID.String())
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	return rec
+}
+
 type pinger struct{ err error }
 
 func (p pinger) Ping(context.Context) error { return p.err }
@@ -41,7 +66,7 @@ func newHandler(t *testing.T, ready health.Pinger) (http.Handler, Repositories, 
 		t.Fatalf("seed collector: %v", err)
 	}
 
-	h, err := wire(repos, NewTransactor(pool), ready)
+	h, err := wire(repos, NewTransactor(pool), ready, collectorSessions{})
 	if err != nil {
 		t.Fatalf("wire: %v", err)
 	}
@@ -100,24 +125,9 @@ func TestWire_Healthz(t *testing.T) {
 }
 
 func TestWire_GetCollector(t *testing.T) {
-	h, _, _ := newHandler(t, pinger{})
+	h, _, collectorID := newHandler(t, pinger{})
 
-	create := httptest.NewRecorder()
-	createReq := httptest.NewRequest(http.MethodPost, "/collectors", strings.NewReader(`{"name":"Acme","email":"a@example.com"}`))
-	createReq.Header.Set("Content-Type", "application/json")
-	h.ServeHTTP(create, createReq)
-
-	var created struct {
-		ID string `json:"id"`
-	}
-	if err := json.NewDecoder(create.Body).Decode(&created); err != nil {
-		t.Fatalf("decode create response: %v", err)
-	}
-
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/"+created.ID, nil))
-
-	if rec.Code != http.StatusOK {
+	if rec := get(h, "/collector", collectorID); rec.Code != http.StatusOK {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 }
@@ -125,11 +135,19 @@ func TestWire_GetCollector(t *testing.T) {
 func TestWire_GetCollector_NotFound(t *testing.T) {
 	h, _, _ := newHandler(t, pinger{})
 
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collectors/"+unknownCollectorID.String(), nil))
-
-	if rec.Code != http.StatusNotFound {
+	if rec := get(h, "/collector", unknownCollectorID); rec.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+func TestWire_Unauthenticated(t *testing.T) {
+	h, _, _ := newHandler(t, pinger{})
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/collector", nil))
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 }
 
@@ -142,16 +160,14 @@ func TestWire_GetPersona(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name, path string
-		want       int
+		name  string
+		actor domain.CollectorID
+		want  int
 	}{
-		{"found", "/collectors/" + collectorID.String() + "/personas/" + p.ID().String(), http.StatusOK},
-		{"other collector", "/collectors/" + unknownCollectorID.String() + "/personas/" + p.ID().String(), http.StatusNotFound},
+		{"found", collectorID, http.StatusOK},
+		{"other collector", unknownCollectorID, http.StatusNotFound},
 	} {
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
-
-		if rec.Code != tc.want {
+		if rec := get(h, "/personas/"+p.ID().String(), tc.actor); rec.Code != tc.want {
 			t.Errorf("%s: status = %d, want %d", tc.name, rec.Code, tc.want)
 		}
 	}
@@ -166,16 +182,14 @@ func TestWire_ListPersonas(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name, path string
-		want       int
+		name  string
+		actor domain.CollectorID
+		want  int
 	}{
-		{"found", "/collectors/" + collectorID.String() + "/personas", http.StatusOK},
-		{"unknown collector", "/collectors/" + unknownCollectorID.String() + "/personas", http.StatusNotFound},
+		{"found", collectorID, http.StatusOK},
+		{"unknown collector", unknownCollectorID, http.StatusNotFound},
 	} {
-		rec := httptest.NewRecorder()
-		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
-
-		if rec.Code != tc.want {
+		if rec := get(h, "/personas", tc.actor); rec.Code != tc.want {
 			t.Errorf("%s: status = %d, want %d", tc.name, rec.Code, tc.want)
 		}
 	}

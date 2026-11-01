@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/httpx"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/adapters/inbound/httpadapter/persona"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/core/domain"
 	"github.com/TimoSto/tax-return-organizer/backend/internal/testutil/domaintest"
@@ -28,7 +29,8 @@ func (f getFunc) Execute(ctx context.Context, actor domain.Actor, id domain.Pers
 func doGet(t *testing.T, get getFunc, method, id string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	req := httptest.NewRequest(method, "/collectors/"+testCollectorID.String()+"/personas/"+id, nil)
+	req := httptest.NewRequest(method, "/personas/"+id, nil)
+	req = req.WithContext(httpx.WithActor(req.Context(), domaintest.Staff(testCollectorID)))
 	rec := httptest.NewRecorder()
 	mux := http.NewServeMux()
 	route := persona.Get(get)

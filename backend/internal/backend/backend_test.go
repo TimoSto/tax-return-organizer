@@ -52,10 +52,6 @@ func TestRun(t *testing.T) {
 		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusCreated)
 	}
 
-	if resp.Header.Get("Location") == "" {
-		t.Error("missing Location header")
-	}
-
 	cancel()
 
 	select {

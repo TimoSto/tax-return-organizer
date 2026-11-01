@@ -13,10 +13,10 @@ type getResponse struct {
 	Email string `json:"email"`
 }
 
-// Get is GET /collectors/{collectorId}.
+// Get is GET /collector, the collector of the caller.
 func Get(getter inbound.GetCollector) httpx.Route {
 	return httpx.Route{
-		Pattern: "GET /collectors/{collectorId}",
+		Pattern: "GET /collector",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			actor, ok := httpx.Actor(w, r)
 			if !ok {

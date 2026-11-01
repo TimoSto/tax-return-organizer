@@ -1,6 +1,6 @@
 # Authentication
 
-> Status: design, nothing of it is built yet. Today every request is treated as an employee of the `{collectorId}` in the URL (see [No authentication yet](ARCHITECTURE.md#no-authentication-yet)).
+> Status: design, partly built. The request side exists: the `authenticate` middleware resolves the bearer token through `httpadapter.SessionResolver` (a stand-in for `ResolveSession`), `httpx.Actor` takes the actor from the context, and routes have no `{collectorId}`. There is no login, no account and no session storage yet. The production binary resolves no token (every protected route answers 401); `cmd/e2e` resolves one fixed token to an employee of its seeded collector (see [Tests and the e2e environment](#tests-and-the-e2e-environment)).
 
 How users log in, how credentials and sessions are stored, and how a request like `GET /personas/{id}` learns who is calling. The authorization rules themselves (what an actor may do) stay in the use cases, as described in [Actors and authorization](ARCHITECTURE.md#actors-and-authorization).
 
@@ -221,6 +221,7 @@ Goes into `api/openapi.yaml` when it is built (with the `sync-openapi` skill).
 ## Tests and the e2e environment
 
 - **No mock authenticator in any binary, and no "auth disabled" flag.** A switch like that is one wrong environment variable away from an open production system. The e2e environment runs the real authentication.
+- **Until login exists**, `cmd/e2e` has a temporary static resolver instead: the token `e2e-employee-a` never expires and is the session of *employeeA* (user id `00000000-0000-4000-8000-0000000000a1`), an employee of the collector `…aaaa`. It is compiled only with the `e2e` build tag, so the production binary contains no such token, and it goes away once the seeds below exist.
 - **`cmd/e2e`** seeds real accounts through the real use cases, with fixed ids, slugs and passwords as documented constants (like today's collector `00000000-0000-4000-8000-00000000aaaa`):
   - collector `…aaaa`, slug `e2e`: `staff@e2e.test` (staff) and `client@e2e.test` (client),
   - collector `…bbbb`, slug `e2e-b`: its own `client@e2e.test` account with a different password, so tests can check that a login at one collector never works at the other.
@@ -236,9 +237,9 @@ Seeding clients needs the `Client` entity and a create-client use case, which do
 
 1. Domain and ports: the collector's slug, the account, `Actor` built from an account (with a client id), the `unauthenticated` error kind.
 2. Migrations, Postgres repositories and contract tests, argon2 hasher.
-3. `Login`, `Logout`, `ResolveSession`. The `authenticate` middleware, `httpx.Actor` from the context, routes without `{collectorId}`, openapi. The tenant-scoped repositories drop their collector existence checks ([roadmap #4](ARCHITECTURE_ROADMAP.md#4-drop-the-collector-existence-checks-with-authentication)).
+3. `Login`, `Logout`, `ResolveSession`, replacing `httpadapter.SessionResolver`. (Built already: the `authenticate` middleware, `httpx.Actor` from the context, routes without `{collectorId}`, openapi.) The tenant-scoped repositories drop their collector existence checks ([roadmap #4](ARCHITECTURE_ROADMAP.md#4-drop-the-collector-existence-checks-with-authentication)).
 4. `createcollector` with its slug and the owner's staff account, run by the operator through `docker create-collector`; `POST /collectors` is removed. e2e seeds.
-5. BFF: login page under `/k/[slug]`, `handleAuth`, route groups, removing `TENANT_ID`, Playwright fixtures.
+5. BFF: login page under `/k/[slug]`, `handleAuth`, route groups, Playwright fixtures. (Built already: `TENANT_ID` is gone, `handleFetch` sends the `BACKEND_TOKEN` env var as the bearer token until there is a session cookie.)
 6. Later: invites and password reset (need an email provider), stricter throttling, 2FA, "end my access".
 
 ## Open questions
