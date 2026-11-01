@@ -44,7 +44,7 @@ func TestWriteError_Status(t *testing.T) {
 		{domain.ErrMetadataFieldNameTooLong, http.StatusBadRequest},
 		{domain.ErrTooManyMetadataFields, http.StatusBadRequest},
 		{domain.ErrUnitTooLong, http.StatusBadRequest},
-		{domain.ErrTooManyItems, http.StatusConflict},
+		{domain.ErrTooManyItems, http.StatusBadRequest},
 		// Server-side faults: a duplicate id comes from our own generator, stored data from our own writes.
 		{fmt.Errorf("add item: %w", domain.ErrDuplicateItemID), http.StatusInternalServerError},
 		{outbound.CorruptData("collector 1", domain.ErrInvalidEmail), http.StatusInternalServerError},

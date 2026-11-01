@@ -17,7 +17,7 @@ var (
 	// ErrPersonaDescriptionTooLong is returned for a persona description longer than MaxPersonaDescriptionLength.
 	ErrPersonaDescriptionTooLong = invalid("persona description is too long")
 	// ErrTooManyItems is returned when a persona would get more than MaxItemsPerPersona item definitions.
-	ErrTooManyItems = conflict("persona has too many item definitions")
+	ErrTooManyItems = invalid("persona has too many item definitions")
 	// ErrItemNotFound is returned when a persona has no item definition with the requested id.
 	ErrItemNotFound = notFound("item definition not found")
 )
