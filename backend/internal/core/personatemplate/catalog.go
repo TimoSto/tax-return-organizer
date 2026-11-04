@@ -9,6 +9,21 @@ import (
 func Predefined() []PersonaTemplate {
 	return []PersonaTemplate{
 		{
+			Name:        locale.Localized{locale.LocaleEN: "Basic", locale.LocaleDE: "Basis"},
+			Description: locale.Localized{locale.LocaleEN: "Documents every client provides", locale.LocaleDE: "Unterlagen, die jede/r Mandant/in einreicht"},
+			Items: []ItemTemplate{
+				{
+					Title:      locale.Localized{locale.LocaleEN: "Bank statement", locale.LocaleDE: "Kontoauszug"},
+					Recurrence: domain.RecurrenceMonthly,
+					Spec:       DocumentSpecTemplate{},
+					InstanceFields: []MetadataFieldTemplate{
+						{Name: locale.Localized{locale.LocaleEN: "IBAN", locale.LocaleDE: "IBAN"}, ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText, Required: true}},
+						{Name: locale.Localized{locale.LocaleEN: "Bank name", locale.LocaleDE: "Bankname"}, ValueSpec: domain.ValueSpec{Type: domain.ValueTypeText}},
+					},
+				},
+			},
+		},
+		{
 			Name:        locale.Localized{locale.LocaleEN: "Employed", locale.LocaleDE: "Angestellt"},
 			Description: locale.Localized{locale.LocaleEN: "Works as an employee", locale.LocaleDE: "Arbeitet als Angestellte/r"},
 			Items: []ItemTemplate{
