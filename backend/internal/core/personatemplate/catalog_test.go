@@ -61,8 +61,8 @@ func TestPredefined_InstantiateUsesLocale(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if p.Name() != "Angestellt" {
-		t.Errorf("name = %q, want Angestellt", p.Name())
+	if p.Name() != "Basis" {
+		t.Errorf("name = %q, want Basis", p.Name())
 	}
 }
 

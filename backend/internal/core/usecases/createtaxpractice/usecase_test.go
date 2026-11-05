@@ -151,7 +151,7 @@ func TestExecute_TakenIDFails(t *testing.T) {
 }
 
 func TestExecute_AddsPredefinedPersonas(t *testing.T) {
-	for locale, wantName := range map[string]string{"": "Employed", "en": "Employed", "de": "Angestellt"} {
+	for locale, wantName := range map[string]string{"": "Basic", "en": "Basic", "de": "Basis"} {
 		t.Run("locale "+locale, func(t *testing.T) {
 			personas := &personaRecorder{}
 			uc := createtaxpractice.New(newTransactor(&taxPracticeRecorder{}, personas), personatemplate.Predefined(), randomIDs{})
