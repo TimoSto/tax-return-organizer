@@ -17,7 +17,10 @@ export interface NavStructure {
 }
 
 export const taxPracticeNav: NavStructure = {
-	top: [{ href: '/tax-practice', icon: 'dashboard', label: () => m.nav_overview(), exact: true }],
+	top: [
+		{ href: '/tax-practice', icon: 'dashboard', label: () => m.nav_overview(), exact: true },
+		{ href: '/tax-practice/personas', icon: 'groups', label: () => m.nav_personas() }
+	],
 	bottom: [{ href: '/tax-practice/settings', icon: 'settings', label: () => m.nav_settings() }]
 };
 

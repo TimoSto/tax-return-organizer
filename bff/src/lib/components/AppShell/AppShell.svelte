@@ -8,10 +8,12 @@
 
 	interface Props {
 		nav: NavStructure;
+		/** List pane shown before the detail pane, e.g. the personas of a tax practice. */
+		list?: Snippet;
 		children: Snippet;
 	}
 
-	let { nav, children }: Props = $props();
+	let { nav, list, children }: Props = $props();
 
 	const pathname = $derived(deLocalizeHref(page.url.pathname));
 </script>
@@ -20,6 +22,7 @@
 	<NavigationRail top={nav.top} bottom={nav.bottom} {pathname} />
 
 	<div class="md-panes">
+		{@render list?.()}
 		<Pane variant="detail">
 			<main>{@render children()}</main>
 		</Pane>

@@ -1,5 +1,6 @@
 import { createServer, type Server } from 'node:http';
 import { expect, test } from '@playwright/test';
+import type { GetPersonaResponse, ItemDefinition } from '#lib/api/persona/types.js';
 import type { GetSessionResponse } from '#lib/api/session/types.js';
 
 // The BFF fetches server-side, so page.route() cannot intercept it. Must match BACKEND_URL in playwright.config.ts.
@@ -20,6 +21,22 @@ const client: GetSessionResponse = {
 	userId: '00000000-0000-4000-8000-0000000000c1',
 	taxPracticeId: TAX_PRACTICE_ID
 };
+
+function item(kind: ItemDefinition['kind']): ItemDefinition {
+	return {
+		id: crypto.randomUUID(),
+		title: kind,
+		kind,
+		recurrence: 'annually',
+		documentSpec: kind === 'document' ? { metadataFields: [] } : null,
+		valueSpec: kind === 'data' ? { type: 'text', unit: '', required: true } : null,
+		instanceFields: []
+	};
+}
+
+function persona(name: string, items: ItemDefinition[]): GetPersonaResponse {
+	return { id: crypto.randomUUID(), taxPracticeId: TAX_PRACTICE_ID, name, description: '', items };
+}
 
 // The session the mock backend resolves the token to; null answers 401 like an unknown token.
 let session: GetSessionResponse | null = staff;
@@ -58,6 +75,27 @@ test.beforeAll(async () => {
 					id: TAX_PRACTICE_ID,
 					name: 'Mock Tax Practice',
 					email: 'mock@example.com'
+				})
+			);
+
+			return;
+		}
+
+		if (req.method === 'GET' && req.url === '/personas') {
+			if (session.role !== 'staff') {
+				res.statusCode = 403;
+				res.end(JSON.stringify({ code: 'forbidden' }));
+
+				return;
+			}
+
+			// Out of order, like the backend may return them: the BFF sorts them by name.
+			res.end(
+				JSON.stringify({
+					personas: [
+						persona('Self-employed', [item('document'), item('document'), item('data')]),
+						persona('Employed', [item('document'), item('data'), item('data')])
+					]
 				})
 			);
 
@@ -110,4 +148,28 @@ test('answers 401 without a session', async ({ page }) => {
 	session = null;
 	const res = await page.goto('/');
 	expect(res?.status()).toBe(401);
+});
+
+test('shows staff the personas of the tax practice in the list pane, sorted by name', async ({
+	page
+}) => {
+	session = staff;
+	await page.goto('/tax-practice');
+
+	const pane = page.getByRole('region', { name: 'Personas' });
+	const items = pane.getByRole('listitem');
+	await expect(items).toHaveCount(2);
+	await expect(items.nth(0)).toContainText('Employed');
+	await expect(items.nth(0)).toContainText(/1 (document|Unterlage) · 2 (fields|Angaben)/);
+	await expect(items.nth(1)).toContainText('Self-employed');
+
+	await pane.getByRole('searchbox').fill('self');
+	await expect(items).toHaveCount(1);
+	await expect(items).toContainText('Self-employed');
+});
+
+test('sends a client away from the personas page', async ({ page }) => {
+	session = client;
+	await page.goto('/tax-practice/personas');
+	await expect(page).toHaveURL('/client');
 });
