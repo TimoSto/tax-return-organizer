@@ -12,5 +12,29 @@
 	"nav_tasks": "Aufgaben",
 	"nav_documents": "Unterlagen",
 	"nav_unread": "{label}, {count} ungelesen",
-	"nav_pending": "{label}, {count} offen"
+	"nav_pending": "{label}, {count} offen",
+	"personas_empty": "Noch keine Personas.",
+	"personas_search": "Personas durchsuchen",
+	"personas_no_match": "Keine Persona gefunden.",
+	"persona_documents": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{count} Unterlage",
+				"countPlural=*": "{count} Unterlagen"
+			}
+		}
+	],
+	"persona_data": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{count} Angabe",
+				"countPlural=*": "{count} Angaben"
+			}
+		}
+	],
+	"persona_summary": "{documents} · {data}"
 }

@@ -12,5 +12,29 @@
 	"nav_tasks": "Tasks",
 	"nav_documents": "Documents",
 	"nav_unread": "{label}, {count} unread",
-	"nav_pending": "{label}, {count} pending"
+	"nav_pending": "{label}, {count} pending",
+	"personas_empty": "No personas yet.",
+	"personas_search": "Search personas",
+	"personas_no_match": "No persona found.",
+	"persona_documents": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{count} document",
+				"countPlural=*": "{count} documents"
+			}
+		}
+	],
+	"persona_data": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{count} field",
+				"countPlural=*": "{count} fields"
+			}
+		}
+	],
+	"persona_summary": "{documents} · {data}"
 }
