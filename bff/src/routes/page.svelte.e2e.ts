@@ -1,6 +1,6 @@
 import { createServer, type Server } from 'node:http';
 import { expect, test } from '@playwright/test';
-import type { GetSessionResponse } from '#lib/api/types.js';
+import type { GetSessionResponse } from '#lib/api/session/types.js';
 
 // The BFF fetches server-side, so page.route() cannot intercept it. Must match BACKEND_URL in playwright.config.ts.
 // All e2e tests share this port, so they live in this one file: parallel workers would each start a mock on it.

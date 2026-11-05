@@ -1,6 +1,6 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
-import type { GetSessionResponse } from '#lib/api/types.js';
+import type { GetSessionResponse } from '#lib/api/session/types.js';
 
 declare global {
 	namespace App {

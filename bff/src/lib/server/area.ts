@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import type { GetSessionResponse } from '#lib/api/types.js';
+import type { GetSessionResponse } from '#lib/api/session/types.js';
 
 type Role = GetSessionResponse['role'];
 

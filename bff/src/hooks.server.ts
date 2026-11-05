@@ -1,8 +1,7 @@
-import { error } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle, HandleFetch } from '@sveltejs/kit/hooks';
 import { BACKEND_TOKEN, BACKEND_URL } from '$app/env/private';
-import type { GetSessionResponse } from '#lib/api/types.js';
+import { getSession } from '#lib/api/session/index.js';
 import { getTextDirection } from '#lib/paraglide/runtime.js';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
 
@@ -22,15 +21,7 @@ const handleParaglide: Handle = ({ event, resolve }) =>
 // Asks the backend who the caller is, so layouts can pick the area (tax practice or client) without each page asking.
 // It decides only what to show: the backend still checks every request itself.
 const handleAuth: Handle = async ({ event, resolve }) => {
-	const res = await event.fetch(`${BACKEND_URL}/auth/session`);
-
-	if (res.status === 401) {
-		event.locals.actor = null;
-	} else if (res.ok) {
-		event.locals.actor = (await res.json()) as GetSessionResponse;
-	} else {
-		error(500, 'Backend request failed');
-	}
+	event.locals.actor = await getSession(event.fetch);
 
 	return resolve(event);
 };
